@@ -11,8 +11,3 @@ Niklaus uses a combination of static analysis and machine learning techniques to
 Niklaus can be customized to work with different programming languages and assignment types. Educators can configure the tool to detect plagiarism based on specific criteria, such as the percentage of code similarity or the presence of specific code patterns. Niklaus can also generate reports that highlight the similarities between code submissions and provide evidence to support academic integrity investigations.
 
 Overall, Niklaus is a powerful tool that can help educators maintain academic integrity and ensure that students are submitting original work. By using Niklaus, educators can detect plagiarism more effectively and deter students from engaging in academic dishonesty.
-
-```python
-# niklaus/README.md[]: # Path: niklaus/README.md
-# Niklaus-plagiarism
-```
