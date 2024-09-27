@@ -52,12 +52,6 @@ def calculate_similarity(code1, code2, language):
     - float - Similaridade entre os códigos-fonte (0.0 a 1.0).
     """
     my_seq = SequenceMatcher(a = code1, b = code2)
-    """
-    SequenceMatcher é uma classe para comparar sequências de elementos, como strings.
-    Ela suporta operações comuns, como encontrar a similaridade entre duas sequências,
-    encontrar a sequência mais longa comum entre duas sequências, e encontrar as diferenças
-    entre duas sequências.
-    """  
     return my_seq.ratio()
 
 def comparate_files(code1, code2, language='python'):
@@ -174,18 +168,16 @@ def main():
                                      dict_languages_extensions.keys(), 
                                      help="Selecione a linguagem de programação dos arquivos que deseja comparar.")
 
-    how_many_files = st.number_input("Quantos arquivos você deseja comparar?", 
-                                     min_value=2, max_value=10, 
-                                     value=2, 
-                                     help="Selecione a quantidade de arquivos que deseja comparar.")
-
-    extensions_list = list(dict_languages_extensions.values())
-
-    extension_file = dict_languages_extensions[language_selected].lower()
-
     uploader_files, uploader_folder = st.tabs(["Carregar arquivos individuais", "Carregar arquivos de uma pasta"])
 
     with uploader_files:
+        how_many_files = st.number_input("Quantos arquivos você deseja comparar?", 
+                                        min_value=2, max_value=10, 
+                                        value=2, 
+                                        help="Selecione a quantidade de arquivos que deseja comparar.")
+
+        extension_file = dict_languages_extensions[language_selected].lower()
+
         files = []
         for i in range(how_many_files):
             file = st.file_uploader(f"Arquivo {i+1}", 
