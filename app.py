@@ -16,15 +16,20 @@ def remove_blank_spaces_and_comments(code, language):
     - str - Código-fonte sem espaços em branco e comentários
     """
     if language.lower() == 'python':
+        # Remove comentários de uma linha
         code = re.sub(r'#.*', '', code)
+        # Remove comentários de múltiplas linhas
         code = re.sub(r'(\"\"\".*?\"\"\"|\'\'\'.*?\'\'\'|".*?"|\'.*?\')', '', code, flags=re.DOTALL)
     elif language.lower() in ['c', 'c++', 'java', 'javascript']:
+        # Remove comentários de uma linha
         code = re.sub(r'/\*.*?\*/', '', code, flags=re.DOTALL)
+        # Remove comentários de múltiplas linhas
         code = re.sub(r'//.*', '', code)
+        # Remove strings
         code = re.sub(r'(\".*?\"|\'.*?\')', '', code, flags=re.DOTALL)
-
+    # Remove espaços em branco
     code = re.sub(r'\s+', ' ', code)
-    
+
     return code
 
 def read_file(file):
@@ -40,6 +45,7 @@ def read_file(file):
     file_encoding = chardet.detect(file_content)['encoding']
     # Decodifica o arquivo
     file_content = file_content.decode(file_encoding)
+    # Retorna o conteúdo do arquivo
     return file_content
 
 def calculate_similarity(code1, code2, language):
@@ -51,7 +57,9 @@ def calculate_similarity(code1, code2, language):
     Retorno:
     - float - Similaridade entre os códigos-fonte (0.0 a 1.0).
     """
+    # Calcula a similaridade entre os códigos-fonte
     my_seq = SequenceMatcher(a = code1, b = code2)
+    # Retorna a similaridade
     return my_seq.ratio()
 
 def comparate_files(code1, code2, language='python'):
@@ -64,18 +72,33 @@ def comparate_files(code1, code2, language='python'):
     Retorno:
     - float - Similaridade entre os códigos-fonte (0.0 a 1.0).
     """
+    # Converte a linguagem para minúsculo
     language = language.lower()
-
+    # Se code1 ou code2 forem vazios, retorna 0.0
     if not code1 or not code2:
         return 0.0
     
+    # clean_code1 e clean_code2 são os códigos sem espaços em branco e comentários
     clean_code1 = remove_blank_spaces_and_comments(code1, language)
     clean_code2 = remove_blank_spaces_and_comments(code2, language)
-        
+
+    # Calcula a similaridade entre os códigos-fonte    
     similaridade = calculate_similarity(clean_code1, clean_code2, language)
+
+    # Retorna a similaridade
     return similaridade
 
 def generate_response_groq(api_key, model, file_content, file_content_to_compare):
+    """
+    Gera uma resposta a partir de um modelo Groq.
+    Parâmetros:
+    - api_key: str - Chave de API do modelo Groq.
+    - model: str - Modelo Groq a ser utilizado.
+    - file_content: str - Conteúdo do arquivo a ser comparado.
+    - file_content_to_compare: str - Conteúdo do arquivo de referência.
+    Retorno:
+    - str - Resposta gerada pelo modelo GPT-3.
+    """
     model = ChatGroq(model=model,
                      temperature=0.7, 
                      api_key=api_key)
@@ -84,7 +107,8 @@ def generate_response_groq(api_key, model, file_content, file_content_to_compare
 
     messages = [
         ("system", 
-            """Você é Niklaus, um assistente virtual especializado em auxiliar professores de programação na análise e comparação de projetos práticos entregues pelos alunos. Seu objetivo é facilitar a identificação de trabalhos semelhantes, detectar possíveis plágios e fornecer insights sobre padrões comuns nos projetos. Siga as diretrizes abaixo para oferecer assistência eficaz:
+            """
+            Você é Niklaus, um assistente virtual especializado em auxiliar professores de programação na análise e comparação de projetos práticos entregues pelos alunos. Seu objetivo é facilitar a identificação de trabalhos semelhantes, detectar possíveis plágios e fornecer insights sobre padrões comuns nos projetos. Siga as diretrizes abaixo para oferecer assistência eficaz:
 
             * Recepção e Organização de Projetos:
             - Aceitar e organizar projetos submetidos em formatos compatíveis (código-fonte, documentação, etc.).
@@ -97,32 +121,10 @@ def generate_response_groq(api_key, model, file_content, file_content_to_compare
             - Implementar algoritmos que analisam estrutura, lógica e comentários para detectar plágio.
             - Alertar sobre possíveis casos de plágio e sugerir ações conforme as políticas acadêmicas.
 
-            * Pesquisa de Trabalhos Externos:
-            - Buscar projetos similares em repositórios públicos (GitHub, GitLab) e bases de dados acadêmicas.
-            - Comparar projetos submetidos com trabalhos externos para verificar originalidade.
-            - Fornecer links e referências de projetos com similaridades significativas.
-
             * Geração de Relatórios e Visualizações:
             - Criar relatórios personalizados resumindo análises de similaridade e plágio.
             - Fornecer visualizações gráficas (mapas de calor, redes de similaridade) para ilustrar relações entre projetos.
             - Permitir exportação de relatórios em formatos comuns (PDF, Excel).
-
-            * Sugestões de Melhoria e Boas Práticas:
-            - Identificar áreas para aprimoramento nas habilidades de programação e originalidade dos alunos.
-            - Sugerir recursos educacionais (tutoriais, cursos, leituras) para desenvolvimento das competências.
-            - Promover boas práticas de codificação e originalidade com feedback construtivo.
-
-            * Gestão de Referências e Bibliografia:
-            - Verificar referências utilizadas nos projetos, garantindo citação adequada de fontes externas.
-            - Detectar ausência de referências e incentivar a correta atribuição de trabalhos de terceiros.
-
-            * Confidencialidade e Segurança:
-            - Manter confidencialidade dos projetos submetidos, protegendo a privacidade dos alunos.
-            - Implementar medidas de segurança para evitar acesso não autorizado aos projetos e análises.
-
-            * Suporte e Feedback Contínuo:
-            - Responder a dúvidas dos professores sobre análises e interpretar resultados fornecidos.
-            - Coletar feedback para aprimorar continuamente as funcionalidades e precisão das análises.
 
             * Instruções Adicionais:
             - Comunique-se de forma clara, objetiva e profissional.
@@ -131,7 +133,8 @@ def generate_response_groq(api_key, model, file_content, file_content_to_compare
             - Respeite as políticas acadêmicas e éticas da instituição.
             - Incentive a originalidade e criatividade dos alunos, promovendo um ambiente de aprendizado justo.
             - Responda as questões dos professores com precisão e eficiência, fornecendo insights valiosos sobre os projetos submetidos.
-            - Todas as respostas devem estar em português do Brasil."""
+            - Todas as respostas devem estar em português do Brasil.
+            """
         ),
         ("human", prompt)
     ]
