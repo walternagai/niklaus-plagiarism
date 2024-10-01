@@ -231,29 +231,9 @@ def main():
             if len(file_paths) == 0:
                 st.warning("Não foram encontrados arquivos na pasta.")
             else:
-                st.markdown(f"Encontrados ``{len(file_paths)}`` arquivos na pasta ``{folder_path}``")
-                for i, file_path in enumerate(file_paths):
-                    st.markdown(f"* Arquivo ``{file_path}``")
+                # pass
+                st.markdown("Opção em desenvolvimento.")
 
-                files_content = []
-                for file in files:
-                    files_content.append(read_file(file))
-
-                st.markdown("### Similaridade entre os arquivos")
-                for i in range(len(files_content)):
-                    for j in range(i+1, len(files_content)):
-                        similarity = comparate_files(files_content[i], files_content[j], language_selected)
-                        st.metric(label=f"Arquivos: ``{files[i].name}`` e ``{files[j].name}``", 
-                                value=f"{similarity:.2%}" if similarity > 0.0 else "0 %")                        
-
-                        if similarity > 0.7:
-                            st.error("Os arquivos possuem mais de 70% de similaridade.")
-                            response = generate_response_groq(api_key, model, files_content[i], files_content[j])
-                            st.write_stream(stream_data(response))
-                        elif similarity > 0.5:
-                            st.warning("Os arquivos possuem mais de 50% de similaridade.")
-                        elif similarity > 0.3:
-                            st.info("Os arquivos possuem mais de 30% de similaridade.")
         else:
             st.error("O caminho informado não é uma pasta válida.")
 
