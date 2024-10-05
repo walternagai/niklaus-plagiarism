@@ -32,8 +32,10 @@ def remove_blank_spaces_and_comments(code, language):
         code = re.sub(r'//.*', '', code)
         # Remove strings
         code = re.sub(r'(\".*?\"|\'.*?\')', '', code, flags=re.DOTALL)
-    # Remove espaços em branco
-    code = re.sub(r'\s+', ' ', code)
+        # Remove espaços em branco
+        code = re.sub(r'\s+', ' ', code)
+    # Remove espaços em branco no início e no final
+    code = code.strip()
     return code
 
 def read_file(file):
@@ -44,6 +46,7 @@ def read_file(file):
     Retorno:
     - str - Conteúdo do arquivo.
     """
+    # Lê o conteúdo do arquivo
     file_content = file.getvalue()
     # Detecta o encoding do arquivo
     file_encoding = chardet.detect(file_content)['encoding']
@@ -52,7 +55,7 @@ def read_file(file):
     # Retorna o conteúdo do arquivo
     return file_content
 
-def calculate_similarity(code1, code2, language):
+def calculate_similarity(code1, code2):
     """
     Calcula a similaridade entre dois códigos-fonte.
     Parâmetros:
@@ -63,6 +66,7 @@ def calculate_similarity(code1, code2, language):
     """
     # Calcula a similaridade entre os códigos-fonte
     my_seq = SequenceMatcher(a = code1, b = code2)
+
     # Retorna a similaridade
     return my_seq.ratio()
 
@@ -78,6 +82,7 @@ def comparate_files(code1, code2, language='python'):
     """
     # Converte a linguagem para minúsculo
     language = language.lower()
+
     # Se code1 ou code2 forem vazios, retorna 0.0
     if not code1 or not code2:
         return 0.0
@@ -87,7 +92,7 @@ def comparate_files(code1, code2, language='python'):
     clean_code2 = remove_blank_spaces_and_comments(code2, language)
 
     # Calcula a similaridade entre os códigos-fonte    
-    similaridade = calculate_similarity(clean_code1, clean_code2, language)
+    similaridade = calculate_similarity(clean_code1, clean_code2)
 
     # Retorna a similaridade
     return similaridade
@@ -168,31 +173,30 @@ def main():
     model = st.secrets.pytheo_groq.GROQ_MODEL
 
     dict_languages_extensions = {
-        "Python": "py",
-        "Java": "java",
         "C": "c",
         "C++": "cpp",
-        "JavaScript": "js"
+        "Java": "java",
+        "JavaScript": "js",
+        "Python": "py",
     }
 
     extract_path = "extracted_files"
 
     st.title(":computer: Niklaus")
-
     st.write("Niklaus é um assistente virtual para ajudar a encontrar plágios em projetos práticos de programação.")
 
     columns_options = st.columns(2)
 
     with columns_options[0]:
         language_selected = st.selectbox("Escolha a linguagem de programação", 
-                                        dict_languages_extensions.keys(), 
-                                        help="Selecione a linguagem de programação dos arquivos que deseja comparar.")
+                                         dict_languages_extensions.keys(), 
+                                         help="Selecione a linguagem de programação dos arquivos que deseja comparar.")
         extension_file = dict_languages_extensions[language_selected].lower()
        
     with columns_options[1]:
         limit = st.slider("% Similaridade", 
                         min_value=0, max_value=100, 
-                        value=70, 
+                        value=80, 
                         help="Selecione o limite de similaridade entre os arquivos para ser considerado plágio.")
 
     zip_file = st.file_uploader("Carregar arquivo ZIP", 
