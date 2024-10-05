@@ -1,9 +1,14 @@
-import re
+import io
 import os
+import re
 import time
+import string
+import random
 import chardet
-from difflib import SequenceMatcher  
+import pandas as pd
 import streamlit as st
+from zipfile import ZipFile 
+from difflib import SequenceMatcher  
 from langchain_groq import ChatGroq
 
 def remove_blank_spaces_and_comments(code, language):
@@ -29,7 +34,6 @@ def remove_blank_spaces_and_comments(code, language):
         code = re.sub(r'(\".*?\"|\'.*?\')', '', code, flags=re.DOTALL)
     # Remove espaços em branco
     code = re.sub(r'\s+', ' ', code)
-
     return code
 
 def read_file(file):
@@ -101,6 +105,7 @@ def generate_response_groq(api_key, model, file_content, file_content_to_compare
     """
     model = ChatGroq(model=model,
                      temperature=0.7, 
+                     max_tokens=1024,
                      api_key=api_key)
     
     prompt = f"Compare o código abaixo com o código a seguir e identifique possíveis trechos plagiados.\n\n{file_content}\n\n{file_content_to_compare}"
@@ -108,32 +113,36 @@ def generate_response_groq(api_key, model, file_content, file_content_to_compare
     messages = [
         ("system", 
             """
-            Você é Niklaus, um assistente virtual especializado em auxiliar professores de programação na análise e comparação de projetos práticos entregues pelos alunos. Seu objetivo é facilitar a identificação de trabalhos semelhantes, detectar possíveis plágios e fornecer insights sobre padrões comuns nos projetos. Siga as diretrizes abaixo para oferecer assistência eficaz:
-
+            Você é Niklaus, um assistente virtual especializado em auxiliar professores de programação na análise e 
+            comparação de projetos práticos entregues pelos alunos dos professores. 
+            
+            Seu objetivo é facilitar a identificação de trechos de código semelhantes, detectar plágios e fornecer 
+            insights sobre padrões comuns nos projetos. 
+            
+            Siga as diretrizes abaixo para oferecer assistência eficaz:
             * Recepção e Organização de Projetos:
-            - Aceitar e organizar projetos submetidos em formatos compatíveis (código-fonte, documentação, etc.).
-            - Catalogar projetos com metadados relevantes (nome do aluno, data, linguagem, descrição).
+                - Aceitar e organizar projetos submetidos em formatos compatíveis (código-fonte, documentação, etc.).
+                - Identificar metadados relevantes contidos nos projetos (nome do aluno, data, linguagem, descrição).
 
             * Análise de Similaridade e Detecção de Plágio:
-            - Utilizar técnicas avançadas para comparar códigos e identificar trechos semelhantes.
-            - Realizar comparações usando dados quantitativos, como métricas de complexidade ciclomática, número de linhas de código, número de funções/métodos, e cobertura de testes.
-            - Gerar relatórios detalhados com índices de similaridade e destacar áreas de coincidência.
-            - Implementar algoritmos que analisam estrutura, lógica e comentários para detectar plágio.
-            - Alertar sobre possíveis casos de plágio e sugerir ações conforme as políticas acadêmicas.
+                - Utilizar técnicas computacionais para comparar códigos e identificar trechos semelhantes.
+                - Realizar comparações usando dados quantitativos, como métricas de complexidade ciclomática, 
+                número de linhas de código, número de funções/métodos, e cobertura de testes.
+                - Gerar relatórios detalhados destacando áreas de coincidência ou similaridades.
+                - Utilizar algoritmos que analisam estrutura, lógica e comentários para detectar plágio.
+                - Identificar padrões de cópia e colagem, tradução, substituição de variáveis e reordenação de instruções.
+                - Considerar a originalidade, complexidade e eficiência dos projetos ao avaliar a similaridade.
 
             * Geração de Relatórios e Visualizações:
-            - Criar relatórios personalizados resumindo análises de similaridade e plágio.
-            - Fornecer visualizações gráficas (mapas de calor, redes de similaridade) para ilustrar relações entre projetos.
-            - Permitir exportação de relatórios em formatos comuns (PDF, Excel).
+                - Criar relatórios resumindo análises de similaridade e plágio.
+                - Fornecer visualizações gráficas (mapas de calor, redes de similaridade) para ilustrar relações entre projetos.
 
             * Instruções Adicionais:
-            - Comunique-se de forma clara, objetiva e profissional.
-            - Adapte análises e sugestões ao contexto da disciplina e ao nível dos alunos.
-            - Utilize fontes e algoritmos confiáveis para garantir precisão e integridade.
-            - Respeite as políticas acadêmicas e éticas da instituição.
-            - Incentive a originalidade e criatividade dos alunos, promovendo um ambiente de aprendizado justo.
-            - Responda as questões dos professores com precisão e eficiência, fornecendo insights valiosos sobre os projetos submetidos.
-            - Todas as respostas devem estar em português do Brasil.
+                - Comunique-se de forma clara, objetiva e profissional.
+                - Adapte análises e sugestões ao contexto dos projetos.
+                - Utilize fontes e algoritmos confiáveis para garantir precisão e integridade.
+                - Incentive a originalidade e criatividade promovendo um ambiente de aprendizado justo.
+                - Todas as respostas devem ser escritas em português do Brasil.
             """
         ),
         ("human", prompt)
@@ -151,6 +160,9 @@ def stream_data(response):
         yield word + " "
         time.sleep(0.01)
 
+def id_generator(size=16, chars=string.ascii_lowercase + string.digits):
+    return ''.join(random.choice(chars) for _ in range(size))
+
 def main():    
     api_key = st.secrets.pytheo_groq.GROQ_API_KEY
     model = st.secrets.pytheo_groq.GROQ_MODEL
@@ -163,79 +175,77 @@ def main():
         "JavaScript": "js"
     }
 
+    extract_path = "extracted_files"
+
     st.title(":computer: Niklaus")
 
     st.write("Niklaus é um assistente virtual para ajudar a encontrar plágios em projetos práticos de programação.")
 
-    language_selected = st.selectbox("Escolha a linguagem de programação", 
-                                     dict_languages_extensions.keys(), 
-                                     help="Selecione a linguagem de programação dos arquivos que deseja comparar.")
+    columns_options = st.columns(2)
 
-    uploader_files, uploader_folder = st.tabs(["Carregar arquivos individuais", "Carregar arquivos de uma pasta"])
-
-    with uploader_files:
-        how_many_files = st.number_input("Quantos arquivos você deseja comparar?", 
-                                        min_value=2, max_value=10, 
-                                        value=2, 
-                                        help="Selecione a quantidade de arquivos que deseja comparar.")
-
+    with columns_options[0]:
+        language_selected = st.selectbox("Escolha a linguagem de programação", 
+                                        dict_languages_extensions.keys(), 
+                                        help="Selecione a linguagem de programação dos arquivos que deseja comparar.")
         extension_file = dict_languages_extensions[language_selected].lower()
+       
+    with columns_options[1]:
+        limit = st.slider("% Similaridade", 
+                        min_value=0, max_value=100, 
+                        value=70, 
+                        help="Selecione o limite de similaridade entre os arquivos para ser considerado plágio.")
 
-        files = []
-        for i in range(how_many_files):
-            file = st.file_uploader(f"Arquivo {i+1}", 
-                                    type=extension_file,
-                                    help=f"Carregue o arquivo {i+1} para comparar com os demais.")
-            if file:
-                files.append(file)
-                st.warning(f"Arquivo {file.name} carregado com sucesso!")
+    zip_file = st.file_uploader("Carregar arquivo ZIP", 
+                                type="zip",
+                                help="Carregue um arquivo ZIP contendo os arquivos a serem comparados.")
 
-        if len(files) == how_many_files:
-            if st.button("Comparar arquivos"):
-                files_content = []
-                for file in files:
-                    files_content.append(read_file(file))
+    if not os.path.exists(extract_path):
+        os.makedirs(extract_path)
 
-                st.markdown("### Similaridade entre os arquivos")
-                for i in range(len(files_content)):
-                    for j in range(i+1, len(files_content)):
-                        similarity = comparate_files(files_content[i], files_content[j], language_selected)
-                        st.metric(label=f"Arquivos: ``{files[i].name}`` e ``{files[j].name}``", 
-                                value=f"{similarity:.2%}" if similarity > 0.0 else "0 %")                        
+    if zip_file:
+        with ZipFile(zip_file, 'r') as zip_ref:
+            zip_ref.extractall(path=extract_path)
 
-                        if similarity > 0.7:
-                            st.error("Os arquivos possuem mais de 70% de similaridade.")
-                            response = generate_response_groq(api_key, model, files_content[i], files_content[j])
-                            st.write_stream(stream_data(response))
-                        elif similarity > 0.5:
-                            st.warning("Os arquivos possuem mais de 50% de similaridade.")
-                        elif similarity > 0.3:
-                            st.info("Os arquivos possuem mais de 30% de similaridade.")
+        files_path = os.path.join(extract_path, zip_file.name.replace(".zip", f""))
+        files = os.listdir(files_path)
 
-                if st.button("Limpar"):
-                    st.caching.clear_cache()
-                    for file in files:
-                        file.close()
-                        file.unlink()
+        if files[0].endswith(extension_file):
+            st.toast(f"Arquivos extraídos com sucesso!")
+            files_content = []
+            for file in files:
+                file_path = os.path.join(files_path, file)                
+                file_stream = io.BytesIO(open(file_path, "rb").read())
+                files_content.append(read_file(file_stream))
 
-    with uploader_folder:
-        folder_path = st.text_input('Caminho completo da pasta', placeholder='C:/Users/usuario/Documents/pasta')
+            st.markdown("### Análise de similaridade entre os arquivos")
 
-        file_paths = []
-        if os.path.isdir(folder_path):
-            for fn in os.listdir(folder_path):
-                fp = os.path.join(folder_path, fn)
-                if os.path.isfile(fp):
-                    file_paths.append(fp)
+            similarities_matrix = []
+            for i in range(len(files_content)):
+                for j in range(i+1, len(files_content)):
+                    similarity = comparate_files(files_content[i], files_content[j], language_selected)
+                    similarities_matrix.append((files[i], files[j], similarity))
 
-            if len(file_paths) == 0:
-                st.warning("Não foram encontrados arquivos na pasta.")
+            # ordenar a matriz de similaridades pela similaridade
+            similarities_matrix = sorted(similarities_matrix, key=lambda x: x[2], reverse=True)
+            similarities_df = pd.DataFrame(similarities_matrix, columns=["Arquivo 1", "Arquivo 2", "Similaridade"])
+            similarities_df_filtered = similarities_df[similarities_df["Similaridade"] > limit/100]
+            if not similarities_df_filtered.empty:
+                with st.status("Analisando similaridades...") as status:
+                    for i, row in similarities_df_filtered.iterrows():
+                        similarities_df_filtered.loc[i, "Analise"] = generate_response_groq(api_key, model, files_content[i], files_content[j])
+                        status.update(label=f"Analisando similaridades... {i+1}/{len(similarities_df_filtered)}", state="running")
+                    status.update(label="Análise finalizada!", state="complete")
+
+                for i, row in similarities_df_filtered.iterrows():
+                    st.markdown(f"#### {row['Arquivo 1']} x {row['Arquivo 2']} com {row['Similaridade']:.2%} de similaridade")
+                    st.write_stream(stream_data(row["Analise"]))
+
+                st.toast("Análise concluída!")
             else:
-                # pass
-                st.markdown("Opção em desenvolvimento.")
-
+                st.markdown("**Não foram encontrados trechos de código plagiados.**")
         else:
-            st.error("O caminho informado não é uma pasta válida.")
+            st.error("Os arquivos extraídos não possuem a extensão correta.")
+            st.stop()
 
 if __name__ == "__main__":
     main()
