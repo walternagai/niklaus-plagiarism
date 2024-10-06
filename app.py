@@ -183,7 +183,15 @@ def main():
     extract_path = "extracted_files"
 
     st.title(":computer: Niklaus")
+
     st.write("Niklaus é um assistente virtual para ajudar a encontrar plágios em projetos práticos de programação.")
+
+    st.markdown("### Como usar?")
+
+    st.markdown("1. **Escolha a linguagem de programação** dos arquivos que deseja comparar.")
+    st.markdown("2. **Defina o limite de similaridade** entre os arquivos para ser considerado plágio.")
+    st.markdown("3. **Carregue um arquivo ZIP** contendo os arquivos a serem comparados.")
+    st.markdown("4. **Aguarde a análise** de similaridade entre os arquivos.")    
 
     columns_options = st.columns(2)
 
