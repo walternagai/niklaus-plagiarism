@@ -113,7 +113,7 @@ def generate_response_groq(api_key, model, file_content, file_content_to_compare
                      max_tokens=1024,
                      api_key=api_key)
     
-    prompt = f"Compare o código abaixo com o código a seguir e identifique possíveis trechos plagiados.\n\n{file_content}\n\n{file_content_to_compare}"
+    prompt = f"Compare o código: ```{file_content}``` com o código: ```{file_content_to_compare}``` e identifique trechos plagiados."
 
     messages = [
         ("system", 
@@ -194,10 +194,12 @@ def main():
         extension_file = dict_languages_extensions[language_selected].lower()
        
     with columns_options[1]:
-        limit = st.slider("% Similaridade", 
-                        min_value=0, max_value=100, 
-                        value=80, 
-                        help="Selecione o limite de similaridade entre os arquivos para ser considerado plágio.")
+        limit = st.slider("Similaridade", 
+                          min_value=0.0, 
+                          max_value=1.0, 
+                          value=0.7, 
+                          step=0.05,
+                          help="Selecione o limite de similaridade entre os arquivos para ser considerado plágio.")
 
     zip_file = st.file_uploader("Carregar arquivo ZIP", 
                                 type="zip",
@@ -232,7 +234,7 @@ def main():
             # ordenar a matriz de similaridades pela similaridade
             similarities_matrix = sorted(similarities_matrix, key=lambda x: x[2], reverse=True)
             similarities_df = pd.DataFrame(similarities_matrix, columns=["Arquivo 1", "Arquivo 2", "Similaridade"])
-            similarities_df_filtered = similarities_df[similarities_df["Similaridade"] > limit/100]
+            similarities_df_filtered = similarities_df[similarities_df["Similaridade"] > limit]
             if not similarities_df_filtered.empty:
                 with st.status("Analisando similaridades...") as status:
                     for i, row in similarities_df_filtered.iterrows():
@@ -250,6 +252,11 @@ def main():
         else:
             st.error("Os arquivos extraídos não possuem a extensão correta.")
             st.stop()
+
+    # rodapé da aplicação
+    st.markdown("---")
+    st.markdown(":computer: Código-fonte disponível em [https://www.github.com/walternagai/niklaus-plagiarism](https://www.github.com/walternagai/niklaus-plagiarism)")
+    st.markdown(":male-teacher: Desenvolvido por [https://www.github.com/walternagai](https://www.github.com/walternagai)")
 
 if __name__ == "__main__":
     main()

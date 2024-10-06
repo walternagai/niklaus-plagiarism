@@ -2,12 +2,24 @@
 
 ## Purpose
 
-The purpose of the Niklaus project is to provide a tool that can detect plagiarism in programming assignments. It is designed to help educators identify cases of academic dishonesty and ensure that students are submitting original work. By comparing the code submitted by students to a database of known solutions, Niklaus can flag potential instances of plagiarism and provide evidence to support academic integrity investigations.
+The purpose of the Niklaus project is to provide a tool that can detect plagiarism in programming assignments. It is designed to help educators identify cases of academic dishonesty and ensure that students are submitting original work.
 
 ## How it works
 
-Niklaus uses a combination of static analysis and machine learning techniques to compare code submissions. When a student submits an assignment, Niklaus analyzes the code to extract features such as variable names, function names, and code structure. It then compares these features to a database of known solutions to identify similarities and flag potential cases of plagiarism.
+Niklaus uses a combination of static analysis and machine learning techniques to compare code submissions and identify similarities. When a new assignment is submitted, Niklaus extracts features from the code, such as variable names, function names, and control structures. 
 
-Niklaus can be customized to work with different programming languages and assignment types. Educators can configure the tool to detect plagiarism based on specific criteria, such as the percentage of code similarity or the presence of specific code patterns. Niklaus can also generate reports that highlight the similarities between code submissions and provide evidence to support academic integrity investigations.
+## Features
 
-Overall, Niklaus is a powerful tool that can help educators maintain academic integrity and ensure that students are submitting original work. By using Niklaus, educators can detect plagiarism more effectively and deter students from engaging in academic dishonesty.
+- Automated plagiarism detection: Niklaus can automatically compare code submissions to flag potential instances of plagiarism.
+- Customizable settings: Educators can configure Niklaus to adjust the sensitivity of the plagiarism detection algorithm and set thresholds for similarity scores.
+- Detailed reports: Niklaus generates detailed reports that highlight similarities between code submissions and provide evidence to support academic integrity investigations.
+
+## Getting started
+
+- Compress the selected source code into a single zip file.
+- Upload the zip file to Niklaus.
+- Niklaus will compare the various code submissions and generate a report highlighting potential instances of plagiarism.
+
+## Contributing
+
+If you are interested in contributing to the Niklaus project, please read our [contributing guidelines](CONTRIBUTING.md) for more information.
