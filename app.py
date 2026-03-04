@@ -600,23 +600,19 @@ def main():
             """, unsafe_allow_html=True)
         
         st.markdown("---")
-        
-        api_key = os.getenv('MARITACA_API_KEY')
-        model = os.getenv('MARITACA_MODEL')
-        
-        if not api_key:
-            try:
-                secrets = st.secrets
-                api_key = secrets.get("maritaca", {}).get("MARITACA_API_KEY")
-                model = secrets.get("maritaca", {}).get("MARITACA_MODEL")
-            except Exception:
-                pass
-        
-        if not model:
-            model = "sabiazinho-4"
 
-        if not api_key:
-            st.error("Configure MARITACA_API_KEY nas variáveis de ambiente ou no arquivo .streamlit/secrets.toml")
+        try:
+            api_key = st.secrets["maritaca"]["MARITACA_API_KEY"]
+            model = st.secrets["maritaca"].get("MARITACA_MODEL", "sabiazinho-4")
+        except KeyError:
+            st.error("Configure MARITACA_API_KEY no arquivo .streamlit/secrets.toml")
+            st.info("""
+Crie o arquivo `.streamlit/secrets.toml` com o seguinte conteúdo:
+
+[maritaca]
+MARITACA_API_KEY = "sua-chave-api-aqui"
+MARITACA_MODEL = "sabiazinho-4"
+""")
             st.stop()
         
         st.markdown("### Linguagem")

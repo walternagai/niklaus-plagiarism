@@ -39,18 +39,7 @@ pip install -r requirements.txt
 
 ## Configuration
 
-Set up your Maritaca API credentials using one of these methods:
-
-### Option 1: Environment Variables (Recommended)
-
-```bash
-export MARITACA_API_KEY="your-api-key-here"
-export MARITACA_MODEL="sabiazinho-4"  # default if not set
-```
-
-### Option 2: Streamlit Secrets
-
-Create `.streamlit/secrets.toml`:
+Create `.streamlit/secrets.toml` with your Maritaca API credentials:
 
 ```toml
 [maritaca]

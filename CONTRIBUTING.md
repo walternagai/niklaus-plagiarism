@@ -44,9 +44,11 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 # Install dependencies
 pip install -r requirements.txt
 
-# Set up environment variables
-export MARITACA_API_KEY="your-test-api-key"
-export MARITACA_MODEL="sabiazinho-4"  # optional, defaults to sabiazinho-4
+# Set up Streamlit secrets
+# Create .streamlit/secrets.toml with:
+# [maritaca]
+# MARITACA_API_KEY = "your-test-api-key"
+# MARITACA_MODEL = "sabiazinho-4"
 
 # Run the app
 streamlit run app.py
