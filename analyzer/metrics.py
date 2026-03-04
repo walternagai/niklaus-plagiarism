@@ -5,6 +5,7 @@ Calculate various code complexity and quality metrics.
 """
 
 import re
+import math
 from typing import Dict, List, Tuple
 import ast
 
@@ -136,8 +137,6 @@ class CodeMetrics:
         cc = self.calculate_cyclomatic_complexity(code, language)
         
         # Simplified formula
-        import math
-        
         volume = loc  # Simplified: not exact Halstead volume
         mi = max(0, min(100, 171 - 5.2 * math.log(max(volume, 1)) - 0.23 * cc - 16.2 * math.log(max(loc, 1))))
         

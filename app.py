@@ -1,6 +1,7 @@
 import io
 import os
 import re
+import math
 import time
 import json
 import string
@@ -14,8 +15,8 @@ import pandas as pd
 import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
-from zipfile import ZipFile 
-from difflib import SequenceMatcher  
+from zipfile import ZipFile
+from difflib import SequenceMatcher, unified_diff
 import openai
 from datetime import datetime
 from fpdf import FPDF
@@ -214,6 +215,309 @@ def display_metrics_comparison(metrics1, metrics2, file1, file2):
         st.metric("Profundidade Aninhamento", metrics2['nesting'])
         st.metric("Índice Manutenibilidade", f"{metrics2['maintainability']:.1f}")
 
+def create_similarity_graph(similarity_matrix, files, min_similarity=0.5, cluster_data=None):
+    """
+    Create an interactive similarity network graph using Plotly.
+    Uses spring layout simulation via Fruchterman-Reingold to position nodes.
+    """
+    import networkx as nx
+
+    n = len(files)
+    mat = np.array(similarity_matrix)
+
+    G = nx.Graph()
+    for i, f in enumerate(files):
+        G.add_node(i, label=f)
+    for i in range(n):
+        for j in range(i + 1, n):
+            if mat[i, j] >= min_similarity:
+                G.add_edge(i, j, weight=mat[i, j])
+
+    if G.number_of_nodes() == 0:
+        return None
+
+    # Compute layout
+    if G.number_of_edges() > 0:
+        pos = nx.spring_layout(G, weight='weight', seed=42, k=1.5)
+    else:
+        pos = nx.circular_layout(G)
+
+    # Determine node colors based on clusters
+    node_colors = ['#636EFA'] * n
+    if cluster_data and 'clusters' in cluster_data:
+        palette = [
+            '#EF553B', '#00CC96', '#AB63FA', '#FFA15A',
+            '#19D3F3', '#FF6692', '#B6E880', '#FF97FF',
+            '#FECB52', '#636EFA'
+        ]
+        for cid, info in cluster_data['clusters'].items():
+            color = palette[(int(cid) - 1) % len(palette)]
+            for fname in info['files']:
+                if fname in files:
+                    node_colors[files.index(fname)] = color
+
+    # Build edge traces
+    edge_traces = []
+    for i, j, data in G.edges(data=True):
+        x0, y0 = pos[i]
+        x1, y1 = pos[j]
+        sim = data['weight']
+        # Opacity proportional to similarity
+        opacity = 0.3 + 0.7 * (sim - min_similarity) / max(1 - min_similarity, 0.01)
+        width = 1 + 5 * (sim - min_similarity) / max(1 - min_similarity, 0.01)
+        edge_traces.append(go.Scatter(
+            x=[x0, x1, None],
+            y=[y0, y1, None],
+            mode='lines',
+            line=dict(width=width, color=f'rgba(150,150,150,{opacity:.2f})'),
+            hovertemplate=f'{files[i]} ↔ {files[j]}: {sim:.1%}<extra></extra>',
+            showlegend=False
+        ))
+
+    # Build node trace
+    node_x = [pos[i][0] for i in range(n)]
+    node_y = [pos[i][1] for i in range(n)]
+
+    # Compute node size based on degree
+    degrees = dict(G.degree())
+    node_sizes = [20 + degrees.get(i, 0) * 5 for i in range(n)]
+
+    # Hover text with stats
+    hover_texts = []
+    for i, fname in enumerate(files):
+        neighbors = list(G.neighbors(i))
+        if neighbors:
+            sims = [mat[i, j] for j in neighbors]
+            hover_texts.append(
+                f"<b>{fname}</b><br>"
+                f"Conexões: {len(neighbors)}<br>"
+                f"Sim. média: {np.mean(sims):.1%}<br>"
+                f"Sim. máx: {np.max(sims):.1%}"
+            )
+        else:
+            hover_texts.append(f"<b>{fname}</b><br>Sem conexões acima do limiar")
+
+    node_trace = go.Scatter(
+        x=node_x,
+        y=node_y,
+        mode='markers+text',
+        text=[os.path.splitext(f)[0] for f in files],
+        textposition='top center',
+        textfont=dict(size=10),
+        hovertext=hover_texts,
+        hoverinfo='text',
+        marker=dict(
+            size=node_sizes,
+            color=node_colors,
+            line=dict(width=2, color='white'),
+            opacity=0.9
+        ),
+        showlegend=False
+    )
+
+    fig = go.Figure(data=edge_traces + [node_trace])
+    fig.update_layout(
+        title=dict(
+            text=f"Grafo de Similaridade (limiar ≥ {min_similarity:.0%})",
+            x=0.5,
+            font=dict(size=16)
+        ),
+        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+        hovermode='closest',
+        margin=dict(l=20, r=20, t=60, b=20),
+        height=600,
+        plot_bgcolor='rgba(250,250,250,0.8)',
+    )
+    return fig
+
+
+def create_diff_view(code1, code2, file1, file2, language='python'):
+    """
+    Generate side-by-side diff HTML view with highlighted differences.
+    Returns HTML string for st.markdown with unsafe_allow_html=True.
+    """
+    lines1 = code1.splitlines()
+    lines2 = code2.splitlines()
+
+    diff = list(unified_diff(lines1, lines2, fromfile=file1, tofile=file2, lineterm=''))
+
+    # Parse diff into changed line numbers
+    removed_lines = set()
+    added_lines = set()
+    line_num1, line_num2 = 0, 0
+    for line in diff[2:]:  # Skip the header lines
+        if line.startswith('@@'):
+            # Parse hunk header like @@ -a,b +c,d @@
+            parts = line.split()
+            try:
+                m = re.match(r'-(\d+)', parts[1])
+                if m:
+                    line_num1 = int(m.group(1)) - 1
+                m = re.match(r'\+(\d+)', parts[2])
+                if m:
+                    line_num2 = int(m.group(1)) - 1
+            except Exception:
+                pass
+        elif line.startswith('-') and not line.startswith('---'):
+            removed_lines.add(line_num1)
+            line_num1 += 1
+        elif line.startswith('+') and not line.startswith('+++'):
+            added_lines.add(line_num2)
+            line_num2 += 1
+        else:
+            line_num1 += 1
+            line_num2 += 1
+
+    def render_side(lines, highlight_set, header, color):
+        html = f'<div style="flex:1;min-width:0;"><b style="color:{color};">{header}</b><pre style="background:#f8f8f8;padding:10px;border-radius:6px;overflow-x:auto;font-size:12px;line-height:1.5;">'
+        for i, line in enumerate(lines, start=1):
+            escaped = (line
+                       .replace('&', '&amp;')
+                       .replace('<', '&lt;')
+                       .replace('>', '&gt;'))
+            if i in highlight_set:
+                bg = '#ffe0e0' if color == '#c0392b' else '#e0ffe0'
+                html += f'<span style="background:{bg};display:block;">{i:4d} | {escaped}</span>'
+            else:
+                html += f'<span style="display:block;">{i:4d} | {escaped}</span>'
+        html += '</pre></div>'
+        return html
+
+    left = render_side(lines1, removed_lines, file1, '#c0392b')
+    right = render_side(lines2, added_lines, file2, '#27ae60')
+
+    return f'<div style="display:flex;gap:12px;">{left}{right}</div>'
+
+
+def create_enriched_pdf_report(df, files, language, threshold, advanced_analysis=None, cluster_data=None):
+    """Enhanced PDF report with metrics, AST scores, and plagiarism patterns."""
+    from fpdf import FPDF
+
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_page()
+
+    # Title
+    pdf.set_font("Arial", "B", 18)
+    pdf.cell(0, 12, "Niklaus - Relatorio de Analise de Plagio", ln=True, align='C')
+    pdf.set_font("Arial", "", 11)
+    pdf.cell(0, 8, f"Data: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}", ln=True, align='C')
+    pdf.ln(4)
+
+    # Summary box
+    pdf.set_fill_color(240, 240, 240)
+    pdf.set_font("Arial", "B", 12)
+    pdf.cell(0, 8, "Resumo da Analise", ln=True, fill=True)
+    pdf.set_font("Arial", "", 11)
+    pdf.cell(60, 7, f"Linguagem: {language}", ln=False)
+    pdf.cell(60, 7, f"Limite de similaridade: {threshold:.0%}", ln=False)
+    pdf.cell(0, 7, f"Arquivos analisados: {len(files)}", ln=True)
+    pdf.cell(60, 7, f"Pares suspeitos: {len(df)}", ln=False)
+
+    if not df.empty:
+        pdf.cell(60, 7, f"Maior similaridade: {df['Similaridade'].max():.1%}", ln=False)
+        pdf.cell(0, 7, f"Media: {df['Similaridade'].mean():.1%}", ln=True)
+    pdf.ln(6)
+
+    # Results table
+    if not df.empty:
+        pdf.set_font("Arial", "B", 12)
+        pdf.cell(0, 8, "Pares com Similaridade Suspeita", ln=True, fill=True)
+        pdf.set_font("Arial", "B", 10)
+        pdf.set_fill_color(200, 200, 200)
+        pdf.cell(70, 7, "Arquivo 1", border=1, fill=True)
+        pdf.cell(70, 7, "Arquivo 2", border=1, fill=True)
+        pdf.cell(50, 7, "Similaridade", border=1, fill=True, ln=True)
+        pdf.set_font("Arial", "", 10)
+
+        for _, row in df.iterrows():
+            sim = row['Similaridade']
+            if sim >= 0.9:
+                pdf.set_fill_color(255, 180, 180)
+            elif sim >= 0.7:
+                pdf.set_fill_color(255, 230, 180)
+            else:
+                pdf.set_fill_color(255, 255, 255)
+            f1 = str(row['Arquivo 1'])[:30]
+            f2 = str(row['Arquivo 2'])[:30]
+            pdf.cell(70, 6, f1, border=1, fill=True)
+            pdf.cell(70, 6, f2, border=1, fill=True)
+            pdf.cell(50, 6, f"{sim:.2%}", border=1, fill=True, ln=True)
+        pdf.ln(6)
+
+    # Advanced metrics table
+    if advanced_analysis and advanced_analysis.get('metrics'):
+        pdf.add_page()
+        pdf.set_font("Arial", "B", 12)
+        pdf.set_fill_color(240, 240, 240)
+        pdf.cell(0, 8, "Metricas de Complexidade por Arquivo", ln=True, fill=True)
+        pdf.set_font("Arial", "B", 9)
+        pdf.set_fill_color(200, 200, 200)
+        cols = [("Arquivo", 55), ("LOC", 20), ("Complexidade", 30), ("Funcoes", 25), ("Aninhamento", 30), ("Manutenib.", 30)]
+        for label, w in cols:
+            pdf.cell(w, 7, label, border=1, fill=True)
+        pdf.ln()
+        pdf.set_font("Arial", "", 9)
+        for m in advanced_analysis['metrics']:
+            pdf.set_fill_color(255, 255, 255)
+            fname = str(m['file'])[:22]
+            pdf.cell(55, 6, fname, border=1, fill=True)
+            pdf.cell(20, 6, str(m['loc']), border=1, fill=True)
+            pdf.cell(30, 6, str(m['cyclomatic']), border=1, fill=True)
+            pdf.cell(25, 6, str(m['functions']), border=1, fill=True)
+            pdf.cell(30, 6, str(m['nesting']), border=1, fill=True)
+            pdf.cell(30, 6, f"{m['maintainability']:.1f}", border=1, fill=True, ln=True)
+        pdf.ln(6)
+
+        # AST similarities
+        if advanced_analysis.get('ast_similarities'):
+            pdf.set_font("Arial", "B", 12)
+            pdf.set_fill_color(240, 240, 240)
+            pdf.cell(0, 8, "Similaridade Estrutural (AST)", ln=True, fill=True)
+            pdf.set_font("Arial", "B", 9)
+            pdf.set_fill_color(200, 200, 200)
+            pdf.cell(75, 7, "Arquivo 1", border=1, fill=True)
+            pdf.cell(75, 7, "Arquivo 2", border=1, fill=True)
+            pdf.cell(40, 7, "Sim. AST", border=1, fill=True, ln=True)
+            pdf.set_font("Arial", "", 9)
+            sorted_ast = sorted(advanced_analysis['ast_similarities'], key=lambda x: x[2], reverse=True)
+            for f1, f2, ast_sim in sorted_ast[:20]:
+                pdf.set_fill_color(255, 255, 255)
+                pdf.cell(75, 6, str(f1)[:30], border=1, fill=True)
+                pdf.cell(75, 6, str(f2)[:30], border=1, fill=True)
+                pdf.cell(40, 6, f"{ast_sim:.2%}", border=1, fill=True, ln=True)
+            pdf.ln(6)
+
+    # Cluster summary
+    if cluster_data and cluster_data.get('clusters'):
+        pdf.add_page()
+        pdf.set_font("Arial", "B", 12)
+        pdf.set_fill_color(240, 240, 240)
+        pdf.cell(0, 8, "Analise de Clusters", ln=True, fill=True)
+        pdf.set_font("Arial", "", 11)
+        pdf.cell(0, 7, f"Total de clusters: {cluster_data['num_clusters']}", ln=True)
+        pdf.cell(0, 7, f"Maior cluster: {cluster_data['largest_cluster']} arquivos", ln=True)
+        pdf.cell(0, 7, f"Arestas no grafo: {cluster_data['graph_edges']}", ln=True)
+        density_pct = cluster_data['graph_density'] * 100
+        pdf.cell(0, 7, f"Densidade do grafo: {density_pct:.1f}%", ln=True)
+        pdf.ln(4)
+
+        for cid, info in cluster_data['clusters'].items():
+            if info['size'] > 1:
+                pdf.set_font("Arial", "B", 10)
+                pdf.cell(0, 7, f"Cluster {cid} ({info['size']} arquivos):", ln=True)
+                pdf.set_font("Arial", "", 10)
+                for fname in info['files']:
+                    pdf.cell(10, 6, "", ln=False)
+                    pdf.cell(0, 6, f"- {fname}", ln=True)
+                stats = info['stats']
+                pdf.cell(0, 6, f"  Similaridade media: {stats['avg_similarity']:.1%}  |  Max: {stats['max_similarity']:.1%}", ln=True)
+                pdf.ln(2)
+
+    return bytes(pdf.output(dest='S'))
+
+
 def create_metrics_radar_chart(metrics1, metrics2, file1, file2):
     """Create radar chart comparing metrics."""
     categories = ['LOC', 'Complexidade', 'Funções', 'Aninhamento', 'Manutenibilidade']
@@ -317,8 +621,12 @@ def main():
             "Java": "java",
             "JavaScript": "js",
             "Python": "py",
+            "Go": "go",
+            "Rust": "rs",
+            "TypeScript": "ts",
+            "Kotlin": "kt",
         }
-        
+
         language_selected = st.selectbox(
             "Escolha a linguagem de programação",
             dict_languages_extensions.keys(),
@@ -361,7 +669,13 @@ def main():
         st.markdown("---")
         st.markdown(":computer: [GitHub](https://www.github.com/walternagai/niklaus-plagiarism)")
     
-    tab1, tab2, tab3, tab4 = st.tabs([":file_folder: Upload & Análise", ":bar_chart: Resultados", ":chart_with_upward_trend: Estatísticas", ":microscope: Análise Avançada"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        ":file_folder: Upload & Análise",
+        ":bar_chart: Resultados",
+        ":chart_with_upward_trend: Estatísticas",
+        ":microscope: Análise Avançada",
+        ":spider_web: Grafo de Similaridade"
+    ])
     
     with tab1:
         st.title(":computer: Niklaus")
@@ -484,11 +798,21 @@ def main():
                             similarity_mat[i][j] = next((s[2] for s in similarities_matrix if (s[0] == files[i] and s[1] == files[j]) or (s[0] == files[j] and s[1] == files[i])), 0.0)
                             similarity_mat[j][i] = similarity_mat[i][j]
                 
-                progress_bar.progress(90, text="Analisando trechos semelhantes...")
-                
-                # Perform advanced analysis
+                progress_bar.progress(85, text="Analisando trechos semelhantes...")
+
+                # Perform advanced analysis (AST + metrics)
                 advanced_analysis = perform_advanced_analysis(files, files_content, language_selected)
                 st.session_state['advanced_analysis'] = advanced_analysis
+
+                progress_bar.progress(90, text="Detectando clusters de plágio...")
+
+                # Cluster analysis
+                cluster_detector = ClusterDetector()
+                sim_mat_np = np.array(similarity_mat)
+                cluster_data = cluster_detector.analyze_clusters(
+                    sim_mat_np, files, min_similarity=limit
+                )
+                st.session_state['cluster_data'] = cluster_data
                 
                 similarities_df_filtered = similarities_df[similarities_df["Similaridade"] > limit]
                 
@@ -518,7 +842,8 @@ def main():
                         'language': language_selected,
                         'threshold': limit,
                         'matrix': similarity_mat,
-                        'textual_similarities': similarities_matrix
+                        'textual_similarities': similarities_matrix,
+                        'cluster_data': cluster_data,
                     }
                 else:
                     st.success("✅ Não foram encontrados trechos de código plagiados abaixo do limite definido.")
@@ -531,7 +856,8 @@ def main():
                         'language': language_selected,
                         'threshold': limit,
                         'matrix': similarity_mat,
-                        'textual_similarities': similarities_matrix
+                        'textual_similarities': similarities_matrix,
+                        'cluster_data': cluster_data,
                     }
                 
                 progress_bar.progress(100, text="Análise concluída!")
@@ -592,17 +918,35 @@ def main():
                 for idx, row in filtered_df.iterrows():
                     with st.expander(f":mag_right: {row['Arquivo 1']} ↔ {row['Arquivo 2']} - {row['Similaridade']:.1%}"):
                         st.write_stream(stream_data(row['Analise']))
-                        
+
                         file1_idx = analysis_data['files'].index(row['Arquivo 1'])
                         file2_idx = analysis_data['files'].index(row['Arquivo 2'])
-                        
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            st.markdown(f"**{row['Arquivo 1']}**")
-                            st.code(analysis_data['files_content'][file1_idx], language=analysis_data['language'].lower())
-                        with col2:
-                            st.markdown(f"**{row['Arquivo 2']}**")
-                            st.code(analysis_data['files_content'][file2_idx], language=analysis_data['language'].lower())
+
+                        view_mode = st.radio(
+                            "Modo de visualização",
+                            ["Código lado a lado", "Diff interativo"],
+                            key=f"view_{idx}",
+                            horizontal=True
+                        )
+
+                        if view_mode == "Código lado a lado":
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                st.markdown(f"**{row['Arquivo 1']}**")
+                                st.code(analysis_data['files_content'][file1_idx], language=analysis_data['language'].lower())
+                            with col2:
+                                st.markdown(f"**{row['Arquivo 2']}**")
+                                st.code(analysis_data['files_content'][file2_idx], language=analysis_data['language'].lower())
+                        else:
+                            diff_html = create_diff_view(
+                                analysis_data['files_content'][file1_idx],
+                                analysis_data['files_content'][file2_idx],
+                                row['Arquivo 1'],
+                                row['Arquivo 2'],
+                                analysis_data['language']
+                            )
+                            st.markdown(diff_html, unsafe_allow_html=True)
+                            st.caption("Vermelho = linhas removidas/alteradas | Verde = linhas adicionadas/alteradas")
                 
                 st.markdown("---")
                 st.markdown("### :inbox_tray: Exportar Resultados")
@@ -636,7 +980,16 @@ def main():
                     )
                 
                 with col3:
-                    pdf_data = create_pdf_report(filtered_df, analysis_data['files'], analysis_data['language'], analysis_data['threshold'])
+                    adv_for_pdf = st.session_state.get('advanced_analysis')
+                    cluster_for_pdf = analysis_data.get('cluster_data')
+                    pdf_data = create_enriched_pdf_report(
+                        filtered_df,
+                        analysis_data['files'],
+                        analysis_data['language'],
+                        analysis_data['threshold'],
+                        advanced_analysis=adv_for_pdf,
+                        cluster_data=cluster_for_pdf
+                    )
                     st.download_button(
                         "📥 Baixar PDF",
                         data=pdf_data,
@@ -796,7 +1149,128 @@ def main():
                     st.warning("Execute uma análise para ver os dados avançados.")
             else:
                 st.info(":white_check_mark: Nenhum dado disponível. Execute uma análise primeiro.")
-    
+
+        with tab5:
+            st.markdown("### :spider_web: Grafo de Similaridade")
+            st.markdown(
+                "Cada **nó** representa um arquivo. "
+                "As **arestas** conectam pares com similaridade acima do limiar escolhido, "
+                "com espessura proporcional à similaridade. "
+                "Cores indicam o cluster (grupo) ao qual o arquivo pertence."
+            )
+
+            cluster_data = analysis_data.get('cluster_data')
+
+            if cluster_data:
+                # Controls
+                col_ctrl1, col_ctrl2 = st.columns([1, 2])
+                with col_ctrl1:
+                    graph_threshold = st.slider(
+                        "Limiar do grafo",
+                        min_value=0.0,
+                        max_value=1.0,
+                        value=float(analysis_data['threshold']),
+                        step=0.05,
+                        key="graph_threshold",
+                        help="Apenas pares com similaridade acima deste valor aparecem no grafo"
+                    )
+                with col_ctrl2:
+                    st.markdown("")  # spacer
+
+                # Rebuild graph with chosen threshold (for display only)
+                cluster_detector = ClusterDetector()
+                sim_mat_np = np.array(analysis_data['matrix'])
+                display_cluster_data = cluster_detector.analyze_clusters(
+                    sim_mat_np, analysis_data['files'], min_similarity=graph_threshold
+                )
+
+                graph_fig = create_similarity_graph(
+                    analysis_data['matrix'],
+                    analysis_data['files'],
+                    min_similarity=graph_threshold,
+                    cluster_data=display_cluster_data
+                )
+
+                if graph_fig:
+                    st.plotly_chart(graph_fig, use_container_width=True)
+                else:
+                    st.info("Nenhuma conexão acima do limiar definido. Reduza o limiar para visualizar o grafo.")
+
+                st.markdown("---")
+                st.markdown("#### Resumo dos Clusters")
+
+                # Summary metrics
+                col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+                with col_m1:
+                    st.metric("Total de clusters", display_cluster_data['num_clusters'])
+                with col_m2:
+                    st.metric("Maior cluster", f"{display_cluster_data['largest_cluster']} arquivos")
+                with col_m3:
+                    st.metric("Arestas no grafo", display_cluster_data['graph_edges'])
+                with col_m4:
+                    density_pct = display_cluster_data['graph_density'] * 100
+                    st.metric("Densidade do grafo", f"{density_pct:.1f}%")
+
+                st.markdown("---")
+                st.markdown("#### Detalhes por Cluster")
+
+                suspicious_clusters = {
+                    cid: info for cid, info in display_cluster_data['clusters'].items()
+                    if info['size'] > 1
+                }
+
+                if suspicious_clusters:
+                    for cid, info in sorted(suspicious_clusters.items(), key=lambda x: x[1]['size'], reverse=True):
+                        avg_sim = info['stats']['avg_similarity']
+                        max_sim = info['stats']['max_similarity']
+
+                        # Color badge by severity
+                        if avg_sim >= 0.9:
+                            badge = ":red_circle:"
+                            label = "Suspeita Alta"
+                        elif avg_sim >= 0.7:
+                            badge = ":orange_circle:"
+                            label = "Suspeita Moderada"
+                        else:
+                            badge = ":yellow_circle:"
+                            label = "Suspeita Baixa"
+
+                        with st.expander(f"{badge} Cluster {cid} — {info['size']} arquivos | {label} | Sim. média: {avg_sim:.1%}"):
+                            # Central files
+                            if info.get('central_files'):
+                                st.markdown("**Arquivos mais centrais** (possíveis originais ou cópias primárias):")
+                                for fname, centrality in info['central_files']:
+                                    st.markdown(f"- `{fname}` — centralidade: {centrality:.1%}")
+
+                            st.markdown("**Todos os arquivos no cluster:**")
+                            for fname in info['files']:
+                                st.markdown(f"- `{fname}`")
+
+                            st.markdown(f"""
+                            **Estatísticas do cluster:**
+                            - Similaridade média: `{avg_sim:.1%}`
+                            - Similaridade máxima: `{max_sim:.1%}`
+                            - Similaridade mínima: `{info['stats']['min_similarity']:.1%}`
+                            """)
+                else:
+                    st.success("Nenhum cluster suspeito detectado para o limiar atual.")
+
+                # Community detection results
+                if display_cluster_data.get('communities') and len(display_cluster_data['communities']) > 0:
+                    st.markdown("---")
+                    st.markdown("#### Comunidades Detectadas (Modularidade)")
+                    st.caption("Detecção de comunidades por otimização de modularidade (algoritmo greedy).")
+                    communities = display_cluster_data['communities']
+                    non_trivial = [c for c in communities if len(c) > 1]
+                    if non_trivial:
+                        for i, comm in enumerate(non_trivial, 1):
+                            member_names = [analysis_data['files'][idx] for idx in comm if idx < len(analysis_data['files'])]
+                            st.markdown(f"**Comunidade {i}** ({len(comm)} membros): " + ", ".join(f"`{f}`" for f in member_names))
+                    else:
+                        st.info("Nenhuma comunidade com mais de 1 membro detectada.")
+            else:
+                st.info("Execute uma análise para visualizar o grafo de similaridade.")
+
     if st.button("🛑 Cancelar Análise"):
         st.session_state['cancel'] = True
         st.warning("Solicitação de cancelamento enviada...")
