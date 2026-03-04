@@ -96,16 +96,16 @@ Siga as diretrizes abaixo para oferecer assistência eficaz:
     - Todas as respostas devem ser escritas em português do Brasil.
 """
 
-    response = client.responses.create(
+    response = client.chat.completions.create(
         model=model,
-        instructions=instructions,
-        input=[
+        messages=[
+            {"role": "system", "content": instructions},
             {"role": "user", "content": prompt}
         ],
-        max_output_tokens=1024
+        max_tokens=1024
     )
-    
-    return response.output[0].content[0].text
+
+    return response.choices[0].message.content
 
 def stream_data(response):
     for word in response.split(" "):
@@ -610,6 +610,9 @@ def main():
             except Exception:
                 pass
         
+        if not model:
+            model = "sabiazinho-4"
+
         if not api_key:
             st.error("Configure MARITACA_API_KEY nas variáveis de ambiente ou no arquivo .streamlit/secrets.toml")
             st.stop()
