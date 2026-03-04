@@ -4,6 +4,8 @@ import re
 import time
 import string
 import random
+import shutil
+import tempfile
 import chardet
 import pandas as pd
 import streamlit as st
@@ -21,10 +23,10 @@ def remove_blank_spaces_and_comments(code, language):
     - str - Código-fonte sem espaços em branco e comentários
     """
     if language.lower() == 'python':
+        # Remove docstrings (strings multi-linha)
+        code = re.sub(r'""".*?"""|\'\'\'.*?\'\'\'', '', code, flags=re.DOTALL)
         # Remove comentários de uma linha
         code = re.sub(r'#.*', '', code)
-        # Remove comentários de múltiplas linhas
-        code = re.sub(r'(\"\"\".*?\"\"\"|\'\'\'.*?\'\'\'|".*?"|\'.*?\')', '', code, flags=re.DOTALL)
     elif language.lower() in ['c', 'c++', 'java', 'javascript']:
         # Remove comentários de uma linha
         code = re.sub(r'/\*.*?\*/', '', code, flags=re.DOTALL)
@@ -177,9 +179,12 @@ def id_generator(size=16, chars=string.ascii_lowercase + string.digits):
     return ''.join(random.choice(chars) for _ in range(size))
 
 def main():    
-    # Chaves de API e modelo Groq
-    api_key = st.secrets.pytheo_groq.GROQ_API_KEY
-    model = st.secrets.pytheo_groq.GROQ_MODEL
+    api_key = os.getenv('GROQ_API_KEY') or st.secrets.get("pytheo_groq", {}).get("GROQ_API_KEY")
+    model = os.getenv('GROQ_MODEL') or st.secrets.get("pytheo_groq", {}).get("GROQ_MODEL")
+    
+    if not api_key:
+        st.error("Configure GROQ_API_KEY nas variáveis de ambiente ou no arquivo .streamlit/secrets.toml")
+        st.stop()
 
     # Dicionário de linguagens de programação e extensões de arquivos
     dict_languages_extensions = {
@@ -190,7 +195,7 @@ def main():
         "Python": "py",
     }
 
-    extract_path = "extracted_files"
+    extract_path = tempfile.mkdtemp()
 
     st.title(":computer: Niklaus")
 
@@ -226,79 +231,83 @@ def main():
                                 type="zip",
                                 help="Carregue um arquivo ZIP contendo os arquivos a serem comparados.")
 
-    # se o diretório de extração não existir, cria o diretório
-    if not os.path.exists(extract_path):
-        os.makedirs(extract_path)
-
     # se o arquivo ZIP foi carregado
     if zip_file:
-        # extrair os arquivos do arquivo ZIP
-        with ZipFile(zip_file, 'r') as zip_ref:
-            zip_ref.extractall(path=extract_path)
-
-        # obter a lista de arquivos extraídos
-        files_path = os.path.join(extract_path, zip_file.name.replace(".zip", f""))
-
-        # obter a lista de arquivos extraídos
-        files = os.listdir(files_path)
-
-        # se os arquivos extraídos possuem a extensão correta 
-        if files[0].endswith(extension_file):
-            # exibir mensagem de sucesso
-            st.toast(f"Arquivos extraídos com sucesso!")
-
-            # ler o conteúdo dos arquivos
-            files_content = []
-            for file in files:
-                file_stream = io.BytesIO(open(os.path.join(files_path, file), "rb").read())
-                files_content.append(read_file(file_stream))
-
-            st.markdown("### Análise de similaridade entre os arquivos")
-
-            # gerar matriz de similaridades
-            similarities_matrix = []
-            for i in range(len(files_content)):
-                for j in range(i+1, len(files_content)):
-                    # comparar os arquivos e calcular a similaridade entre eles
-                    similarity = comparate_files(files_content[i], files_content[j], language_selected)
-                    # adicionar à matriz de similaridades
-                    similarities_matrix.append((files[i], files[j], similarity))
-
-            # ordenar a matriz de similaridades pela maior similaridade decrescente
-            similarities_matrix = sorted(similarities_matrix, key=lambda x: x[2], reverse=True)
-
-            # criar um DataFrame com a matriz de similaridades
-            similarities_df = pd.DataFrame(similarities_matrix, columns=["Arquivo 1", "Arquivo 2", "Similaridade"])
-
-            # filtrar as similaridades acima do limite
-            similarities_df_filtered = similarities_df[similarities_df["Similaridade"] > limit]
-
-            # se a matriz de similaridades filtrada não estiver vazia
-            if not similarities_df_filtered.empty:
-                # exibir similaridades acima do limite
-                with st.status("Analisando similaridades...") as status:
-                    # adicionar coluna para armazenar a análise de similaridade entre os arquivos
-                    for i, row in similarities_df_filtered.iterrows():
-                        similarities_df_filtered.loc[i, "Analise"] = generate_response_groq(api_key, model, files_content[i], files_content[j])
-                        status.update(label=f"Analisando similaridades... {i+1}/{len(similarities_df_filtered)}", state="running")
-
-                    # atualizar o status da análise
-                    status.update(label="Análise finalizada!", state="complete")
-
-                # exibir similaridades acima do limite com a análise de similaridade entre os arquivos
-                for i, row in similarities_df_filtered.iterrows():
-                    # exibir similaridades acima do limite com a análise de similaridade entre os arquivos
-                    st.markdown(f"#### {row['Arquivo 1']} x {row['Arquivo 2']} com {row['Similaridade']:.2%} de similaridade")
-                    # exibir análise de similaridade entre os arquivos em um stream de dados
-                    st.write_stream(stream_data(row["Analise"]))
-
-                # exibir mensagem de conclusão
-                st.toast("Análise concluída!")
-            else:
-                st.markdown("**Não foram encontrados trechos de código plagiados.**")
-        else:
-            st.error("Os arquivos extraídos não possuem a extensão correta.")
+        # validação de tamanho do arquivo (máx 50MB)
+        if zip_file.size > 50 * 1024 * 1024:
+            st.error("Arquivo muito grande. Limite máximo: 50MB")
             st.stop()
+        
+        try:
+            # extrair os arquivos do arquivo ZIP com validação de segurança
+            with ZipFile(zip_file, 'r') as zip_ref:
+                # verificar path traversal
+                for member in zip_ref.namelist():
+                    if member.startswith('/') or '..' in member:
+                        st.error("Arquivo ZIP contém caminhos inválidos")
+                        st.stop()
+                
+                zip_ref.extractall(path=extract_path)
+
+            # obter a lista de arquivos extraídos
+            files_path = os.path.join(extract_path, zip_file.name.replace(".zip", f""))
+
+            # obter a lista de arquivos extraídos
+            files = os.listdir(files_path)
+
+            # se os arquivos extraídos possuem a extensão correta 
+            if files[0].endswith(extension_file):
+                # exibir mensagem de sucesso
+                st.toast(f"Arquivos extraídos com sucesso!")
+
+                # ler o conteúdo dos arquivos
+                files_content = []
+                for file in files:
+                    file_stream = io.BytesIO(open(os.path.join(files_path, file), "rb").read())
+                    files_content.append(read_file(file_stream))
+
+                st.markdown("### Análise de similaridade entre os arquivos")
+
+                # gerar matriz de similaridades
+                similarities_matrix = []
+                for i in range(len(files_content)):
+                    for j in range(i+1, len(files_content)):
+                        similarity = comparate_files(files_content[i], files_content[j], language_selected)
+                        similarities_matrix.append((files[i], files[j], similarity))
+
+                similarities_matrix = sorted(similarities_matrix, key=lambda x: x[2], reverse=True)
+                similarities_df = pd.DataFrame(similarities_matrix, columns=["Arquivo 1", "Arquivo 2", "Similaridade"])
+                similarities_df_filtered = similarities_df[similarities_df["Similaridade"] > limit]
+
+                if not similarities_df_filtered.empty:
+                    with st.status("Analisando similaridades...") as status:
+                        for idx, row in similarities_df_filtered.iterrows():
+                            file1_idx = files.index(row['Arquivo 1'])
+                            file2_idx = files.index(row['Arquivo 2'])
+                            similarities_df_filtered.loc[idx, "Analise"] = generate_response_groq(
+                                api_key, model, files_content[file1_idx], files_content[file2_idx]
+                            )
+                            status.update(label=f"Analisando similaridades... {idx+1}/{len(similarities_df_filtered)}", state="running")
+
+                        status.update(label="Análise finalizada!", state="complete")
+
+                    for i, row in similarities_df_filtered.iterrows():
+                        st.markdown(f"#### {row['Arquivo 1']} x {row['Arquivo 2']} com {row['Similaridade']:.2%} de similaridade")
+                        st.write_stream(stream_data(row["Analise"]))
+
+                    st.toast("Análise concluída!")
+                else:
+                    st.markdown("**Não foram encontrados trechos de código plagiados.**")
+            else:
+                st.error("Os arquivos extraídos não possuem a extensão correta.")
+        
+        except Exception as e:
+            st.error(f"Erro ao processar arquivo: {str(e)}")
+        
+        finally:
+            # limpeza automática de arquivos temporários
+            if os.path.exists(extract_path):
+                shutil.rmtree(extract_path)
 
     # rodapé da aplicação
     st.markdown("---")
