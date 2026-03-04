@@ -677,7 +677,7 @@ def main():
     tab1, tab2, tab3, tab4, tab5 = st.tabs([
         ":file_folder: Upload & Análise",
         ":bar_chart: Resultados",
-        ":chart_with_upward_trend: Estatísticas",
+        ":chart_with_upwards_trend: Estatísticas",
         ":microscope: Análise Avançada",
         ":spider_web: Grafo de Similaridade"
     ])
@@ -818,8 +818,8 @@ def main():
                     sim_mat_np, files, min_similarity=limit
                 )
                 st.session_state['cluster_data'] = cluster_data
-                
-                similarities_df_filtered = similarities_df[similarities_df["Similaridade"] > limit]
+
+                similarities_df_filtered = similarities_df[similarities_df["Similaridade"] > limit].copy()
                 
                 if not similarities_df_filtered.empty:
                     with st.status("Analisando similaridades com IA...", expanded=True) as status:
