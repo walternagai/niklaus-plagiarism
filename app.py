@@ -55,54 +55,80 @@ def comparate_files(code1, code2, language='python'):
     similaridade = calculate_similarity(clean_code1, clean_code2)
     return similaridade
 
-def generate_response_maritaca(api_key, model, file_content, file_content_to_compare):
+def generate_response_maritaca(api_key, model, file_content, file_content_to_compare, 
+                                file1_name, file2_name, textual_similarity, ast_similarity,
+                                plagiarism_type, confidence):
     client = openai.OpenAI(
         api_key=api_key,
         base_url="https://chat.maritaca.ai/api"
     )
     
-    prompt = f"Compare o código 1: ```{file_content}``` com o código 2: ```{file_content_to_compare}``` e identifique trechos plagiados."
+    system_prompt = """Você é Niklaus, um assistente especializado em análise de plágio em código-fonte para professores de programação.
 
-    instructions = """
-Você é Niklaus, um assistente virtual especializado em auxiliar professores de programação na análise e 
-comparação de projetos práticos entregues pelos alunos dos professores. 
+## Seu Papel
+Você recebe DOIS códigos-fonte que foram previamente comparados por análise automatizada (similaridade textual e estrutural já calculadas). Sua função é ANALISAR qualitativamente os trechos semelhantes e fornecer insights sobre a natureza da similaridade.
 
-Seu objetivo é facilitar a identificação de trechos de código semelhantes, detectar plágios e fornecer 
-insights sobre padrões comuns nos projetos. 
+## O que você DEVE fazer
+1. **Identificar trechos problemáticos**: Aponte exatamente quais blocos de código são similares
+2. **Classificar a similaridade**: Diferencie entre:
+   - Cópia direta (idêntica ou quase)
+   - Refatoração (renomeação de variáveis, reordenação)
+   - Coincidência (lógica simples, padrões comuns, bibliotecas)
+3. **Explicar o contexto**: Por que esses trechos são problemáticos ou não?
+4. **Fornecer recomendações**: O professor deve investigar mais? É claramente plágio? É falso positivo?
 
-Siga as diretrizes abaixo para oferecer assistência eficaz:
-* Recepção e Organização de Projetos:
-    - Aceitar e organizar projetos submetidos em formatos compatíveis (código-fonte, documentação, etc.).
-    - Identificar metadados relevantes contidos nos projetos (nome do aluno, data, linguagem, descrição).
+## O que você NÃO deve fazer
+- NÃO invente similaridades inexistentes
+- NÃO classifique como plágio código que usa padrões comuns, algoritmos clássicos ou bibliotecas padrão
+- NÃO forneça conselhos pedagógicos extras além da análise solicitada
+- NÃO tente calcular métricas matemáticas — o sistema já fez isso
 
-* Análise de Similaridade e Detecção de Plágio:
-    - Utilizar técnicas computacionais para comparar códigos e identificar trechos semelhantes.
-    - Realizar comparações usando dados quantitativos, como métricas de complexidade ciclomática, 
-    número de linhas de código, número de funções/métodos, e cobertura de testes.
-    - Gerar relatórios detalhados destacando áreas de coincidência ou similaridades.
-    - Utilizar algoritmos que analisam estrutura, lógica e comentários para detectar plágio.
-    - Identificar padrões de cópia e colagem, tradução, substituição de variáveis e reordenação de instruções.
-    - Considerar a originalidade, complexidade e eficiência dos projetos ao avaliar a similaridade.
+## Formato de Resposta Obrigatório
 
-* Geração de Relatórios e Visualizações:
-    - Criar relatórios resumindo análises de similaridade e plágio.
-    - Fornecer visualizações gráficas (mapas de calor, redes de similaridade) para ilustrar relações entre projetos.
+**### Resumo Executivo**
+[2-3 frases sobre a natureza da similaridade]
 
-* Instruções Adicionais:
-    - Comunique-se de forma clara, objetiva e profissional.
-    - Adapte análises e sugestões ao contexto dos projetos.
-    - Utilize fontes e algoritmos confiáveis para garantir precisão e integridade.
-    - Incentive a originalidade e criatividade promovendo um ambiente de aprendizado justo.
-    - Todas as respostas devem ser escritas em português do Brasil.
-"""
+**### Trechos Problemáticos Identificados**
+[Lista de blocos específicos com linha aproximada e descrição]
+
+**### Classificação da Similaridade**
+[COPIA_DIRETA / RENOMEACAO_VARIAVEIS / REORDENACAO / COINCIDENCIA / REUSO_LEGITIMO]
+
+**### Recomendação para o Professor**
+[Ação sugerida: investigar, descartar, ou atenção]
+
+## Idioma
+Todas as respostas devem ser em português do Brasil."""
+
+    user_prompt = f"""Analise os dois códigos abaixo e identifique trechos plagiados.
+
+## Dados da Análise Automatizada
+- Arquivo 1: {file1_name}
+- Arquivo 2: {file2_name}
+- Similaridade textual: {textual_similarity:.1%}
+- Similaridade estrutural (AST): {ast_similarity:.1%}
+- Tipo de plágio detectado: {plagiarism_type}
+- Confiança: {confidence:.1%}
+
+## Código 1 ({file1_name})
+```
+{file_content}
+```
+
+## Código 2 ({file2_name})
+```
+{file_content_to_compare}
+```
+
+Siga o formato de resposta obrigatório definido nas instruções."""
 
     response = client.chat.completions.create(
         model=model,
         messages=[
-            {"role": "system", "content": instructions},
-            {"role": "user", "content": prompt}
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
         ],
-        max_tokens=1024
+        max_tokens=1500
     )
 
     return response.choices[0].message.content
@@ -820,16 +846,54 @@ MARITACA_MODEL = "sabiazinho-4"
                 if not similarities_df_filtered.empty:
                     with st.status("Analisando similaridades com IA...", expanded=True) as status:
                         analyses = []
+                        
+                        # Pre-calculate pattern detection for all pairs
+                        pattern_detector = PlagiarismPatternDetector()
+                        
                         for idx, row in similarities_df_filtered.iterrows():
                             if st.session_state['cancel']:
                                 st.warning("Análise cancelada pelo usuário")
                                 st.stop()
                             
-                            file1_idx = files.index(row['Arquivo 1'])
-                            file2_idx = files.index(row['Arquivo 2'])
-                            analysis = generate_response_maritaca(api_key, model, files_content[file1_idx], files_content[file2_idx])
+                            file1 = row['Arquivo 1']
+                            file2 = row['Arquivo 2']
+                            file1_idx = files.index(file1)
+                            file2_idx = files.index(file2)
+                            
+                            # Get textual similarity
+                            textual_sim = row['Similaridade']
+                            
+                            # Get AST similarity from advanced analysis
+                            ast_sim = 0.0
+                            if 'advanced_analysis' in st.session_state and st.session_state['advanced_analysis']:
+                                ast_sim = next(
+                                    (s[2] for s in st.session_state['advanced_analysis']['ast_similarities']
+                                     if (s[0] == file1 and s[1] == file2) or (s[0] == file2 and s[1] == file1)),
+                                    0.0
+                                )
+                            
+                            # Detect plagiarism pattern
+                            pattern_result = pattern_detector.comprehensive_analysis(
+                                files_content[file1_idx],
+                                files_content[file2_idx],
+                                textual_sim,
+                                ast_sim,
+                                {'overall_similarity': textual_sim}
+                            )
+                            
+                            plagiarism_type = pattern_result['plagiarism_type']
+                            confidence = pattern_result['confidence']
+                            
+                            analysis = generate_response_maritaca(
+                                api_key, model,
+                                files_content[file1_idx],
+                                files_content[file2_idx],
+                                file1, file2,
+                                textual_sim, ast_sim,
+                                plagiarism_type, confidence
+                            )
                             analyses.append(analysis)
-                            st.write(f"✓ {row['Arquivo 1']} ↔ {row['Arquivo 2']}: {row['Similaridade']:.1%}")
+                            st.write(f"✓ {file1} ↔ {file2}: {textual_sim:.1%}")
                         
                         similarities_df_filtered['Analise'] = analyses
                         status.update(label="Análise concluída!", state="complete")
