@@ -8,6 +8,7 @@ import random
 import shutil
 import tempfile
 import zipfile
+import numpy as np
 import chardet
 import pandas as pd
 import streamlit as st
@@ -18,6 +19,9 @@ from difflib import SequenceMatcher
 import openai
 from datetime import datetime
 from fpdf import FPDF
+
+# Import analyzer modules
+from analyzer import ASTParser, CodeMetrics, ClusterDetector, PlagiarismPatternDetector
 
 def remove_blank_spaces_and_comments(code, language):
     if language.lower() == 'python':
@@ -148,6 +152,120 @@ def create_pdf_report(df, files, language, threshold):
     
     return bytes(pdf.output(dest='S'))
 
+def perform_advanced_analysis(files, files_content, language):
+    """Perform advanced analysis using analyzer modules."""
+    ast_parser = ASTParser()
+    metrics_calc = CodeMetrics()
+    
+    ast_similarities = []
+    all_metrics = []
+    
+    progress_msg = st.empty()
+    progress_msg.info("Calculando similaridade estrutural (AST)...")
+    
+    # Calculate AST similarities
+    for i in range(len(files_content)):
+        for j in range(i+1, len(files_content)):
+            ast_sim = ast_parser.structural_similarity(
+                files_content[i], 
+                files_content[j], 
+                language
+            )
+            ast_similarities.append((files[i], files[j], ast_sim))
+    
+    progress_msg.info("Calculando métricas de complexidade...")
+    
+    # Calculate metrics for each file
+    for i, code in enumerate(files_content):
+        metrics = metrics_calc.calculate_all_metrics(code, language)
+        all_metrics.append({
+            'file': files[i],
+            'loc': metrics['loc']['code'],
+            'cyclomatic': metrics['cyclomatic_complexity'],
+            'functions': metrics['function_count'],
+            'nesting': metrics['max_nesting_depth'],
+            'maintainability': metrics['maintainability_index']
+        })
+    
+    progress_msg.empty()
+    
+    return {
+        'ast_similarities': ast_similarities,
+        'metrics': all_metrics
+    }
+
+def display_metrics_comparison(metrics1, metrics2, file1, file2):
+    """Display metrics comparison between two files."""
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown(f"**{file1}**")
+        st.metric("Linhas de Código", metrics1['loc'])
+        st.metric("Complexidade Ciclomática", metrics1['cyclomatic'])
+        st.metric("Funções/Métodos", metrics1['functions'])
+        st.metric("Profundidade Aninhamento", metrics1['nesting'])
+        st.metric("Índice Manutenibilidade", f"{metrics1['maintainability']:.1f}")
+    
+    with col2:
+        st.markdown(f"**{file2}**")
+        st.metric("Linhas de Código", metrics2['loc'])
+        st.metric("Complexidade Ciclomática", metrics2['cyclomatic'])
+        st.metric("Funções/Métodos", metrics2['functions'])
+        st.metric("Profundidade Aninhamento", metrics2['nesting'])
+        st.metric("Índice Manutenibilidade", f"{metrics2['maintainability']:.1f}")
+
+def create_metrics_radar_chart(metrics1, metrics2, file1, file2):
+    """Create radar chart comparing metrics."""
+    categories = ['LOC', 'Complexidade', 'Funções', 'Aninhamento', 'Manutenibilidade']
+    
+    # Normalize values to 0-1 scale
+    max_loc = max(metrics1['loc'], metrics2['loc'], 1)
+    max_cc = max(metrics1['cyclomatic'], metrics2['cyclomatic'], 1)
+    max_func = max(metrics1['functions'], metrics2['functions'], 1)
+    max_nest = max(metrics1['nesting'], metrics2['nesting'], 1)
+    
+    values1 = [
+        metrics1['loc'] / max_loc,
+        metrics1['cyclomatic'] / max_cc,
+        metrics1['functions'] / max_func,
+        metrics1['nesting'] / max_nest,
+        metrics1['maintainability'] / 100
+    ]
+    
+    values2 = [
+        metrics2['loc'] / max_loc,
+        metrics2['cyclomatic'] / max_cc,
+        metrics2['functions'] / max_func,
+        metrics2['nesting'] / max_nest,
+        metrics2['maintainability'] / 100
+    ]
+    
+    fig = go.Figure()
+    
+    fig.add_trace(go.Scatterpolar(
+        r=values1,
+        theta=categories,
+        fill='toself',
+        name=file1,
+        line_color='blue'
+    ))
+    
+    fig.add_trace(go.Scatterpolar(
+        r=values2,
+        theta=categories,
+        fill='toself',
+        name=file2,
+        line_color='red'
+    ))
+    
+    fig.update_layout(
+        polar=dict(radialaxis=dict(visible=True, range=[0, 1])),
+        showlegend=True,
+        title="Comparação de Métricas"
+    )
+    
+    return fig
+
 def main():
     st.set_page_config(
         page_title="Niklaus - Detecção de Plágio",
@@ -243,7 +361,7 @@ def main():
         st.markdown("---")
         st.markdown(":computer: [GitHub](https://www.github.com/walternagai/niklaus-plagiarism)")
     
-    tab1, tab2, tab3 = st.tabs([":file_folder: Upload & Análise", ":bar_chart: Resultados", ":chart_with_upward_trend: Estatísticas"])
+    tab1, tab2, tab3, tab4 = st.tabs([":file_folder: Upload & Análise", ":bar_chart: Resultados", ":chart_with_upward_trend: Estatísticas", ":microscope: Análise Avançada"])
     
     with tab1:
         st.title(":computer: Niklaus")
@@ -368,6 +486,10 @@ def main():
                 
                 progress_bar.progress(90, text="Analisando trechos semelhantes...")
                 
+                # Perform advanced analysis
+                advanced_analysis = perform_advanced_analysis(files, files_content, language_selected)
+                st.session_state['advanced_analysis'] = advanced_analysis
+                
                 similarities_df_filtered = similarities_df[similarities_df["Similaridade"] > limit]
                 
                 if not similarities_df_filtered.empty:
@@ -395,7 +517,8 @@ def main():
                         'files_content': files_content,
                         'language': language_selected,
                         'threshold': limit,
-                        'matrix': similarity_mat
+                        'matrix': similarity_mat,
+                        'textual_similarities': similarities_matrix
                     }
                 else:
                     st.success("✅ Não foram encontrados trechos de código plagiados abaixo do limite definido.")
@@ -407,7 +530,8 @@ def main():
                         'files_content': files_content,
                         'language': language_selected,
                         'threshold': limit,
-                        'matrix': similarity_mat
+                        'matrix': similarity_mat,
+                        'textual_similarities': similarities_matrix
                     }
                 
                 progress_bar.progress(100, text="Análise concluída!")
@@ -563,6 +687,115 @@ def main():
                 st.plotly_chart(hist_fig, use_container_width=True)
             else:
                 st.info(":white_check_mark: Sem dados estatísticos disponíveis.")
+        
+        with tab4:
+            st.markdown("### :microscope: Análise Avançada de Código")
+            st.markdown("**Análise estrutural (AST), métricas de complexidade e detecção de padrões de plágio**")
+            
+            if not analysis_data['df'].empty:
+                st.markdown("---")
+                st.markdown("#### Similaridade Estrutural (AST)")
+                st.info("A similaridade estrutural compara a árvore sintática do código, identificando similaridades mesmo com variáveis renomeadas ou código reorganizado.")
+                
+                if 'advanced_analysis' in st.session_state and st.session_state['advanced_analysis']:
+                    adv = st.session_state['advanced_analysis']
+                    
+                    # AST Similarities
+                    ast_df = pd.DataFrame(adv['ast_similarities'], columns=['Arquivo 1', 'Arquivo 2', 'Similaridade Estrutural'])
+                    ast_df = ast_df.sort_values('Similaridade Estrutural', ascending=False)
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.metric("Similaridade Estrutural Média", f"{ast_df['Similaridade Estrutural'].mean():.1%}")
+                    with col2:
+                        st.metric("Similaridade Estrutural Máxima", f"{ast_df['Similaridade Estrutural'].max():.1%}")
+                    
+                    st.dataframe(
+                        ast_df.style.format({"Similaridade Estrutural": "{:.2%}"}),
+                        use_container_width=True
+                    )
+                    
+                    st.markdown("---")
+                    st.markdown("#### Métricas de Complexidade")
+                    
+                    # Metrics summary
+                    metrics_all = []
+                    for m in adv['metrics']:
+                        metrics_all.append({
+                            'Arquivo': m['file'],
+                            'LOC': m['loc'],
+                            'Complexidade': m['cyclomatic'],
+                            'Funções': m['functions'],
+                            'Aninhamento': m['nesting'],
+                            'Manutenibilidade': m['maintainability']
+                        })
+                    
+                    metrics_df = pd.DataFrame(metrics_all)
+                    st.dataframe(metrics_df, use_container_width=True)
+                    
+                    st.markdown("---")
+                    st.markdown("#### Análise de Métricas Comparativas")
+                    
+                    # Select files to compare
+                    file_pairs = [(row['Arquivo 1'], row['Arquivo 2']) for _, row in analysis_data['df'].iterrows()]
+                    selected_pair_idx = st.selectbox(
+                        "Selecione par de arquivos para análise detalhada",
+                        range(len(file_pairs)),
+                        format_func=lambda x: f"{file_pairs[x][0]} vs {file_pairs[x][1]}"
+                    )
+                    
+                    if selected_pair_idx is not None and len(file_pairs) > 0:
+                        file1, file2 = file_pairs[selected_pair_idx]
+                        
+                        # Get metrics for both files
+                        m1 = next((m for m in adv['metrics'] if m['file'] == file1), None)
+                        m2 = next((m for m in adv['metrics'] if m['file'] == file2), None)
+                        
+                        if m1 and m2:
+                            # Display metrics comparison
+                            display_metrics_comparison(m1, m2, file1, file2)
+                            
+                            # Radar chart
+                            radar_fig = create_metrics_radar_chart(m1, m2, file1, file2)
+                            st.plotly_chart(radar_fig, use_container_width=True)
+                            
+                            # Pattern detection
+                            st.markdown("---")
+                            st.markdown("#### Detecção de Padrões de Plágio")
+                            
+                            file_idx1 = analysis_data['files'].index(file1)
+                            file_idx2 = analysis_data['files'].index(file2)
+                            
+                            textual_sim = next((s[2] for s in analysis_data.get('textual_similarities', []) 
+                                               if (s[0] == file1 and s[1] == file2) or (s[0] == file2 and s[1] == file1)), 0)
+                            
+                            ast_sim = next((s[2] for s in adv['ast_similarities']
+                                           if (s[0] == file1 and s[1] == file2) or (s[0] == file2 and s[1] == file1)), 0)
+                            
+                            pattern_detector = PlagiarismPatternDetector()
+                            
+                            pattern_analysis = pattern_detector.comprehensive_analysis(
+                                analysis_data['files_content'][file_idx1],
+                                analysis_data['files_content'][file_idx2],
+                                textual_sim,
+                                ast_sim,
+                                {'overall_similarity': 0.5}
+                            )
+                            
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                st.metric("Tipo Detectado", pattern_analysis['plagiarism_type'].replace('_', ' '))
+                            with col2:
+                                st.metric("Confiança", f"{pattern_analysis['confidence']:.1%}")
+                            
+                            st.info(f"**Explicação:** {pattern_analysis['explanation']}")
+                            
+                            with st.expander("Detalhes dos Padrões"):
+                                st.json(pattern_analysis['patterns_detected'])
+                else:
+                    st.warning("Execute uma análise para ver os dados avançados.")
+            else:
+                st.info(":white_check_mark: Nenhum dado disponível. Execute uma análise primeiro.")
     
     if st.button("🛑 Cancelar Análise"):
         st.session_state['cancel'] = True
