@@ -150,8 +150,9 @@ def create_pdf_report(df, files, language, threshold):
     
     for idx, row in df.iterrows():
         pdf.cell(0, 8, f"{row['Arquivo 1']} vs {row['Arquivo 2']}: {row['Similaridade']:.2%}", ln=True)
-    
-    return bytes(pdf.output(dest='S'))
+
+    output = pdf.output(dest='S')
+    return output.encode('latin-1') if isinstance(output, str) else bytes(output)
 
 def perform_advanced_analysis(files, files_content, language):
     """Perform advanced analysis using analyzer modules."""
@@ -515,7 +516,8 @@ def create_enriched_pdf_report(df, files, language, threshold, advanced_analysis
                 pdf.cell(0, 6, f"  Similaridade media: {stats['avg_similarity']:.1%}  |  Max: {stats['max_similarity']:.1%}", ln=True)
                 pdf.ln(2)
 
-    return bytes(pdf.output(dest='S'))
+    output = pdf.output(dest='S')
+    return output.encode('latin-1') if isinstance(output, str) else bytes(output)
 
 
 def create_metrics_radar_chart(metrics1, metrics2, file1, file2):
