@@ -15,13 +15,12 @@ O módulo `analyzer` fornece análise avançada de plágio com 4 componentes pri
 pip install -r requirements.txt
 ```
 
-Dependências adicionadas:
-- `tree-sitter>=0.20.0` - Parsing de AST multi-linguagem
-- `radon>=6.0.0` - Métricas de complexidade
+Dependências principais:
 - `scipy>=1.11.0` - Clustering hierárquico
 - `scikit-learn>=1.3.0` - Machine learning utilities
 - `networkx>=3.0` - Grafos de similaridade
-- `reportlab>=4.0.0` - Relatórios PDF avançados
+- `plotly>=5.18.0` - Visualizações interativas
+- `fpdf>=1.7.2` - Relatórios PDF
 
 ## Uso dos Módulos
 
@@ -193,6 +192,30 @@ O sistema classifica em 8 tipos:
 7. **SIMILARIDADE_BAIXA** - Código provavelmente original
 8. **REUSO_LEGITIMO** - Reutilização de bibliotecas/código comum
 
+## Integração com a Interface Streamlit
+
+Os módulos estão totalmente integrados no `app.py` e operam automaticamente:
+
+### Fluxo de Análise (Phase 2)
+
+1. **Upload de arquivos** → Validação e extração do ZIP
+2. **Similaridade textual** → Matriz de similaridade comparando todos os pares
+3. **Análise AST** → Similaridade estrutural calculada para cada par
+4. **Métricas de complexidade** → LOC, CC, funções, aninhamento, MI
+5. **Clustering** → Detecção automática de grupos de plágio
+6. **Detecção de padrões** → Classificação do tipo de plágio
+7. **Visualização** → Grafo interativo, heatmaps, radar charts
+
+### Abas da Interface
+
+| Tab | Funcionalidade | Módulos Usados |
+|-----|---------------|----------------|
+| Upload & Análise | Upload, configuração, resumo | - |
+| Resultados | Tabela de similaridade, AI analysis, diff visual | PlagiarismPatternDetector |
+| Estatísticas | Heatmap, histograma, preview | - |
+| Análise Avançada | AST, métricas, radar, padrões | ASTParser, CodeMetrics, PlagiarismPatternDetector |
+| Grafo de Similaridade | Rede interativa, clusters, comunidades | ClusterDetector |
+
 ## Exemplo Completo de Uso
 
 ```python
@@ -243,14 +266,47 @@ for file1, file2, sim in ast_similarities:
         print(f"Explicação: {analysis['explanation']}")
 ```
 
-## Integração com Streamlit
+## Linguagens Suportadas
 
-Os módulos estão integrados no `app.py` principal e podem ser usados automaticamente quando:
+| Linguagem | Extensão | AST Detalhado | Fingerprint |
+|-----------|----------|---------------|-------------|
+| Python | .py | Sim (nativo) | Sim |
+| C | .c | Não | Sim |
+| C++ | .cpp | Não | Sim |
+| Java | .java | Não | Sim |
+| JavaScript | .js | Não | Sim |
+| TypeScript | .ts | Não | Sim |
+| Go | .go | Não | Sim |
+| Rust | .rs | Não | Sim |
+| Kotlin | .kt | Não | Sim |
 
-1. **Upload de arquivos** → AST parsing automático
-2. **Análise de similaridade** → Métricas calculadas em paralelo
-3. **Visualização** → Clusters detectados e mostrados em grafos
-4. **Relatório final** → Padrões detectados classificados
+## Novidades da Phase 2
+
+### Grafo de Similaridade Interativo
+- Visualização NetworkX Plotly com layout spring
+- Nós coloridos por cluster
+- Arestas proporcionais à similaridade
+- Hover com estatísticas detalhadas
+- Detecção de comunidades (greedy modularity)
+
+### Diff Visual
+- Toggle entre "Código lado a lado" e "Diff interativo"
+- Linhas adicionadas destacadas em verde
+- Linhas removidas destacadas em vermelho
+- Numeração preservada
+
+### PDF Enriquecido
+- Tabela de similaridade colorida
+- Tabela de métricas de complexidade
+- Similaridade AST ordenada
+- Resumo de clusters com estatísticas
+- Badge de severidade por cluster
+
+### UI Expandida
+- 9 linguagens no seletor (era 5)
+- 5 abas (era 4)
+- Resumo de clusters na Tab 5
+- Arquivos centrais identificados
 
 ## Testando
 
@@ -270,19 +326,22 @@ features = parser.parse_python_ast(code)
 print('Functions:', features['functions'])
 print('AST parsing OK!')
 "
+
+# Testar clustering
+python3 -c "
+from analyzer.clustering import ClusterDetector
+import numpy as np
+detector = ClusterDetector()
+sim = np.array([[1.0, 0.9], [0.9, 1.0]])
+result = detector.analyze_clusters(sim, ['a.py', 'b.py'])
+print('Clusters:', result['num_clusters'])
+print('Clustering OK!')
+"
 ```
-
-## Próximos Passos
-
-1. **Integração no app.py** - Conectar com interface Streamlit existente
-2. **Visualizações** - Heatmaps de clusters, grafos de similaridade
-3. **PDF Reports** - Relatórios enriquecidos com métricas e padrões
-4. **Testes automatizados** - Suite de testes unitários
-5. **Performance** - Otimização para grandes volumes de arquivos
 
 ## Limitações Conhecidas
 
-- **Linguagens**: Parsing AST detalhado funciona melhor em Python. Outras linguagens usam approach genérico.
+- **Linguagens**: Parsing AST detalhado funciona melhor em Python. Outras linguagens usam approach genérico (fingerprint).
 - **Código muito longo**: Pode haver lentidão em arquivos > 10.000 linhas.
 - **Dependências**: Requer networkx, scipy, scikit-learn instalados.
 

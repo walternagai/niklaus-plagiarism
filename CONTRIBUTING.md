@@ -46,7 +46,7 @@ pip install -r requirements.txt
 
 # Set up environment variables
 export MARITACA_API_KEY="your-test-api-key"
-export MARITACA_MODEL="sabia-4"
+export MARITACA_MODEL="sabiazinho-4"  # optional, defaults to sabiazinho-4
 
 # Run the app
 streamlit run app.py
@@ -66,16 +66,55 @@ streamlit run app.py
 - Temporary files are automatically cleaned up after analysis
 - Maximum file size limit: 50MB
 
+## Project Structure
+
+```
+niklaus-plagiarism/
+├── app.py                      # Main Streamlit application (5 tabs)
+├── analyzer/                   # Advanced analysis modules
+│   ├── __init__.py            # Module exports
+│   ├── ast_parser.py          # AST parsing and structural similarity
+│   ├── metrics.py             # Code complexity metrics
+│   ├── clustering.py          # Similarity clustering and graph analysis
+│   └── patterns.py            # Plagiarism pattern detection
+├── requirements.txt            # Python dependencies
+├── README.md                   # Project documentation
+├── ANALYZER_GUIDE.md           # Analyzer module usage guide
+├── CONTRIBUTING.md             # This file
+├── .env.example                # Environment variables template
+└── .streamlit/
+    └── secrets.toml.example    # Streamlit secrets template
+```
+
+## Features Implementation Status
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| Basic similarity detection | ✅ | Text-based comparison using SequenceMatcher |
+| Multi-language support | ✅ | C, C++, Java, JavaScript, Python, Go, Rust, TypeScript, Kotlin |
+| AI-powered analysis | ✅ | Maritaca Sabiazinho-4 integration |
+| Heatmap visualization | ✅ | Plotly interactive similarity matrix |
+| CSV/JSON/PDF export | ✅ | Multiple export formats |
+| Dark mode | ✅ | Theme switcher in sidebar |
+| AST structural analysis | ✅ | Phase 1 - Python native, others fingerprint |
+| Code metrics | ✅ | LOC, CC, functions, nesting, maintainability |
+| Plagiarism patterns | ✅ | 8 types with confidence scores |
+| Similarity graph | ✅ | Phase 2 - Interactive NetworkX visualization |
+| Cluster detection | ✅ | Phase 2 - Hierarchical clustering + communities |
+| Visual diff | ✅ | Phase 2 - Unified diff with highlighting |
+| Enriched PDF | ✅ | Phase 2 - Metrics, AST, cluster summaries |
+| User authentication | 🔜 | Future feature |
+| LMS integration | 🔜 | Canvas, Moodle |
+| Batch ZIP processing | 🔜 | Multiple uploads |
+
 ## Future Features
 
 - User management and authentication
-- Additional programming languages (Rust, Go, etc.)
-- Integration with learning management systems (Canvas, Moodle, etc.)
-- Enhanced visualization dashboard (heatmaps, similarity networks)
+- Integration with learning management systems (Canvas, Moodle)
 - Batch processing for multiple ZIP files
-- Export reports to PDF/CSV (✅ implemented)
-- Interactive code comparison view (✅ implemented)
-- Dark mode toggle (✅ implemented)
+- Real-time collaboration
+- Test suite with automated testing
+- Performance optimization for large datasets (>100 files)
 
 ## Questions?
 
