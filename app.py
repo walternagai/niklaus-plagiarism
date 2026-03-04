@@ -7,6 +7,7 @@ import string
 import random
 import shutil
 import tempfile
+import zipfile
 import chardet
 import pandas as pd
 import streamlit as st
@@ -141,7 +142,7 @@ def create_pdf_report(df, files, language, threshold):
     for idx, row in df.iterrows():
         pdf.cell(0, 8, f"{row['Arquivo 1']} vs {row['Arquivo 2']}: {row['Similaridade']:.2%}", ln=True)
     
-    return pdf.output(dest='S').encode('latin-1')
+    return bytes(pdf.output(dest='S'))
 
 def main():
     st.set_page_config(
@@ -172,8 +173,16 @@ def main():
         
         st.markdown("---")
         
-        api_key = os.getenv('GROQ_API_KEY') or st.secrets.get("pytheo_groq", {}).get("GROQ_API_KEY")
-        model = os.getenv('GROQ_MODEL') or st.secrets.get("pytheo_groq", {}).get("GROQ_MODEL")
+        api_key = os.getenv('GROQ_API_KEY')
+        model = os.getenv('GROQ_MODEL')
+        
+        if not api_key:
+            try:
+                secrets = st.secrets
+                api_key = secrets.get("pytheo_groq", {}).get("GROQ_API_KEY")
+                model = secrets.get("pytheo_groq", {}).get("GROQ_MODEL")
+            except Exception:
+                pass
         
         if not api_key:
             st.error("Configure GROQ_API_KEY nas variáveis de ambiente ou no arquivo .streamlit/secrets.toml")
