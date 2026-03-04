@@ -45,8 +45,8 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
 # Set up environment variables
-export GROQ_API_KEY="your-test-api-key"
-export GROQ_MODEL="llama-3.1-70b-versatile"
+export MARITACA_API_KEY="your-test-api-key"
+export MARITACA_MODEL="sabia-4"
 
 # Run the app
 streamlit run app.py
@@ -73,7 +73,9 @@ streamlit run app.py
 - Integration with learning management systems (Canvas, Moodle, etc.)
 - Enhanced visualization dashboard (heatmaps, similarity networks)
 - Batch processing for multiple ZIP files
-- Export reports to PDF/CSV
+- Export reports to PDF/CSV (✅ implemented)
+- Interactive code comparison view (✅ implemented)
+- Dark mode toggle (✅ implemented)
 
 ## Questions?
 

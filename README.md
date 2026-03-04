@@ -6,20 +6,22 @@ The purpose of the Niklaus project is to provide a tool that can detect plagiari
 
 ## How it works
 
-Niklaus uses a combination of static analysis and machine learning techniques to compare code submissions and identify similarities. When a new assignment is submitted, Niklaus extracts features from the code, such as variable names, function names, and control structures. 
+Niklaus uses a combination of static analysis and AI techniques to compare code submissions and identify similarities. When a new assignment is submitted, Niklaus extracts features from the code, such as variable names, function names, and control structures, and uses Maritaca's Sabiá model for intelligent analysis.
 
 ## Features
 
 - **Automated plagiarism detection**: Niklaus can automatically compare code submissions to flag potential instances of plagiarism.
 - **Multi-language support**: Supports C, C++, Java, JavaScript, and Python.
 - **Customizable settings**: Educators can configure Niklaus to adjust the sensitivity of the plagiarism detection algorithm and set thresholds for similarity scores.
-- **Detailed reports**: Niklaus generates detailed reports that highlight similarities between code submissions and provide AI-powered analysis via Groq LLM.
+- **Detailed reports**: Niklaus generates detailed reports that highlight similarities between code submissions and provide AI-powered analysis via Maritaca's Sabiá model.
+- **Interactive visualizations**: Heatmaps, progress bars, and interactive tables for comprehensive analysis.
+- **Export capabilities**: CSV, JSON, and PDF export options for reports.
 - **Security**: ZIP file validation (50MB limit, path traversal protection) and automatic cleanup of temporary files.
 
 ## Prerequisites
 
 - Python 3.8 or higher
-- Groq API key (get one at https://console.groq.com/)
+- Maritaca API key (get one at https://maritaca.ai/)
 
 ## Installation
 
@@ -31,13 +33,13 @@ pip install -r requirements.txt
 
 ## Configuration
 
-Set up your Groq API credentials using one of these methods:
+Set up your Maritaca API credentials using one of these methods:
 
 ### Option 1: Environment Variables (Recommended)
 
 ```bash
-export GROQ_API_KEY="your-api-key-here"
-export GROQ_MODEL="llama-3.1-70b-versatile"  # or your preferred model
+export MARITACA_API_KEY="your-api-key-here"
+export MARITACA_MODEL="sabia-4"  # or your preferred model
 ```
 
 ### Option 2: Streamlit Secrets
@@ -45,9 +47,9 @@ export GROQ_MODEL="llama-3.1-70b-versatile"  # or your preferred model
 Create `.streamlit/secrets.toml`:
 
 ```toml
-[pytheo_groq]
-GROQ_API_KEY = "your-api-key-here"
-GROQ_MODEL = "llama-3.1-70b-versatile"
+[maritaca]
+MARITACA_API_KEY = "your-api-key-here"
+MARITACA_MODEL = "sabia-4"
 ```
 
 ## Usage
@@ -71,6 +73,14 @@ Then:
 - Java (.java)
 - JavaScript (.js)
 - Python (.py)
+
+## Technology Stack
+
+- **Frontend**: Streamlit (interactive web interface)
+- **Backend**: Python with OpenAI SDK (compatible with Maritaca API)
+- **AI Model**: Maritaca Sabiá (Brazilian LLM for code analysis)
+- **Visualization**: Plotly (heatmaps, charts)
+- **Export**: FPDF (PDF reports), Pandas (CSV/JSON)
 
 ## Contributing
 

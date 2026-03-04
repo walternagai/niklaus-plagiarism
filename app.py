@@ -15,7 +15,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from zipfile import ZipFile 
 from difflib import SequenceMatcher  
-from langchain_groq import ChatGroq
+import openai
 from datetime import datetime
 from fpdf import FPDF
 
@@ -50,53 +50,57 @@ def comparate_files(code1, code2, language='python'):
     similaridade = calculate_similarity(clean_code1, clean_code2)
     return similaridade
 
-def generate_response_groq(api_key, model, file_content, file_content_to_compare):
-    model = ChatGroq(model=model,
-                     temperature=0.7, 
-                     max_tokens=1024,
-                     api_key=api_key)
+def generate_response_maritaca(api_key, model, file_content, file_content_to_compare):
+    client = openai.OpenAI(
+        api_key=api_key,
+        base_url="https://chat.maritaca.ai/api"
+    )
     
     prompt = f"Compare o código 1: ```{file_content}``` com o código 2: ```{file_content_to_compare}``` e identifique trechos plagiados."
 
-    messages = [
-        ("system", 
-            """
-            Você é Niklaus, um assistente virtual especializado em auxiliar professores de programação na análise e 
-            comparação de projetos práticos entregues pelos alunos dos professores. 
-            
-            Seu objetivo é facilitar a identificação de trechos de código semelhantes, detectar plágios e fornecer 
-            insights sobre padrões comuns nos projetos. 
-            
-            Siga as diretrizes abaixo para oferecer assistência eficaz:
-            * Recepção e Organização de Projetos:
-                - Aceitar e organizar projetos submetidos em formatos compatíveis (código-fonte, documentação, etc.).
-                - Identificar metadados relevantes contidos nos projetos (nome do aluno, data, linguagem, descrição).
+    instructions = """
+Você é Niklaus, um assistente virtual especializado em auxiliar professores de programação na análise e 
+comparação de projetos práticos entregues pelos alunos dos professores. 
 
-            * Análise de Similaridade e Detecção de Plágio:
-                - Utilizar técnicas computacionais para comparar códigos e identificar trechos semelhantes.
-                - Realizar comparações usando dados quantitativos, como métricas de complexidade ciclomática, 
-                número de linhas de código, número de funções/métodos, e cobertura de testes.
-                - Gerar relatórios detalhados destacando áreas de coincidência ou similaridades.
-                - Utilizar algoritmos que analisam estrutura, lógica e comentários para detectar plágio.
-                - Identificar padrões de cópia e colagem, tradução, substituição de variáveis e reordenação de instruções.
-                - Considerar a originalidade, complexidade e eficiência dos projetos ao avaliar a similaridade.
+Seu objetivo é facilitar a identificação de trechos de código semelhantes, detectar plágios e fornecer 
+insights sobre padrões comuns nos projetos. 
 
-            * Geração de Relatórios e Visualizações:
-                - Criar relatórios resumindo análises de similaridade e plágio.
-                - Fornecer visualizações gráficas (mapas de calor, redes de similaridade) para ilustrar relações entre projetos.
+Siga as diretrizes abaixo para oferecer assistência eficaz:
+* Recepção e Organização de Projetos:
+    - Aceitar e organizar projetos submetidos em formatos compatíveis (código-fonte, documentação, etc.).
+    - Identificar metadados relevantes contidos nos projetos (nome do aluno, data, linguagem, descrição).
 
-            * Instruções Adicionais:
-                - Comunique-se de forma clara, objetiva e profissional.
-                - Adapte análises e sugestões ao contexto dos projetos.
-                - Utilize fontes e algoritmos confiáveis para garantir precisão e integridade.
-                - Incentive a originalidade e criatividade promovendo um ambiente de aprendizado justo.
-                - Todas as respostas devem ser escritas em português do Brasil.
-            """
-        ),
-        ("human", prompt)
-    ]
-    response = model.invoke(messages)
-    return response.content
+* Análise de Similaridade e Detecção de Plágio:
+    - Utilizar técnicas computacionais para comparar códigos e identificar trechos semelhantes.
+    - Realizar comparações usando dados quantitativos, como métricas de complexidade ciclomática, 
+    número de linhas de código, número de funções/métodos, e cobertura de testes.
+    - Gerar relatórios detalhados destacando áreas de coincidência ou similaridades.
+    - Utilizar algoritmos que analisam estrutura, lógica e comentários para detectar plágio.
+    - Identificar padrões de cópia e colagem, tradução, substituição de variáveis e reordenação de instruções.
+    - Considerar a originalidade, complexidade e eficiência dos projetos ao avaliar a similaridade.
+
+* Geração de Relatórios e Visualizações:
+    - Criar relatórios resumindo análises de similaridade e plágio.
+    - Fornecer visualizações gráficas (mapas de calor, redes de similaridade) para ilustrar relações entre projetos.
+
+* Instruções Adicionais:
+    - Comunique-se de forma clara, objetiva e profissional.
+    - Adapte análises e sugestões ao contexto dos projetos.
+    - Utilize fontes e algoritmos confiáveis para garantir precisão e integridade.
+    - Incentive a originalidade e criatividade promovendo um ambiente de aprendizado justo.
+    - Todas as respostas devem ser escritas em português do Brasil.
+"""
+
+    response = client.responses.create(
+        model=model,
+        instructions=instructions,
+        input=[
+            {"role": "user", "content": prompt}
+        ],
+        max_output_tokens=1024
+    )
+    
+    return response.output[0].content[0].text
 
 def stream_data(response):
     for word in response.split(" "):
@@ -173,19 +177,19 @@ def main():
         
         st.markdown("---")
         
-        api_key = os.getenv('GROQ_API_KEY')
-        model = os.getenv('GROQ_MODEL')
+        api_key = os.getenv('MARITACA_API_KEY')
+        model = os.getenv('MARITACA_MODEL')
         
         if not api_key:
             try:
                 secrets = st.secrets
-                api_key = secrets.get("pytheo_groq", {}).get("GROQ_API_KEY")
-                model = secrets.get("pytheo_groq", {}).get("GROQ_MODEL")
+                api_key = secrets.get("maritaca", {}).get("MARITACA_API_KEY")
+                model = secrets.get("maritaca", {}).get("MARITACA_MODEL")
             except Exception:
                 pass
         
         if not api_key:
-            st.error("Configure GROQ_API_KEY nas variáveis de ambiente ou no arquivo .streamlit/secrets.toml")
+            st.error("Configure MARITACA_API_KEY nas variáveis de ambiente ou no arquivo .streamlit/secrets.toml")
             st.stop()
         
         st.markdown("### Linguagem")
@@ -376,7 +380,7 @@ def main():
                             
                             file1_idx = files.index(row['Arquivo 1'])
                             file2_idx = files.index(row['Arquivo 2'])
-                            analysis = generate_response_groq(api_key, model, files_content[file1_idx], files_content[file2_idx])
+                            analysis = generate_response_maritaca(api_key, model, files_content[file1_idx], files_content[file2_idx])
                             analyses.append(analysis)
                             st.write(f"✓ {row['Arquivo 1']} ↔ {row['Arquivo 2']}: {row['Similaridade']:.1%}")
                         
