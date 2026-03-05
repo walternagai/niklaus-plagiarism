@@ -141,16 +141,16 @@ class ASTParser:
         
         # Compare functions
         if ast1.get('functions') and ast2.get('functions'):
-            func_names1 = {f['name'] for f in ast1['functions']}
-            func_names2 = {f['name'] for f in ast2['functions']}
-            
-            # Structural comparison (ignoring names)
-            func_args1 = [tuple(sorted(f['args'])) for f in ast1['functions']]
-            func_args2 = [tuple(sorted(f['args'])) for f in ast2['functions']]
-            
-            common_args = len(set(func_args1) & set(func_args2))
-            total_args = max(len(set(func_args1) | set(func_args2)), 1)
-            score += common_args / total_args
+            arg_counts1 = sorted(len(f.get('args', [])) for f in ast1['functions'])
+            arg_counts2 = sorted(len(f.get('args', [])) for f in ast2['functions'])
+
+            if arg_counts1 and arg_counts2:
+                min_len = min(len(arg_counts1), len(arg_counts2))
+                if min_len > 0:
+                    matches = sum(1 for i in range(min_len) if arg_counts1[i] == arg_counts2[i])
+                    score += matches / max(len(arg_counts1), len(arg_counts2), 1)
+                else:
+                    score += 0.0
             total_checks += 1
         
         # Compare classes
@@ -177,10 +177,9 @@ class ASTParser:
                 total_checks += 1
         
         # Compare function calls
-        if ast1.get('calls') and ast2.get('calls'):
-            calls1 = set(ast1['calls'])
-            calls2 = set(ast2['calls'])
-            
+        calls1 = set(ast1.get('calls', []))
+        calls2 = set(ast2.get('calls', []))
+        if calls1 or calls2:
             common = len(calls1 & calls2)
             score += common / max(len(calls1 | calls2), 1)
             total_checks += 1
@@ -247,7 +246,7 @@ class ASTParser:
         funcs1 = self._extract_function_names(tree1)
         funcs2 = self._extract_function_names(tree2)
         
-        if len(funcs1) == len(funcs2) and len(funcs1) > 0:
+        if len(funcs1) == len(funcs2) and len(funcs1) > 0 and set(funcs1) != set(funcs2):
             patterns.append({
                 'type': 'FUNCTION_RENAME',
                 'description': f'Possível renomeação de funções ({len(funcs1)} funções)',
@@ -262,6 +261,8 @@ class ASTParser:
         for node in ast.walk(tree):
             if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
                 variables.append(node.id)
+            elif isinstance(node, ast.arg):
+                variables.append(node.arg)
         return list(set(variables))
     
     def _extract_function_names(self, tree: ast.AST) -> List[str]:

@@ -59,7 +59,7 @@ class CodeMetrics:
         """
         Count lines of code (total, comments, blank).
         """
-        lines = code.split('\n')
+        lines = code.splitlines()
         
         total = len(lines)
         blank = sum(1 for line in lines if not line.strip())
