@@ -208,13 +208,13 @@ class FileHandler:
             LanguageDetectionError: If language not supported
         """
         lang_map = config.LANGUAGE_EXTENSIONS
-        
-        language_normalized = language.strip().title()
-        
-        if language_normalized not in lang_map:
-            raise LanguageDetectionError(language)
-        
-        return lang_map[language_normalized]
+
+        language_normalized = language.strip().lower()
+        for lang_name, ext in lang_map.items():
+            if lang_name.lower() == language_normalized:
+                return ext
+
+        raise LanguageDetectionError(language)
     
     def detect_language_from_extension(self, extension: str) -> str:
         """
