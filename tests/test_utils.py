@@ -217,6 +217,36 @@ class TestFileHandler:
         assert stats['total_lines'] == 5
         assert stats['avg_lines'] == 2.5
 
+    def test_extract_zip_preserves_relative_paths(self):
+        """Extraction should preserve relative paths to avoid name collisions."""
+        from core.file_handler import FileHandler
+        import io
+        import zipfile
+
+        class UploadedZip:
+            def __init__(self, payload: bytes, name: str):
+                self._payload = payload
+                self.name = name
+
+            def getvalue(self):
+                return self._payload
+
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr('student_a/main.py', 'print("a")')
+            zf.writestr('student_b/main.py', 'print("b")')
+
+        uploaded = UploadedZip(zip_buffer.getvalue(), 'sample.zip')
+        handler = FileHandler()
+
+        files, contents, extract_dir = handler.extract_zip(uploaded, 'Python')
+        handler.cleanup(extract_dir)
+
+        assert 'student_a/main.py' in files
+        assert 'student_b/main.py' in files
+        assert len(files) == 2
+        assert len(contents) == 2
+
 
 class TestPersistence:
     """Test persistence module."""

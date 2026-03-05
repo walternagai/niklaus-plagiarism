@@ -132,8 +132,9 @@ class FileHandler:
             for root, dirs, filenames in os.walk(files_path):
                 for filename in filenames:
                     if filename.endswith(f'.{expected_ext}'):
-                        files.append(filename)
                         filepath = os.path.join(root, filename)
+                        relative_path = os.path.relpath(filepath, files_path).replace('\\', '/')
+                        files.append(relative_path)
                         content = self.read_file(filepath)
                         file_contents.append(content)
             
