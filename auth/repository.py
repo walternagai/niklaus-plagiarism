@@ -5,7 +5,7 @@ Repository pattern for database operations.
 from typing import Optional, List
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
-from datetime import datetime
+from datetime import datetime, timedelta, UTC
 import json
 
 from auth.models import User, Submission, AnalysisCache, AuditLog
@@ -14,6 +14,11 @@ from utils.db_cache import get_submission_cache
 from utils.performance import track_performance
 
 logger = get_logger(__name__)
+
+
+def utcnow() -> datetime:
+    """Return current UTC datetime without tzinfo for DB writes/queries."""
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 class UserRepository:
@@ -47,7 +52,7 @@ class UserRepository:
     def update_last_login(self, user_id: int) -> None:
         user = self.find_by_id(user_id)
         if user:
-            user.last_login_at = datetime.utcnow()
+            user.last_login_at = utcnow()
             self.db.commit()
     
     def update_settings(self, user_id: int, settings: dict) -> None:
@@ -126,7 +131,7 @@ class SubmissionRepository:
             submission.status = status
             submission.error_message = error_message
             if status == 'completed':
-                submission.processed_at = datetime.utcnow()
+                submission.processed_at = utcnow()
             self.db.commit()
     
     def save_analysis_data(self, submission_id: int, analysis_data: dict) -> None:
@@ -139,7 +144,7 @@ class SubmissionRepository:
             submission.max_similarity = analysis_data.get('max_similarity')
             submission.analysis_time_seconds = analysis_data.get('analysis_time', 0)
             submission.status = 'completed'
-            submission.processed_at = datetime.utcnow()
+            submission.processed_at = utcnow()
             self.db.commit()
     
     def delete(self, submission_id: int) -> bool:
@@ -166,11 +171,11 @@ class CacheRepository:
     def get(self, cache_key: str) -> Optional[AnalysisCache]:
         cache = self.db.query(AnalysisCache).filter(
             AnalysisCache.cache_key == cache_key,
-            AnalysisCache.expires_at > datetime.utcnow()
+            AnalysisCache.expires_at > utcnow()
         ).first()
         
         if cache:
-            cache.accessed_at = datetime.utcnow()
+            cache.accessed_at = utcnow()
             cache.access_count += 1
             self.db.commit()
         
@@ -179,8 +184,6 @@ class CacheRepository:
     def set(self, cache_key: str, cache_data: dict, file_hashes: list,
             language: str, threshold: float, user_id: int = None,
             expires_hours: int = 24) -> AnalysisCache:
-        from datetime import timedelta
-        
         self.db.query(AnalysisCache).filter(
             AnalysisCache.cache_key == cache_key
         ).delete()
@@ -193,7 +196,7 @@ class CacheRepository:
             threshold=threshold,
             cache_data=cache_data,
             size_bytes=len(json.dumps(cache_data)),
-            expires_at=datetime.utcnow() + timedelta(hours=expires_hours)
+            expires_at=utcnow() + timedelta(hours=expires_hours)
         )
         
         self.db.add(cache)
@@ -204,7 +207,7 @@ class CacheRepository:
     
     def delete_expired(self) -> int:
         count = self.db.query(AnalysisCache).filter(
-            AnalysisCache.expires_at < datetime.utcnow()
+            AnalysisCache.expires_at < utcnow()
         ).delete()
         self.db.commit()
         return count

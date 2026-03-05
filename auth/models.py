@@ -3,12 +3,16 @@ SQLAlchemy Models for Niklaus Authentication System.
 """
 
 from sqlalchemy import Column, Integer, String, Float, Boolean, JSON, DateTime, ForeignKey, Text
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
-from datetime import datetime
+from sqlalchemy.orm import relationship, declarative_base
+from datetime import datetime, UTC
 from typing import Optional, Dict, Any
 
 Base = declarative_base()
+
+
+def utcnow() -> datetime:
+    """Return current UTC datetime without tzinfo for DB compatibility."""
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 class User(Base):
@@ -39,8 +43,8 @@ class User(Base):
     total_analyses = Column(Integer, default=0)
     total_suspicious_pairs = Column(Integer, default=0)
     
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
     last_login_at = Column(DateTime)
     last_submission_at = Column(DateTime)
     
@@ -102,7 +106,7 @@ class Submission(Base):
     analysis_data = Column(JSON)
     
     processed_at = Column(DateTime)
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    created_at = Column(DateTime, default=utcnow, index=True)
     
     user = relationship("User", back_populates="submissions")
     
@@ -142,9 +146,9 @@ class AnalysisCache(Base):
     cache_data = Column(JSON, nullable=False)
     size_bytes = Column(Integer)
     
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    created_at = Column(DateTime, default=utcnow, index=True)
     expires_at = Column(DateTime, nullable=False)
-    accessed_at = Column(DateTime, default=datetime.utcnow)
+    accessed_at = Column(DateTime, default=utcnow)
     access_count = Column(Integer, default=0)
     
     user = relationship("User", back_populates="cache_entries")
@@ -153,10 +157,10 @@ class AnalysisCache(Base):
         return f"<AnalysisCache(id={self.id}, cache_key='{self.cache_key[:16]}...')>"
     
     def is_expired(self) -> bool:
-        return datetime.utcnow() > self.expires_at
+        return utcnow() > self.expires_at
     
     def touch(self) -> None:
-        self.accessed_at = datetime.utcnow()
+        self.accessed_at = utcnow()
         self.access_count += 1
 
 
@@ -175,7 +179,7 @@ class AuditLog(Base):
     ip_address = Column(String(45))
     user_agent = Column(Text)
     
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    created_at = Column(DateTime, default=utcnow, index=True)
     
     def __repr__(self):
         return f"<AuditLog(id={self.id}, action='{self.action}')>"

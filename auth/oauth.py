@@ -5,7 +5,7 @@ OAuth handlers for Google, GitHub, and Microsoft authentication.
 import hmac
 import secrets
 from typing import Optional, Dict, Any
-from datetime import datetime
+from datetime import datetime, UTC
 
 from auth.models import User
 from auth.database import get_session
@@ -14,6 +14,11 @@ from auth.repository import UserRepository
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+
+def utcnow() -> datetime:
+    """Return current UTC datetime without tzinfo for DB compatibility."""
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 class OAuthHandler:
@@ -234,7 +239,7 @@ class OAuthHandler:
             user.avatar_url = avatar_url
             user.oauth_provider = provider
             user.oauth_id = oauth_id
-            user.last_login_at = datetime.utcnow()
+            user.last_login_at = utcnow()
             user.is_active = True
             db.commit()
             db.refresh(user)

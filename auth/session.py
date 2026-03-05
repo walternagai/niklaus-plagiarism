@@ -4,7 +4,7 @@ Session management utilities for Streamlit.
 
 import streamlit as st
 from typing import Optional, Union, Dict, Any
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 
 from auth.models import User
 from auth.repository import UserRepository
@@ -12,6 +12,11 @@ from auth.database import get_session
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+
+def utcnow() -> datetime:
+    """Return current UTC datetime without tzinfo for session checks."""
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 class SessionManager:
@@ -37,7 +42,7 @@ class SessionManager:
         
         st.session_state[SessionManager.SESSION_KEY] = user_dict
         st.session_state[SessionManager.SESSION_EXPIRY_KEY] = (
-            datetime.utcnow() + timedelta(hours=24)
+            utcnow() + timedelta(hours=24)
         )
         
         db = get_session()
@@ -69,7 +74,7 @@ class SessionManager:
             return None
         
         expiry = st.session_state.get(SessionManager.SESSION_EXPIRY_KEY)
-        if expiry and datetime.utcnow() > expiry:
+        if expiry and utcnow() > expiry:
             SessionManager.logout()
             return None
         
