@@ -26,6 +26,10 @@ def render_history_tab(user_id: int):
     if 'loaded_submission_id' not in st.session_state:
         st.session_state['loaded_submission_id'] = None
     
+    # Show loaded submission status
+    if st.session_state.get('loaded_submission_id') and st.session_state.get('last_analysis'):
+        st.success(f"📂 Submissão #{st.session_state['loaded_submission_id']} carregada - Veja as abas Resultados, Estatísticas, Análise Avançada e Grafo")
+    
     db = get_session()
     submission_repo = SubmissionRepository(db)
     
@@ -45,19 +49,35 @@ def _render_actions_section(user_id: int, submission_repo: SubmissionRepository)
     
     with col1:
         if st.button("🗑️ Limpar Todas as Submissões", use_container_width=True, type="secondary"):
-            _show_clear_all_confirmation(user_id, submission_repo)
+            st.session_state['show_clear_all_dialog'] = True
     
     with col2:
         if st.button("📊 Ver Estatísticas do Histórico", use_container_width=True):
-            _show_history_stats(user_id, submission_repo)
+            st.session_state['show_history_stats'] = True
     
     with col3:
         if st.session_state.get('loaded_submission_id'):
             if st.button("✖️ Fechar Submissão Carregada", use_container_width=True):
-                st.session_state['loaded_submission_id'] = None
-                st.session_state['last_analysis'] = None
+                # Clear all analysis-related session state
+                if 'last_analysis' in st.session_state:
+                    del st.session_state['last_analysis']
+                if 'loaded_submission_id' in st.session_state:
+                    del st.session_state['loaded_submission_id']
+                if 'advanced_analysis' in st.session_state:
+                    del st.session_state['advanced_analysis']
+                if 'cluster_data' in st.session_state:
+                    del st.session_state['cluster_data']
+                
                 st.toast("✓ Submissão fechada")
                 st.rerun()
+    
+    # Show clear all dialog
+    if st.session_state.get('show_clear_all_dialog', False):
+        _show_clear_all_confirmation(user_id, submission_repo)
+    
+    # Show history stats
+    if st.session_state.get('show_history_stats', False):
+        _show_history_stats(user_id, submission_repo)
     
     st.markdown("---")
 
@@ -67,16 +87,16 @@ def _show_clear_all_confirmation(user_id: int, submission_repo: SubmissionReposi
     st.warning("⚠️ **Atenção:** Esta ação irá excluir TODAS as suas submissões.")
     st.warning("Esta ação não pode ser desfeita!")
     
-    confirm_key = f"confirm_clear_all_{user_id}"
-    
     col1, col2 = st.columns(2)
     
     with col1:
-        if st.button("✅ Sim, excluir todas", key=f"btn_confirm_clear_{user_id}", type="primary"):
+        if st.button("✅ Sim, excluir todas", key="btn_confirm_clear_all", type="primary"):
             _clear_all_submissions(user_id, submission_repo)
+            st.session_state['show_clear_all_dialog'] = False
     
     with col2:
-        if st.button("❌ Cancelar", key=f"btn_cancel_clear_{user_id}"):
+        if st.button("❌ Cancelar", key="btn_cancel_clear_all"):
+            st.session_state['show_clear_all_dialog'] = False
             st.rerun()
 
 
@@ -118,6 +138,9 @@ def _show_history_stats(user_id: int, submission_repo: SubmissionRepository):
         
         if not submissions:
             st.info("Nenhuma submissão encontrada")
+            if st.button("Fechar", key="close_stats_empty"):
+                st.session_state['show_history_stats'] = False
+                st.rerun()
             return
         
         total = len(submissions)
@@ -156,9 +179,16 @@ def _show_history_stats(user_id: int, submission_repo: SubmissionRepository):
         
         st.markdown("---")
         
+        if st.button("Fechar Estatísticas", key="close_stats"):
+            st.session_state['show_history_stats'] = False
+            st.rerun()
+        
     except Exception as e:
         logger.error(f"Error showing history stats: {e}")
         st.error(f"Erro ao carregar estatísticas: {str(e)}")
+        if st.button("Fechar", key="close_stats_error"):
+            st.session_state['show_history_stats'] = False
+            st.rerun()
 
 
 def _render_filters_section():
@@ -478,15 +508,27 @@ def _load_submission_results(submission):
         
         # Also load settings from submission
         settings = {
-            'threshold': getattr(submission, 'threshold', 0.7),
-            'language': getattr(submission, 'language', 'Python'),
+            'threshold': float(getattr(submission, 'threshold', 0.7) or 0.7),
+            'language': getattr(submission, 'language', 'Python') or 'Python',
+            'max_workers': getattr(st.session_state.get('settings', {}), 'max_workers', 4),
+            'use_cache': True,
+            'enable_ai': True,
         }
         st.session_state['settings'] = settings
+        
+        # Clear any previous advanced analysis
+        if 'advanced_analysis' in st.session_state:
+            del st.session_state['advanced_analysis']
+        if 'cluster_data' in st.session_state:
+            del st.session_state['cluster_data']
         
         st.success(f"✅ Submissão #{getattr(submission, 'id', 0)} carregada!")
         st.toast("✅ Resultados carregados! Veja as abas: Resultados, Estatísticas, Análise Avançada e Grafo.")
         
         logger.info(f"Loaded submission {getattr(submission, 'id', 0)} for viewing")
+        
+        # Force rerun to update all tabs
+        st.rerun()
         
     except Exception as e:
         logger.error(f"Error loading submission results: {e}")
