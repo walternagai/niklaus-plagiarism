@@ -10,7 +10,7 @@ from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
 from analyzer import ASTParser, CodeMetrics, ClusterDetector, PlagiarismPatternDetector
 from core.comparison import compare_files
 from utils.parallel import ParallelComparator
-from utils.exceptions import AnalysisError
+from utils.exceptions import AnalysisError, AnalysisCancelledError
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -56,7 +56,8 @@ class PlagiarismAnalyzer:
         files: List[str],
         contents: List[str],
         threshold: float = 0.7,
-        progress_callback: Optional[Callable[[int, int, str], None]] = None
+        progress_callback: Optional[Callable[[int, int, str], None]] = None,
+        cancel_check: Optional[Callable[[], bool]] = None
     ) -> Dict[str, Any]:
         """
         Perform complete analysis on file set.
@@ -75,6 +76,7 @@ class PlagiarismAnalyzer:
         """
         try:
             logger.info(f"Starting analysis of {len(files)} files")
+            self._raise_if_cancelled(cancel_check)
             
             # 1. Textual similarity (parallel)
             logger.info("Calculating textual similarities...")
@@ -82,8 +84,9 @@ class PlagiarismAnalyzer:
                 progress_callback(0, len(files), "Calculando similaridade textual...")
             
             textual_sims = self._calculate_textual_similarities(
-                files, contents, progress_callback
+                files, contents, progress_callback, cancel_check
             )
+            self._raise_if_cancelled(cancel_check)
             
             # 2. AST similarity (parallel)
             logger.info("Calculating AST similarities...")
@@ -91,15 +94,17 @@ class PlagiarismAnalyzer:
                 progress_callback(0, len(files), "Calculando similaridade estrutural...")
             
             ast_sims = self._calculate_ast_similarities(
-                files, contents, progress_callback
+                files, contents, progress_callback, cancel_check
             )
+            self._raise_if_cancelled(cancel_check)
             
             # 3. Code metrics (parallel)
             logger.info("Calculating code metrics...")
             if progress_callback:
                 progress_callback(0, len(files), "Calculando métricas de código...")
             
-            metrics = self._calculate_metrics(contents, progress_callback)
+            metrics = self._calculate_metrics(contents, progress_callback, cancel_check)
+            self._raise_if_cancelled(cancel_check)
             
             # 4. Build similarity matrix
             logger.info("Building similarity matrix...")
@@ -113,11 +118,12 @@ class PlagiarismAnalyzer:
             cluster_data = self.cluster_detector.analyze_clusters(
                 similarity_matrix, files, min_similarity=threshold
             )
+            self._raise_if_cancelled(cancel_check)
             
             # 6. Pattern detection for pairs above threshold
             logger.info("Detecting plagiarism patterns...")
             patterns = self._detect_patterns(
-                files, contents, textual_sims, ast_sims, threshold
+                files, contents, textual_sims, ast_sims, threshold, cancel_check
             )
             
             result = {
@@ -135,6 +141,8 @@ class PlagiarismAnalyzer:
             logger.info("Analysis completed successfully")
             return result
             
+        except AnalysisCancelledError:
+            raise
         except Exception as e:
             logger.error(f"Analysis failed: {e}")
             raise AnalysisError(
@@ -142,12 +150,18 @@ class PlagiarismAnalyzer:
                 file1=files[0] if files else '',
                 file2=files[1] if len(files) > 1 else ''
             )
+
+    @staticmethod
+    def _raise_if_cancelled(cancel_check: Optional[Callable[[], bool]]) -> None:
+        if cancel_check and cancel_check():
+            raise AnalysisCancelledError("Analysis cancelled by user")
     
     def _calculate_textual_similarities(
         self,
         files: List[str],
         contents: List[str],
-        progress_callback: Optional[Callable[[int, int, str], None]] = None
+        progress_callback: Optional[Callable[[int, int, str], None]] = None,
+        cancel_check: Optional[Callable[[], bool]] = None
     ) -> List[Tuple[str, str, float]]:
         """
         Calculate textual similarities in parallel.
@@ -188,6 +202,7 @@ class PlagiarismAnalyzer:
                 pass
 
             while in_flight:
+                self._raise_if_cancelled(cancel_check)
                 done_set, _ = wait(in_flight.keys(), return_when=FIRST_COMPLETED)
                 for done in done_set:
                     i, j = in_flight.pop(done)
@@ -212,7 +227,8 @@ class PlagiarismAnalyzer:
         self,
         files: List[str],
         contents: List[str],
-        progress_callback: Optional[Callable[[int, int, str], None]] = None
+        progress_callback: Optional[Callable[[int, int, str], None]] = None,
+        cancel_check: Optional[Callable[[], bool]] = None
     ) -> List[Tuple[str, str, float]]:
         """
         Calculate AST similarities in parallel.
@@ -252,6 +268,7 @@ class PlagiarismAnalyzer:
                 pass
 
             while in_flight:
+                self._raise_if_cancelled(cancel_check)
                 done_set, _ = wait(in_flight.keys(), return_when=FIRST_COMPLETED)
                 for done in done_set:
                     i, j = in_flight.pop(done)
@@ -275,7 +292,8 @@ class PlagiarismAnalyzer:
     def _calculate_metrics(
         self,
         contents: List[str],
-        progress_callback: Optional[Callable[[int, int, str], None]] = None
+        progress_callback: Optional[Callable[[int, int, str], None]] = None,
+        cancel_check: Optional[Callable[[], bool]] = None
     ) -> List[Dict[str, Any]]:
         """
         Calculate code metrics for each file in parallel.
@@ -322,6 +340,7 @@ class PlagiarismAnalyzer:
                 pass
 
             while in_flight:
+                self._raise_if_cancelled(cancel_check)
                 done_set, _ = wait(in_flight.keys(), return_when=FIRST_COMPLETED)
                 for done in done_set:
                     i = in_flight.pop(done)
@@ -381,7 +400,8 @@ class PlagiarismAnalyzer:
         contents: List[str],
         textual_sims: List[Tuple[str, str, float]],
         ast_sims: List[Tuple[str, str, float]],
-        threshold: float
+        threshold: float,
+        cancel_check: Optional[Callable[[], bool]] = None
     ) -> Dict[str, Dict[str, Any]]:
         """
         Detect plagiarism patterns for pairs above threshold.
@@ -406,6 +426,7 @@ class PlagiarismAnalyzer:
         }
         
         for file1, file2, textual_sim in textual_sims:
+            self._raise_if_cancelled(cancel_check)
             if textual_sim < threshold:
                 continue
             

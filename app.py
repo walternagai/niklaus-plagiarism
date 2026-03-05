@@ -19,6 +19,7 @@ from ui.tabs.history import render_history_tab
 
 from core.pipeline import AnalysisPipeline
 from utils.logger import get_logger
+from utils.exceptions import AnalysisCancelledError
 from auth import SessionManager, OAuthHandler, OAuthConfig
 from auth.database import get_session, session_scope
 from auth.repository import UserRepository, SubmissionRepository
@@ -379,6 +380,7 @@ def _render_authenticated_app(session_manager: SessionManager, current_user):
         files, contents, extract_path, should_analyze = render_upload_tab(settings)
         
         if should_analyze and files and contents:
+            st.session_state['cancel_analysis'] = False
             # Cancel button
             cancel_placeholder = st.empty()
             with cancel_placeholder.container():
@@ -392,14 +394,16 @@ def _render_authenticated_app(session_manager: SessionManager, current_user):
             # Clear cancel button after analysis
             cancel_placeholder.empty()
             
-            st.session_state['last_analysis'] = results
-            st.session_state['settings'] = settings
+            if results is not None:
+                st.session_state['last_analysis'] = results
+                st.session_state['settings'] = settings
             
             if extract_path:
                 shutil.rmtree(extract_path, ignore_errors=True)
             
-            st.toast("✅ Análise concluída com sucesso!")
-            st.rerun()
+            if results is not None:
+                st.toast("✅ Análise concluída com sucesso!")
+                st.rerun()
     
     # Check for loaded analysis (from history or new analysis)
     if st.session_state.get('last_analysis'):
@@ -456,7 +460,7 @@ def _init_session_state():
             st.session_state[key] = value
 
 
-def _run_analysis(files: List[str], contents: List[str], settings: Dict[str, Any], user_id: int) -> Dict[str, Any]:
+def _run_analysis(files: List[str], contents: List[str], settings: Dict[str, Any], user_id: int) -> Dict[str, Any] | None:
     """
     Run analysis using AnalysisPipeline and save to database.
     
@@ -480,6 +484,9 @@ def _run_analysis(files: List[str], contents: List[str], settings: Dict[str, Any
     )
     
     progress_bar = st.progress(0, text="Iniciando análise...")
+
+    def is_cancelled() -> bool:
+        return bool(st.session_state.get('cancel_analysis', False))
     
     def progress_callback(stage: str, current: int, total: int):
         if total > 0:
@@ -492,7 +499,8 @@ def _run_analysis(files: List[str], contents: List[str], settings: Dict[str, Any
             contents=contents,
             threshold=settings['threshold'],
             enable_ai=settings['enable_ai'],
-            progress_callback=progress_callback
+            progress_callback=progress_callback,
+            cancel_check=is_cancelled
         )
         
         progress_bar.progress(100, text="Análise concluída!")
@@ -502,6 +510,12 @@ def _run_analysis(files: List[str], contents: List[str], settings: Dict[str, Any
         logger.info(f"Analysis completed in {results['analysis_time']:.2f}s")
         
         return results
+
+    except AnalysisCancelledError:
+        logger.info(f"User {user_id} cancelled analysis")
+        progress_bar.empty()
+        st.warning("⚠️ Análise cancelada pelo usuário.")
+        return None
         
     except Exception as e:
         logger.error(f"Analysis failed: {e}")

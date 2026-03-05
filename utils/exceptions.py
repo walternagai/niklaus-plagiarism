@@ -63,6 +63,12 @@ class AnalysisError(NiklausError):
         super().__init__(message)
 
 
+class AnalysisCancelledError(NiklausError):
+    """Raised when analysis is cancelled by the user."""
+
+    pass
+
+
 class CacheError(NiklausError):
     """Raised when cache operations fail."""
     

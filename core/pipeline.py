@@ -11,7 +11,7 @@ from utils.lazy_loader import LazyModule
 from utils.performance import track_performance, PerformanceContext, get_performance_metrics
 from utils.config import config
 from utils.logger import get_logger
-from utils.exceptions import NiklausError, FileValidationError
+from utils.exceptions import NiklausError, FileValidationError, AnalysisCancelledError
 
 logger = get_logger(__name__)
 
@@ -97,7 +97,8 @@ class AnalysisPipeline:
         contents: List[str],
         threshold: float = 0.7,
         enable_ai: bool = True,
-        progress_callback: Callable[[str, int, int], None] = None
+        progress_callback: Callable[[str, int, int], None] = None,
+        cancel_check: Optional[Callable[[], bool]] = None
     ) -> Dict[str, Any]:
         """
         Run complete plagiarism analysis pipeline.
@@ -119,6 +120,7 @@ class AnalysisPipeline:
         logger.info(f"Starting full analysis of {len(files)} files")
         
         try:
+            self._raise_if_cancelled(cancel_check)
             # Check cache first
             if self.cache:
                 cached = self.cache.load(files, threshold, contents=contents, language=self.language)
@@ -138,8 +140,10 @@ class AnalysisPipeline:
             
             results = self.analyzer.analyze_files(
                 files, contents, threshold, 
-                progress_callback=analysis_progress
+                progress_callback=analysis_progress,
+                cancel_check=cancel_check
             )
+            self._raise_if_cancelled(cancel_check)
             
             if progress_callback:
                 progress_callback("analysis", 1, 4)
@@ -158,6 +162,7 @@ class AnalysisPipeline:
                 results['textual_similarities'], 
                 threshold
             )
+            self._raise_if_cancelled(cancel_check)
             
             # Calculate similarity statistics
             textual_sims = results['textual_similarities']
@@ -188,7 +193,8 @@ class AnalysisPipeline:
                 
                 ai_analyses = self._run_ai_analysis(
                     files, contents, suspicious_pairs, results,
-                    progress_callback
+                    progress_callback,
+                    cancel_check=cancel_check
                 )
                 
                 if progress_callback:
@@ -220,10 +226,17 @@ class AnalysisPipeline:
             
             logger.info(f"Analysis completed in {final_results['analysis_time']:.2f}s")
             return final_results
-            
+        except AnalysisCancelledError:
+            logger.info("Analysis cancelled by user")
+            raise
         except Exception as e:
             logger.error(f"Analysis failed: {e}")
             raise NiklausError(f"Analysis pipeline failed: {str(e)}")
+
+    @staticmethod
+    def _raise_if_cancelled(cancel_check: Optional[Callable[[], bool]]) -> None:
+        if cancel_check and cancel_check():
+            raise AnalysisCancelledError("Analysis cancelled by user")
     
     def _run_ai_analysis(
         self,
@@ -231,7 +244,8 @@ class AnalysisPipeline:
         contents: List[str],
         suspicious_pairs: List[Tuple[str, str, float]],
         analysis_results: Dict,
-        progress_callback: Callable = None
+        progress_callback: Callable = None,
+        cancel_check: Optional[Callable[[], bool]] = None
     ) -> Dict[str, str]:
         """
         Run AI analysis for suspicious pairs in parallel.
@@ -260,6 +274,7 @@ class AnalysisPipeline:
         patterns_map = analysis_results.get('patterns', {})
         
         for file1, file2, textual_sim in suspicious_pairs:
+            self._raise_if_cancelled(cancel_check)
             try:
                 # Get indices
                 idx1 = file_to_idx[file1]

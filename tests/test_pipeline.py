@@ -5,6 +5,7 @@ Test pipeline module.
 import pytest
 import time
 from core.pipeline import AnalysisPipeline, LegacyAdapter, compare_performance
+from utils.exceptions import AnalysisCancelledError
 
 
 class TestAnalysisPipeline:
@@ -136,6 +137,21 @@ class TestAnalysisPipeline:
         stages = [call['stage'] for call in progress_calls]
         assert 'analysis' in stages
         assert 'matrix' in stages
+
+    def test_run_full_analysis_cancelled(self, sample_files):
+        """Pipeline should stop when cancel_check returns True."""
+        files, contents = sample_files
+
+        pipeline = AnalysisPipeline('python', max_workers=2, use_cache=False)
+
+        with pytest.raises(AnalysisCancelledError):
+            pipeline.run_full_analysis(
+                files,
+                contents,
+                threshold=0.7,
+                enable_ai=False,
+                cancel_check=lambda: True
+            )
 
 
 class TestLegacyAdapter:
