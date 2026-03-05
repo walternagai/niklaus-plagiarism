@@ -6,6 +6,7 @@ import streamlit as st
 from typing import Dict, Any, List
 from ui.components.tables import display_similarity_table
 from ui.components.exporter import export_results, generate_summary_report
+from ui.tooltips import get_help_message
 
 
 def render_results_tab(results: Dict[str, Any], settings: Dict[str, Any]) -> None:
