@@ -23,10 +23,8 @@ def render_graph_tab(results: Dict[str, Any]) -> None:
         "com espessura proporcional à similaridade."
     )
     
-    cluster_data = results.get('cluster_data')
-    
-    if not cluster_data or not results.get('similarity_matrix'):
-        st.info("Execute uma análise para visualizar o grafo de similaridade.")
+    if not results.get('similarity_matrix') or not results.get('files'):
+        st.info("Execute uma análise ou carregue uma submissão com dados suficientes para visualizar o grafo de similaridade.")
         return
     
     # Threshold slider for graph

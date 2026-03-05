@@ -19,7 +19,11 @@ def render_advanced_tab(results: Dict[str, Any]) -> None:
     st.markdown("**Análise estrutural (AST), métricas de complexidade e detecção de padrões de plágio**")
     
     if not results.get('metrics'):
-        st.warning("Métricas não disponíveis. Execute uma análise primeiro.")
+        st.warning(
+            "Métricas não disponíveis para esta submissão. "
+            "Algumas submissões antigas foram salvas em modo compacto (sem AST/métricas). "
+            "Execute uma nova análise para visualizar a Análise Avançada."
+        )
         return
     
     # AST Similarities

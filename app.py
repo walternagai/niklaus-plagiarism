@@ -489,16 +489,17 @@ def _save_submission(results: Dict[str, Any], user_id: int, total_files: int, se
         if len(files_list) > 3:
             filename += f' and {len(files_list) - 3} more'
         
+        threshold = float(settings.get('threshold', results.get('threshold', 0.7)) or 0.7)
         suspicious_pairs = [
             pair for pair in results.get('pairwise_results', [])
-            if pair.get('similarity', 0) > settings.get('threshold', 0.7)
+            if float(pair.get('similarity', 0) or 0) >= threshold
         ]
         
         submission = submission_repo.create(
             user_id=user_id,
             filename=filename[:255],
             language=settings.get('language', 'unknown'),
-            threshold=settings.get('threshold', 0.7),
+            threshold=threshold,
             max_workers=settings.get('max_workers', 4),
             enable_ai=settings.get('enable_ai', False),
             use_cache=settings.get('use_cache', True),
@@ -509,10 +510,22 @@ def _save_submission(results: Dict[str, Any], user_id: int, total_files: int, se
             analysis_time_seconds=results.get('analysis_time', 0.0),
             status='completed',
             analysis_data={
+                # Schema v2: store enough to render Results/Stats/Advanced/Graph
+                'schema_version': 2,
+                'files': results.get('files', files_list),
+                'language': results.get('language', settings.get('language', 'unknown')),
+                'threshold': threshold,
+                'suspicious_pairs': results.get('suspicious_pairs', []),
                 'pairwise_results': results.get('pairwise_results', []),
-                'files': files_list,
-                'avg_similarity': results.get('average_similarity', 0.0),
+                'similarity_matrix': results.get('similarity_matrix'),
+                'cluster_data': results.get('cluster_data'),
+                'metrics': results.get('metrics'),
+                'ast_similarities': results.get('ast_similarities'),
+                'patterns': results.get('patterns'),
+                'ai_analyses': results.get('ai_analyses'),
+                'average_similarity': results.get('average_similarity', 0.0),
                 'max_similarity': results.get('max_similarity', 0.0),
+                'analysis_time': results.get('analysis_time', 0.0),
             }
         )
         

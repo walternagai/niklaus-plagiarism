@@ -91,8 +91,10 @@ def _show_clear_all_confirmation(user_id: int, submission_repo: SubmissionReposi
     
     with col1:
         if st.button("✅ Sim, excluir todas", key="btn_confirm_clear_all", type="primary"):
-            _clear_all_submissions(user_id, submission_repo)
+            # Clear dialog state BEFORE deleting (clear triggers rerun)
             st.session_state['show_clear_all_dialog'] = False
+            st.session_state['show_history_stats'] = False
+            _clear_all_submissions(user_id, submission_repo)
     
     with col2:
         if st.button("❌ Cancelar", key="btn_cancel_clear_all"):
@@ -103,6 +105,10 @@ def _show_clear_all_confirmation(user_id: int, submission_repo: SubmissionReposi
 def _clear_all_submissions(user_id: int, submission_repo: SubmissionRepository):
     """Clear all submissions for a user."""
     try:
+        # Ensure dialogs are closed even if we rerun
+        st.session_state['show_clear_all_dialog'] = False
+        st.session_state['show_history_stats'] = False
+
         # Get all submissions
         submissions = submission_repo.find_by_user(user_id, limit=10000, offset=0)
         count = len(submissions)
@@ -117,6 +123,14 @@ def _clear_all_submissions(user_id: int, submission_repo: SubmissionRepository):
         # Clear loaded submission
         st.session_state['loaded_submission_id'] = None
         st.session_state['last_analysis'] = None
+
+        # Clear any per-submission delete confirmation flags
+        keys_to_clear = [k for k in st.session_state.keys() if str(k).startswith('show_delete_confirm_')]
+        for k in keys_to_clear:
+            try:
+                del st.session_state[k]
+            except Exception:
+                pass
         
         # Clear caches
         from utils.db_cache import get_submission_cache
@@ -502,17 +516,25 @@ def _load_submission_results(submission):
             st.error("❌ Esta submissão não possui dados de análise.")
             return
         
+        normalized = _normalize_submission_analysis(submission, analysis_data)
+        if not normalized:
+            st.error("❌ Não foi possível normalizar os dados desta submissão.")
+            return
+
         # Load into session state
-        st.session_state['last_analysis'] = analysis_data
+        st.session_state['last_analysis'] = normalized
         st.session_state['loaded_submission_id'] = getattr(submission, 'id', None)
         
         # Also load settings from submission
+        prev_settings = st.session_state.get('settings', {}) or {}
         settings = {
-            'threshold': float(getattr(submission, 'threshold', 0.7) or 0.7),
-            'language': getattr(submission, 'language', 'Python') or 'Python',
-            'max_workers': getattr(st.session_state.get('settings', {}), 'max_workers', 4),
-            'use_cache': True,
-            'enable_ai': True,
+            'threshold': float(normalized.get('threshold', getattr(submission, 'threshold', 0.7) or 0.7)),
+            'language': normalized.get('language', getattr(submission, 'language', 'Python') or 'Python'),
+            'max_workers': int(prev_settings.get('max_workers', 4) or 4),
+            'use_cache': bool(prev_settings.get('use_cache', True)),
+            'enable_ai': bool(prev_settings.get('enable_ai', True)),
+            'api_key': prev_settings.get('api_key'),
+            'model': prev_settings.get('model'),
         }
         st.session_state['settings'] = settings
         
@@ -533,6 +555,107 @@ def _load_submission_results(submission):
     except Exception as e:
         logger.error(f"Error loading submission results: {e}")
         st.error(f"❌ Erro ao carregar resultados: {str(e)}")
+
+
+def _normalize_submission_analysis(submission, analysis_data):
+    """Normalize stored analysis_data into the schema expected by UI tabs."""
+    import json
+
+    if analysis_data is None:
+        return None
+
+    # SQLite JSON may come as str
+    if isinstance(analysis_data, str):
+        try:
+            analysis_data = json.loads(analysis_data)
+        except Exception:
+            return None
+
+    if not isinstance(analysis_data, dict):
+        return None
+
+    # Always prefer submission columns for these
+    threshold = float(getattr(submission, 'threshold', analysis_data.get('threshold', 0.7)) or 0.7)
+    language = getattr(submission, 'language', analysis_data.get('language', 'Python')) or 'Python'
+    analysis_time = float(
+        analysis_data.get('analysis_time', getattr(submission, 'analysis_time_seconds', 0.0) or 0.0)
+        or 0.0
+    )
+
+    normalized = dict(analysis_data)
+    normalized.setdefault('schema_version', 1)
+    normalized['threshold'] = threshold
+    normalized['language'] = language
+    normalized['analysis_time'] = analysis_time
+
+    # Legacy keys mapping
+    if 'average_similarity' not in normalized:
+        if 'avg_similarity' in normalized:
+            normalized['average_similarity'] = normalized.get('avg_similarity')
+        else:
+            normalized['average_similarity'] = getattr(submission, 'average_similarity', 0.0) or 0.0
+
+    if 'max_similarity' not in normalized:
+        normalized['max_similarity'] = getattr(submission, 'max_similarity', 0.0) or 0.0
+
+    # Ensure files list
+    files = normalized.get('files')
+    if not files and normalized.get('pairwise_results'):
+        seen = set()
+        ordered = []
+        for r in normalized.get('pairwise_results', []):
+            f1 = r.get('file1')
+            f2 = r.get('file2')
+            for f in (f1, f2):
+                if f and f not in seen:
+                    seen.add(f)
+                    ordered.append(f)
+        files = ordered
+        normalized['files'] = files
+
+    # Build suspicious_pairs if missing
+    if not normalized.get('suspicious_pairs'):
+        pr = normalized.get('pairwise_results') or []
+        suspicious_pairs = []
+        for r in pr:
+            try:
+                sim = float(r.get('similarity', 0) or 0)
+            except Exception:
+                sim = 0.0
+            if bool(r.get('is_suspicious')) or sim >= threshold:
+                f1 = r.get('file1')
+                f2 = r.get('file2')
+                if f1 and f2:
+                    suspicious_pairs.append((f1, f2, sim))
+        normalized['suspicious_pairs'] = suspicious_pairs
+
+    # Build similarity_matrix if missing but pairwise_results available
+    if not normalized.get('similarity_matrix') and normalized.get('pairwise_results') and normalized.get('files'):
+        files = list(normalized.get('files') or [])
+        idx = {f: i for i, f in enumerate(files)}
+        n = len(files)
+        matrix = [[0.0 for _ in range(n)] for _ in range(n)]
+        for i in range(n):
+            matrix[i][i] = 1.0
+        for r in normalized.get('pairwise_results', []):
+            f1 = r.get('file1')
+            f2 = r.get('file2')
+            if f1 in idx and f2 in idx:
+                i = idx[f1]
+                j = idx[f2]
+                try:
+                    sim = float(r.get('similarity', 0) or 0)
+                except Exception:
+                    sim = 0.0
+                matrix[i][j] = sim
+                matrix[j][i] = sim
+        normalized['similarity_matrix'] = matrix
+
+    # If cluster_data is missing but matrix exists, set empty dict (graph tab will recompute)
+    if normalized.get('similarity_matrix') and normalized.get('cluster_data') is None:
+        normalized['cluster_data'] = {}
+
+    return normalized
 
 
 def _show_submission_details(submission):
