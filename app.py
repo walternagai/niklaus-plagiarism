@@ -257,6 +257,56 @@ def _handle_oauth_callback(session_manager: SessionManager):
 def _render_authenticated_app(session_manager: SessionManager, current_user):
     """Render the main app for authenticated users."""
     
+    # Breadcrumb navigation
+    st.markdown("""
+    <style>
+    .breadcrumb {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 0;
+        font-size: 14px;
+        color: #666;
+    }
+    .breadcrumb-separator {
+        color: #999;
+    }
+    .breadcrumb-item {
+        text-decoration: none;
+        color: #1f77b4;
+    }
+    .breadcrumb-item:hover {
+        text-decoration: underline;
+    }
+    .breadcrumb-current {
+        color: #333;
+        font-weight: 500;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    # Build breadcrumb based on current state
+    breadcrumb_items = ["🏠 Niklaus"]
+    
+    if st.session_state.get('last_analysis'):
+        breadcrumb_items.append("📊 Resultados")
+    
+    # Render breadcrumb
+    breadcrumb_html = '<div class="breadcrumb">'
+    for i, item in enumerate(breadcrumb_items):
+        if i > 0:
+            breadcrumb_html += '<span class="breadcrumb-separator">›</span>'
+        
+        if i == len(breadcrumb_items) - 1:
+            breadcrumb_html += f'<span class="breadcrumb-current">{item}</span>'
+        else:
+            breadcrumb_html += f'<span class="breadcrumb-item">{item}</span>'
+    
+    breadcrumb_html += '</div>'
+    st.markdown(breadcrumb_html, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
     with st.sidebar:
         st.markdown(f"### 👤 {current_user.name}")
         st.markdown(f"*{current_user.email}*")
