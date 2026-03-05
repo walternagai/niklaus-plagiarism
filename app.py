@@ -7,7 +7,6 @@ import streamlit as st
 from typing import Dict, Any, List
 import shutil
 import math
-import secrets
 
 from ui.sidebar import render_sidebar
 from ui.tabs.upload import render_upload_tab
@@ -185,15 +184,22 @@ def _handle_oauth_callback(session_manager: SessionManager):
         code = code_list[0] if isinstance(code_list, list) and code_list else code_list
         state = state_list[0] if isinstance(state_list, list) and state_list else state_list
         
-        # Provider and state must be present in session from login initiation
+        # Recover provider from session or signed state payload
         provider = st.session_state.get('oauth_provider')
         expected_state = st.session_state.get('oauth_state')
+        if not provider:
+            provider = OAuthHandler.extract_provider_from_state(str(state))
         
-        if provider and code and state and expected_state:
+        if provider and code and state:
             try:
                 st.info("⏳ Processando login... Aguarde.")
 
-                if not OAuthHandler.validate_state(str(state), str(expected_state)):
+                if expected_state:
+                    state_is_valid = OAuthHandler.validate_state(str(state), str(expected_state))
+                else:
+                    state_is_valid = OAuthHandler.verify_state_signature(str(state))
+
+                if not state_is_valid:
                     logger.warning("OAuth callback rejected due to state mismatch")
                     st.error("❌ Sessão de login inválida ou expirada. Tente novamente.")
                     _clear_oauth_session_state()
@@ -201,7 +207,8 @@ def _handle_oauth_callback(session_manager: SessionManager):
                     return
                 
                 handler = OAuthHandler(provider)
-                user_obj = handler.handle_callback(str(code), str(state), expected_state=str(expected_state))
+                callback_expected_state = str(expected_state) if expected_state else None
+                user_obj = handler.handle_callback(str(code), str(state), expected_state=callback_expected_state)
                 
                 if user_obj:
                     # Convert SQLAlchemy object to dict for session
@@ -258,6 +265,8 @@ def _handle_oauth_callback(session_manager: SessionManager):
         else:
             st.error("❌ Parâmetros de autenticação inválidos")
             st.error(f"Provider: {provider or 'não encontrado'}, Code: {'✓' if code else '✗'}, State: {'✓' if state else '✗'}")
+            if code and state and not provider:
+                st.warning("💡 Tente iniciar o login novamente para renovar a sessão OAuth.")
             st.markdown("[Voltar para login](/)")
             # Clear invalid OAuth params
             _clear_oauth_session_state()
@@ -267,7 +276,7 @@ def _handle_oauth_callback(session_manager: SessionManager):
 def _start_oauth_login(provider: str, provider_label: str) -> None:
     """Start OAuth login flow with explicit provider and state."""
     handler = OAuthHandler(provider)
-    state = secrets.token_urlsafe(32)
+    state = OAuthHandler.create_state(provider)
 
     st.session_state['oauth_provider'] = provider
     st.session_state['oauth_state'] = state

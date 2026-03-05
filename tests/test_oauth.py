@@ -78,6 +78,23 @@ def test_validate_state():
     assert OAuthHandler.validate_state("abc", "") is False
 
 
+def test_signed_state_roundtrip():
+    """Signed state should preserve provider and validate signature."""
+    state = OAuthHandler.create_state("google")
+
+    assert OAuthHandler.extract_provider_from_state(state) == "google"
+    assert OAuthHandler.verify_state_signature(state) is True
+
+
+def test_signed_state_rejects_tampering():
+    """Tampered signed state must fail signature verification."""
+    state = OAuthHandler.create_state("github")
+    provider, nonce, signature = state.split(":")
+    tampered = f"{provider}:tampered-{nonce}:{signature}"
+
+    assert OAuthHandler.verify_state_signature(tampered) is False
+
+
 if __name__ == "__main__":
     print("=" * 60)
     print("OAuth Implementation Tests")

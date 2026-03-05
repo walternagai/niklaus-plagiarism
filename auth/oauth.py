@@ -3,6 +3,7 @@ OAuth handlers for Google, GitHub, and Microsoft authentication.
 """
 
 import hmac
+import hashlib
 import secrets
 from typing import Optional, Dict, Any
 from datetime import datetime, UTC
@@ -182,6 +183,56 @@ class OAuthHandler:
                 'locale': None,
             }
         return {}
+
+    @staticmethod
+    def create_state(provider: str) -> str:
+        """Create signed OAuth state that includes provider and nonce."""
+        provider_normalized = str(provider).lower().strip()
+        nonce = secrets.token_urlsafe(24)
+        payload = f"{provider_normalized}:{nonce}"
+        signature = OAuthHandler._sign_state_payload(payload)
+        return f"{payload}:{signature}"
+
+    @staticmethod
+    def extract_provider_from_state(state: str) -> Optional[str]:
+        """Extract provider from signed state payload."""
+        if not state or ':' not in str(state):
+            return None
+
+        provider = str(state).split(':', 1)[0].strip().lower()
+        if provider in {'google', 'github', 'microsoft'}:
+            return provider
+        return None
+
+    @staticmethod
+    def verify_state_signature(state: str) -> bool:
+        """Verify HMAC signature for state payload."""
+        parts = str(state).split(':') if state else []
+        if len(parts) != 3:
+            return False
+
+        provider, nonce, received_sig = parts
+        if provider not in {'google', 'github', 'microsoft'} or not nonce or not received_sig:
+            return False
+
+        payload = f"{provider}:{nonce}"
+        expected_sig = OAuthHandler._sign_state_payload(payload)
+        return hmac.compare_digest(received_sig, expected_sig)
+
+    @staticmethod
+    def _sign_state_payload(payload: str) -> str:
+        """Sign OAuth state payload with app-local secret material."""
+        config = OAuthConfig()
+        secret_seed = "|".join([
+            config.google_client_secret or "",
+            config.github_client_secret or "",
+            config.microsoft_client_secret or "",
+            config.google_client_id or "",
+            config.github_client_id or "",
+            config.microsoft_client_id or "",
+        ])
+        digest = hmac.new(secret_seed.encode(), payload.encode(), hashlib.sha256).hexdigest()
+        return digest[:24]
 
     @staticmethod
     def validate_state(received_state: str, expected_state: str) -> bool:
