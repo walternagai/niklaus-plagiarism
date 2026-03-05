@@ -91,15 +91,11 @@ def _show_clear_all_confirmation(user_id: int, submission_repo: SubmissionReposi
     
     with col1:
         if st.button("✅ Sim, excluir todas", key="btn_confirm_clear_all", type="primary"):
-            # Clear dialog state BEFORE deleting (clear triggers rerun)
-            st.session_state['show_clear_all_dialog'] = False
-            st.session_state['show_history_stats'] = False
             _clear_all_submissions(user_id, submission_repo)
     
     with col2:
         if st.button("❌ Cancelar", key="btn_cancel_clear_all"):
             st.session_state['show_clear_all_dialog'] = False
-            st.rerun()
 
 
 def _clear_all_submissions(user_id: int, submission_repo: SubmissionRepository):
@@ -474,7 +470,6 @@ def _render_submission_card(submission, user_id: int, submission_repo: Submissio
     with col_actions[2]:
         if st.button(f"🗑️ Excluir", key=f"delete_{sub_id}", use_container_width=True, type="secondary"):
             st.session_state[f'show_delete_confirm_{sub_id}'] = True
-            st.rerun()
     
     # Delete confirmation
     if st.session_state.get(f'show_delete_confirm_{sub_id}', False):

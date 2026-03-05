@@ -371,21 +371,34 @@ def _render_authenticated_app(session_manager: SessionManager, current_user):
         st.divider()
     
     settings = render_sidebar()
-    
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-        ":file_folder: Upload & Análise",
-        ":bar_chart: Resultados",
-        ":chart_with_upwards_trend: Estatísticas",
-        ":microscope: Análise Avançada",
-        ":spider_web: Grafo de Similaridade",
-        "📋 Histórico"
-    ])
+
+    focus_results_tab = bool(st.session_state.pop('show_last_analysis', False))
+    tab_specs = [
+        ('upload', ":file_folder: Upload & Análise"),
+        ('results', ":bar_chart: Resultados"),
+        ('stats', ":chart_with_upwards_trend: Estatísticas"),
+        ('advanced', ":microscope: Análise Avançada"),
+        ('graph', ":spider_web: Grafo de Similaridade"),
+        ('history', "📋 Histórico"),
+    ]
+    if focus_results_tab:
+        tab_specs = [
+            ('results', ":bar_chart: Resultados"),
+            ('upload', ":file_folder: Upload & Análise"),
+            ('stats', ":chart_with_upwards_trend: Estatísticas"),
+            ('advanced', ":microscope: Análise Avançada"),
+            ('graph', ":spider_web: Grafo de Similaridade"),
+            ('history', "📋 Histórico"),
+        ]
+
+    tabs = st.tabs([label for _, label in tab_specs])
+    tab_map = {key: tab for (key, _), tab in zip(tab_specs, tabs)}
     
     # Initialize cancel flag
     if 'cancel_analysis' not in st.session_state:
         st.session_state['cancel_analysis'] = False
     
-    with tab1:
+    with tab_map['upload']:
         files, contents, extract_path, should_analyze = render_upload_tab(settings)
         
         if should_analyze and files and contents:
@@ -406,6 +419,7 @@ def _render_authenticated_app(session_manager: SessionManager, current_user):
             if results is not None:
                 st.session_state['last_analysis'] = results
                 st.session_state['settings'] = settings
+                st.session_state['analysis_just_completed'] = True
             
             if extract_path:
                 shutil.rmtree(extract_path, ignore_errors=True)
@@ -419,36 +433,36 @@ def _render_authenticated_app(session_manager: SessionManager, current_user):
         results = st.session_state['last_analysis']
         settings = st.session_state.get('settings', {})
         
-        with tab2:
+        with tab_map['results']:
             render_results_tab(results, settings)
         
-        with tab3:
+        with tab_map['stats']:
             render_statistics_tab(results)
         
-        with tab4:
+        with tab_map['advanced']:
             render_advanced_tab(results)
         
-        with tab5:
+        with tab_map['graph']:
             render_graph_tab(results)
         
-        with tab6:
+        with tab_map['history']:
             render_history_tab(current_user.id)
     
     else:
         # No analysis data available
-        with tab2:
+        with tab_map['results']:
             st.info("📊 Nenhum resultado disponível. Execute uma análise ou carregue uma do histórico.")
         
-        with tab3:
+        with tab_map['stats']:
             st.info("📈 Nenhum estatística disponível. Execute uma análise ou carregue uma do histórico.")
         
-        with tab4:
+        with tab_map['advanced']:
             st.info("🔬 Nenhuma análise avançada disponível. Execute uma análise ou carregue uma do histórico.")
         
-        with tab5:
+        with tab_map['graph']:
             st.info("🕸️ Nenhum grafo disponível. Execute uma análise ou carregue uma do histórico.")
         
-        with tab6:
+        with tab_map['history']:
             render_history_tab(current_user.id)
 
 
@@ -462,6 +476,7 @@ def _init_session_state():
         'settings': {},
         'oauth_provider': None,
         'user_id': None,
+        'analysis_just_completed': False,
     }
     
     for key, value in defaults.items():

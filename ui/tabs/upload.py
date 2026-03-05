@@ -27,15 +27,19 @@ def render_upload_tab(settings: Dict[str, Any]) -> Tuple[List[str], List[str], s
     
     st.markdown("---")
     
+    just_completed = bool(st.session_state.pop('analysis_just_completed', False))
+    if just_completed:
+        st.success("✅ Análise concluída. Você pode ver os detalhes nas abas de resultados.")
+
     # Check if there's a previous analysis
     has_previous_analysis = bool(st.session_state.get('last_analysis'))
     
-    if has_previous_analysis:
-        st.info("✅ Você já tem uma análise anterior. Deseja iniciar uma nova análise?")
+    if has_previous_analysis and not just_completed:
+        st.info("ℹ️ Há uma análise carregada. Você pode visualizar os resultados ou iniciar outra análise.")
         col1, col2 = st.columns(2)
         
         with col1:
-            if st.button("📁 Nova Análise", type="primary", use_container_width=True):
+            if st.button("📁 Limpar e Nova Análise", type="primary", use_container_width=True):
                 # Clear previous analysis
                 for key in ['last_analysis', 'advanced_analysis', 'cluster_data']:
                     if key in st.session_state:
@@ -44,8 +48,8 @@ def render_upload_tab(settings: Dict[str, Any]) -> Tuple[List[str], List[str], s
                 st.rerun()
         
         with col2:
-            if st.button("📊 Ver Última Análise", type="secondary", use_container_width=True):
-                st.info("Navegue para a aba 'Resultados' para ver os detalhes da última análise.")
+            if st.button("📊 Ver Resultados", type="secondary", use_container_width=True):
+                st.info("Navegue para a aba 'Resultados' para ver os detalhes da análise carregada.")
         
         st.markdown("---")
     
