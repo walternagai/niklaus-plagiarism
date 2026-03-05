@@ -350,5 +350,27 @@ class TestParallel:
         assert results == [2, 4, 6, 8, 10]
 
 
+class TestDbCache:
+    """Test database cache invalidation behavior."""
+
+    def test_submission_cache_invalidate_user(self):
+        """Invalidating user must clear all cached submission pages."""
+        from utils.db_cache import QueryCache, SubmissionCache
+
+        query_cache = QueryCache(maxsize=32, default_ttl=60)
+        cache = SubmissionCache(query_cache)
+
+        cache.set_user_submissions(user_id=123, submissions=[{"id": 1}], offset=0, limit=10)
+        cache.set_user_submissions(user_id=123, submissions=[{"id": 2}], offset=10, limit=10)
+
+        assert cache.get_user_submissions(user_id=123, offset=0, limit=10) == [{"id": 1}]
+        assert cache.get_user_submissions(user_id=123, offset=10, limit=10) == [{"id": 2}]
+
+        cache.invalidate_user(123)
+
+        assert cache.get_user_submissions(user_id=123, offset=0, limit=10) is None
+        assert cache.get_user_submissions(user_id=123, offset=10, limit=10) is None
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

@@ -4,7 +4,7 @@ Implements intelligent caching for frequent database queries.
 """
 
 import time
-from typing import Any, Optional, Dict, List, Callable
+from typing import Any, Optional, Dict, List, Callable, Set
 from functools import wraps
 import hashlib
 import json
@@ -148,7 +148,7 @@ class SubmissionCache:
     
     def __init__(self, query_cache: QueryCache):
         self._cache = query_cache
-        self._submissions_by_user: Dict[int, List[int]] = {}
+        self._submissions_by_user: Dict[int, Set[str]] = {}
     
     def get_user_submissions(
         self,
@@ -204,8 +204,8 @@ class SubmissionCache:
         self._cache.set(cache_key, data=submissions, ttl=ttl)
         
         if user_id not in self._submissions_by_user:
-            self._submissions_by_user[user_id] = []
-        self._submissions_by_user[user_id].append(hash(cache_key))
+            self._submissions_by_user[user_id] = set()
+        self._submissions_by_user[user_id].add(cache_key)
     
     def get_submission_by_id(self, submission_id: int) -> Optional[Any]:
         """Get cached submission by ID."""
@@ -222,8 +222,8 @@ class SubmissionCache:
     def invalidate_user(self, user_id: int):
         """Invalidate all cached data for user."""
         if user_id in self._submissions_by_user:
-            for cache_hash in self._submissions_by_user[user_id]:
-                self._cache.delete(f"user_{user_id}_submissions_*")
+            for cache_key in self._submissions_by_user[user_id]:
+                self._cache.invalidate(cache_key)
             del self._submissions_by_user[user_id]
         
         self._cache.invalidate_pattern(f"user_{user_id}_")
