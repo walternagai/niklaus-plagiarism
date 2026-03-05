@@ -26,6 +26,10 @@ def render_results_tab(results: Dict[str, Any], settings: Dict[str, Any]) -> Non
     from ui.components.exporter import display_summary_stats
     display_summary_stats(results)
     
+    # Help expander
+    with st.expander("❓ Como interpretar os resultados?"):
+        st.markdown(get_help_message("interpret_similarity"))
+    
     st.markdown("---")
     
     # Display suspicious pairs table

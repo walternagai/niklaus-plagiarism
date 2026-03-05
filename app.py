@@ -349,33 +349,173 @@ def _render_authenticated_app(session_manager: SessionManager, current_user):
 
 
 def _render_history_tab(user_id: int):
-    """Render submission history tab with pagination."""
+    """Render submission history tab with pagination and filters."""
     st.subheader("📋 Histórico de Submissões")
-    
-    # Pagination controls
-    page_size = 50
-    current_page = st.session_state.get('history_page', 1)
     
     db = get_session()
     submission_repo = SubmissionRepository(db)
     
+    # Initialize filter state
+    if 'history_filter_date_start' not in st.session_state:
+        st.session_state['history_filter_date_start'] = None
+    if 'history_filter_date_end' not in st.session_state:
+        st.session_state['history_filter_date_end'] = None
+    if 'history_filter_status' not in st.session_state:
+        st.session_state['history_filter_status'] = 'Todos'
+    if 'history_filter_min_similarity' not in st.session_state:
+        st.session_state['history_filter_min_similarity'] = 0.0
+    if 'history_filter_max_similarity' not in st.session_state:
+        st.session_state['history_filter_max_similarity'] = 1.0
+    if 'history_page' not in st.session_state:
+        st.session_state['history_page'] = 1
+    
+    # Filters section
+    with st.expander("🔍 Filtros", expanded=False):
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.markdown("**📅 Período**")
+            filter_date_start = st.date_input(
+                "Data inicial",
+                value=None,
+                key="history_filter_date_start_input",
+                help="Filtrar submissões a partir desta data"
+            )
+            filter_date_end = st.date_input(
+                "Data final",
+                value=None,
+                key="history_filter_date_end_input",
+                help="Filtrar submissões até esta data"
+            )
+        
+        with col2:
+            st.markdown("**📊 Status**")
+            filter_status = st.selectbox(
+                "Filtrar por status",
+                options=["Todos", "Concluída", "Processando", "Erro"],
+                key="history_filter_status_input",
+                help="Filtrar por status da submissão"
+            )
+            
+            st.markdown("**📈 Similaridade**")
+            min_sim = st.slider(
+                "Similaridade mínima (%)",
+                min_value=0,
+                max_value=100,
+                value=0,
+                step=5,
+                key="history_filter_min_sim_input",
+                help="Filtrar por similaridade média mínima"
+            ) / 100.0
+            
+            max_sim = st.slider(
+                "Similaridade máxima (%)",
+                min_value=0,
+                max_value=100,
+                value=100,
+                step=5,
+                key="history_filter_max_sim_input",
+                help="Filtrar por similaridade média máxima"
+            ) / 100.0
+        
+        with col3:
+            st.markdown("**🔧 Ações**")
+            
+            col_btn1, col_btn2 = st.columns(2)
+            
+            with col_btn1:
+                if st.button("✅ Aplicar Filtros", use_container_width=True, type="primary"):
+                    st.session_state['history_filter_date_start'] = filter_date_start
+                    st.session_state['history_filter_date_end'] = filter_date_end
+                    st.session_state['history_filter_status'] = filter_status
+                    st.session_state['history_filter_min_similarity'] = min_sim
+                    st.session_state['history_filter_max_similarity'] = max_sim
+                    st.session_state['history_page'] = 1  # Reset to first page
+                    st.toast("✅ Filtros aplicados!")
+                    st.rerun()
+            
+            with col_btn2:
+                if st.button("🔄 Limpar Filtros", use_container_width=True):
+                    st.session_state['history_filter_date_start'] = None
+                    st.session_state['history_filter_date_end'] = None
+                    st.session_state['history_filter_status'] = 'Todos'
+                    st.session_state['history_filter_min_similarity'] = 0.0
+                    st.session_state['history_filter_max_similarity'] = 1.0
+                    st.session_state['history_page'] = 1
+                    st.toast("🔄 Filtros removidos!")
+                    st.rerun()
+    
     try:
-        # Get total count for pagination
-        total_submissions = submission_repo.count_by_user(user_id)
-        total_pages = (total_submissions + page_size - 1) // page_size
+        # Get all submissions (we'll filter in Python for now)
+        all_submissions = submission_repo.find_by_user(user_id, limit=1000, offset=0)
         
-        # Calculate offset
-        offset = (current_page - 1) * page_size
+        # Apply filters
+        filtered_submissions = []
         
-        submissions = submission_repo.find_by_user(user_id, limit=page_size, offset=offset)
+        for sub in all_submissions:
+            # Date filter
+            if st.session_state['history_filter_date_start']:
+                from datetime import datetime as dt
+                start_date = dt.combine(st.session_state['history_filter_date_start'], dt.min.time())
+                if sub.created_at < start_date:
+                    continue
+            
+            if st.session_state['history_filter_date_end']:
+                from datetime import datetime as dt
+                end_date = dt.combine(st.session_state['history_filter_date_end'], dt.max.time())
+                if sub.created_at > end_date:
+                    continue
+            
+            # Status filter
+            status_filter = st.session_state['history_filter_status']
+            sub_status = getattr(sub, 'status', 'unknown')
+            if status_filter != "Todos":
+                if status_filter == "Concluída" and sub_status != 'completed':
+                    continue
+                elif status_filter == "Processando" and sub_status != 'processing':
+                    continue
+                elif status_filter == "Erro" and sub_status != 'error':
+                    continue
+            
+            # Similarity filter
+            avg_sim = getattr(sub, 'average_similarity', 0.0) or 0.0
+            min_sim_filter = st.session_state['history_filter_min_similarity']
+            max_sim_filter = st.session_state['history_filter_max_similarity']
+            
+            if avg_sim < min_sim_filter or avg_sim > max_sim_filter:
+                continue
+            
+            filtered_submissions.append(sub)
         
-        if not submissions:
-            st.info("Nenhuma submissão encontrada.")
-            st.markdown("Faça sua primeira análise para ver o histórico aqui.")
+        total_submissions = len(filtered_submissions)
+        
+        if not filtered_submissions:
+            st.info("Nenhuma submissão encontrada com os filtros aplicados.")
+            st.markdown("Ajuste os filtros ou faça uma nova análise.")
             return
         
-        # Pagination info
-        st.markdown(f"**{total_submissions} submissões encontradas** (Página {current_page} de {total_pages})")
+        # Pagination
+        page_size = 50
+        current_page = st.session_state['history_page']
+        total_pages = (total_submissions + page_size - 1) // page_size
+        
+        # Calculate page boundaries
+        start_idx = (current_page - 1) * page_size
+        end_idx = start_idx + page_size
+        page_submissions = filtered_submissions[start_idx:end_idx]
+        
+        # Show count
+        filters_applied = (
+            st.session_state['history_filter_date_start'] is not None or
+            st.session_state['history_filter_status'] != 'Todos' or
+            st.session_state['history_filter_min_similarity'] > 0.0 or
+            st.session_state['history_filter_max_similarity'] < 1.0
+        )
+        
+        if filters_applied:
+            st.markdown(f"**{total_submissions} submissões encontradas (filtradas)**")
+        else:
+            st.markdown(f"**{total_submissions} submissões encontradas**")
         
         # Pagination controls
         if total_pages > 1:
@@ -396,7 +536,8 @@ def _render_history_tab(user_id: int):
         
         st.markdown("---")
         
-        for sub in submissions:
+        # Display submissions
+        for sub in page_submissions:
             files_count = getattr(sub, 'files_count', 0) or 0
             suspicious_count = getattr(sub, 'suspicious_pairs_count', 0) or 0
             avg_sim = getattr(sub, 'average_similarity', 0.0) or 0.0
