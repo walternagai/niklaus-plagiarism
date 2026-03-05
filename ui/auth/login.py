@@ -73,10 +73,14 @@ def _initiate_oauth(provider: str):
     """Initiate OAuth login flow."""
     try:
         handler = OAuthHandler(provider)
-        auth_url = handler.get_authorization_url()
+        import secrets as sec
+        state = sec.token_urlsafe(32)
         
+        st.session_state['oauth_state'] = state
         st.session_state['oauth_provider'] = provider
         st.session_state['login_initiated'] = True
+        
+        auth_url = handler.get_authorization_url(state=state)
         
         st.markdown(f"**Clique no link abaixo para autenticar:**")
         st.markdown(f"[Login com {provider.title()}]({auth_url})")

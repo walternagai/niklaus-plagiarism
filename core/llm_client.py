@@ -97,15 +97,19 @@ Você recebe DOIS códigos-fonte que foram previamente comparados por análise a
 ## Formato de Resposta Obrigatório
 
 **Resumo Executivo**
+
 [2-3 frases sobre a natureza da similaridade]
 
 **Trechos Problemáticos Identificados**
+
 [Lista de blocos específicos com linha aproximada e descrição]
 
 **Classificação da Similaridade**
+
 [COPIA_DIRETA / RENOMEACAO_VARIAVEIS / REORDENACAO / COINCIDENCIA / REUSO_LEGITIMO]
 
 **Recomendação para o Professor**
+
 [Ação sugerida: investigar, descartar, ou atenção]
 
 ## Idioma

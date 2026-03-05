@@ -74,6 +74,11 @@ def get_db_manager() -> DatabaseManager:
     return _db_manager
 
 
+def get_session() -> Session:
+    """Get a database session (convenience function)."""
+    return get_db_manager().get_session()
+
+
 def get_db() -> Generator[Session, None, None]:
     db_manager = get_db_manager()
     db = db_manager.get_session()
