@@ -10,6 +10,8 @@ import json
 
 from auth.models import User, Submission, AnalysisCache, AuditLog
 from utils.logger import get_logger
+from utils.db_cache import get_submission_cache
+from utils.performance import track_performance
 
 logger = get_logger(__name__)
 
@@ -72,7 +74,9 @@ class SubmissionRepository:
     
     def __init__(self, db: Session):
         self.db = db
+        self._cache = get_submission_cache()
     
+    @track_performance('submission.create')
     def create(self, user_id: int, filename: str, language: str, **kwargs) -> Submission:
         submission = Submission(
             user_id=user_id,
@@ -83,16 +87,38 @@ class SubmissionRepository:
         self.db.add(submission)
         self.db.commit()
         self.db.refresh(submission)
+        self._cache.invalidate_user(user_id)
         return submission
     
+    @track_performance('submission.find_by_id')
     def find_by_id(self, submission_id: int) -> Optional[Submission]:
-        return self.db.query(Submission).filter(Submission.id == submission_id).first()
+        cached = self._cache.get_submission_by_id(submission_id)
+        if cached:
+            return cached
+        
+        result = self.db.query(Submission).filter(Submission.id == submission_id).first()
+        if result:
+            self._cache.set_submission(result)
+        return result
     
-    def find_by_user(self, user_id: int, limit: int = 50, offset: int = 0, status: str = None) -> List[Submission]:
+    @track_performance('submission.find_by_user')
+    def find_by_user(self, user_id: int, limit: int = 50, offset: int = 0, status: str = None, use_cache: bool = True) -> List[Submission]:
+        filters = {'status': status} if status else None
+        
+        if use_cache:
+            cached = self._cache.get_user_submissions(user_id, offset, limit, filters)
+            if cached:
+                return cached
+        
         query = self.db.query(Submission).filter(Submission.user_id == user_id)
         if status:
             query = query.filter(Submission.status == status)
-        return query.order_by(desc(Submission.created_at)).offset(offset).limit(limit).all()
+        results = query.order_by(desc(Submission.created_at)).offset(offset).limit(limit).all()
+        
+        if use_cache and results:
+            self._cache.set_user_submissions(user_id, results, offset, limit, filters, ttl=30)
+        
+        return results
     
     def update_status(self, submission_id: int, status: str, error_message: str = None) -> None:
         submission = self.find_by_id(submission_id)

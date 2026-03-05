@@ -7,16 +7,19 @@ from typing import List, Dict, Any, Callable, Optional, Tuple
 import time
 import numpy as np
 
-from core.analyzer import PlagiarismAnalyzer
-from core.file_handler import FileHandler
-from core.llm_client import MaritacaClient
-from core.persistence import AnalysisCache, SessionManager
-from core.comparison import compare_files
+from utils.lazy_loader import LazyModule
+from utils.performance import track_performance, PerformanceContext, get_performance_metrics
 from utils.config import config
 from utils.logger import get_logger
 from utils.exceptions import NiklausError, FileValidationError
 
 logger = get_logger(__name__)
+
+analyzer_module = LazyModule('core.analyzer')
+file_handler_module = LazyModule('core.file_handler')
+llm_module = LazyModule('core.llm_client')
+persistence_module = LazyModule('core.persistence')
+comparison_module = LazyModule('core.comparison')
 
 
 class AnalysisPipeline:
@@ -49,25 +52,45 @@ class AnalysisPipeline:
         self.max_workers = max_workers or config.PARALLEL_WORKERS
         self.use_cache = use_cache
         
-        # Initialize components
-        self.analyzer = PlagiarismAnalyzer(language, self.max_workers)
-        self.file_handler = FileHandler()
-        
-        if use_cache:
-            self.cache = AnalysisCache()
-        else:
-            self.cache = None
-        
-        if api_key:
-            self.llm_client = MaritacaClient(
-                api_key=api_key,
-                model=self.model
-            )
-        else:
-            self.llm_client = None
+        self._analyzer = None
+        self._file_handler = None
+        self._cache = None
+        self._llm_client = None
         
         logger.info(f"Initialized AnalysisPipeline for {language} with {self.max_workers} workers")
     
+    @property
+    def analyzer(self):
+        if self._analyzer is None:
+            PlagiarismAnalyzer = analyzer_module.PlagiarismAnalyzer
+            self._analyzer = PlagiarismAnalyzer(self.language, self.max_workers)
+        return self._analyzer
+    
+    @property
+    def file_handler(self):
+        if self._file_handler is None:
+            FileHandler = file_handler_module.FileHandler
+            self._file_handler = FileHandler()
+        return self._file_handler
+    
+    @property
+    def cache(self):
+        if self._cache is None and self.use_cache:
+            AnalysisCache = persistence_module.AnalysisCache
+            self._cache = AnalysisCache()
+        return self._cache
+    
+    @property
+    def llm_client(self):
+        if self._llm_client is None and self.api_key:
+            MaritacaClient = llm_module.MaritacaClient
+            self._llm_client = MaritacaClient(
+                api_key=self.api_key,
+                model=self.model
+            )
+        return self._llm_client
+    
+    @track_performance('pipeline.run_full_analysis')
     def run_full_analysis(
         self,
         files: List[str],
