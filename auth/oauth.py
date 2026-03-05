@@ -2,6 +2,7 @@
 OAuth handlers for Google, GitHub, and Microsoft authentication.
 """
 
+import hmac
 import secrets
 from typing import Optional, Dict, Any
 from datetime import datetime
@@ -176,10 +177,21 @@ class OAuthHandler:
                 'locale': None,
             }
         return {}
+
+    @staticmethod
+    def validate_state(received_state: str, expected_state: str) -> bool:
+        """Validate OAuth state using constant-time comparison."""
+        if not received_state or not expected_state:
+            return False
+        return hmac.compare_digest(str(received_state), str(expected_state))
     
-    def handle_callback(self, code: str, state: str) -> Optional[User]:
+    def handle_callback(self, code: str, state: str, expected_state: Optional[str] = None) -> Optional[User]:
         """Handle OAuth callback after authorization."""
         try:
+            if expected_state is not None and not self.validate_state(state, expected_state):
+                logger.warning("OAuth state validation failed")
+                return None
+
             token_data = self._exchange_code_for_token(code)
             access_token = token_data.get('access_token')
             

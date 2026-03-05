@@ -7,6 +7,7 @@ import streamlit as st
 from typing import Dict, Any, List
 import shutil
 import math
+import secrets
 
 from ui.sidebar import render_sidebar
 from ui.tabs.upload import render_upload_tab
@@ -129,38 +130,17 @@ def _render_auth_page(session_manager: SessionManager, oauth_config: OAuthConfig
     with col1:
         if oauth_config.google_client_id:
             if st.button("🔗 Login com Google", use_container_width=True):
-                handler = OAuthHandler('google')
-                auth_url = handler.get_authorization_url()
-                st.session_state['oauth_provider'] = 'google'
-                st.session_state['oauth_state'] = auth_url.split('state=')[1].split('&')[0] if 'state=' in auth_url else ''
-                st.markdown(f"""
-                <meta http-equiv="refresh" content="0; url={auth_url}" />
-                """, unsafe_allow_html=True)
-                st.info("Redirecionando para o Google...")
+                _start_oauth_login('google', "Google")
     
     with col2:
         if oauth_config.github_client_id:
             if st.button("🐙 Login com GitHub", use_container_width=True):
-                handler = OAuthHandler('github')
-                auth_url = handler.get_authorization_url()
-                st.session_state['oauth_provider'] = 'github'
-                st.session_state['oauth_state'] = auth_url.split('state=')[1].split('&')[0] if 'state=' in auth_url else ''
-                st.markdown(f"""
-                <meta http-equiv="refresh" content="0; url={auth_url}" />
-                """, unsafe_allow_html=True)
-                st.info("Redirecionando para o GitHub...")
+                _start_oauth_login('github', "GitHub")
     
     with col3:
         if oauth_config.microsoft_client_id:
             if st.button("🪟 Login com Microsoft", use_container_width=True):
-                handler = OAuthHandler('microsoft')
-                auth_url = handler.get_authorization_url()
-                st.session_state['oauth_provider'] = 'microsoft'
-                st.session_state['oauth_state'] = auth_url.split('state=')[1].split('&')[0] if 'state=' in auth_url else ''
-                st.markdown(f"""
-                <meta http-equiv="refresh" content="0; url={auth_url}" />
-                """, unsafe_allow_html=True)
-                st.info("Redirecionando para a Microsoft...")
+                _start_oauth_login('microsoft', "Microsoft")
     
     _handle_oauth_callback(session_manager)
     
@@ -192,6 +172,7 @@ def _handle_oauth_callback(session_manager: SessionManager):
         st.markdown("[Voltar para login](/)")
         logger.error(f"OAuth error: {error} - {error_desc}")
         # Clear params to avoid infinite error loop
+        _clear_oauth_session_state()
         st.query_params.clear()
         return
     
@@ -203,32 +184,23 @@ def _handle_oauth_callback(session_manager: SessionManager):
         code = code_list[0] if isinstance(code_list, list) and code_list else code_list
         state = state_list[0] if isinstance(state_list, list) and state_list else state_list
         
-        # Try to get provider from session, or infer from state parameter
+        # Provider and state must be present in session from login initiation
         provider = st.session_state.get('oauth_provider')
+        expected_state = st.session_state.get('oauth_state')
         
-        # If provider not in session, check if we can recover it
-        if not provider:
-            # Try to determine provider from available configuration
-            oauth_config = OAuthConfig()
-            if oauth_config.google_client_id and oauth_config.google_client_secret:
-                provider = 'google'
-                st.session_state['oauth_provider'] = 'google'
-                logger.info("Recovered provider 'google' from config")
-            elif oauth_config.github_client_id and oauth_config.github_client_secret:
-                provider = 'github'
-                st.session_state['oauth_provider'] = 'github'
-                logger.info("Recovered provider 'github' from config")
-            elif oauth_config.microsoft_client_id and oauth_config.microsoft_client_secret:
-                provider = 'microsoft'
-                st.session_state['oauth_provider'] = 'microsoft'
-                logger.info("Recovered provider 'microsoft' from config")
-        
-        if provider and code and state:
+        if provider and code and state and expected_state:
             try:
                 st.info("⏳ Processando login... Aguarde.")
+
+                if not OAuthHandler.validate_state(str(state), str(expected_state)):
+                    logger.warning("OAuth callback rejected due to state mismatch")
+                    st.error("❌ Sessão de login inválida ou expirada. Tente novamente.")
+                    _clear_oauth_session_state()
+                    st.query_params.clear()
+                    return
                 
                 handler = OAuthHandler(provider)
-                user_obj = handler.handle_callback(str(code), str(state))
+                user_obj = handler.handle_callback(str(code), str(state), expected_state=str(expected_state))
                 
                 if user_obj:
                     # Convert SQLAlchemy object to dict for session
@@ -246,9 +218,7 @@ def _handle_oauth_callback(session_manager: SessionManager):
                     logger.info(f"User {user_obj.email} logged in via {provider}")
                     
                     # Clean up session
-                    for key in ['oauth_state', 'oauth_provider', 'login_initiated']:
-                        if key in st.session_state:
-                            del st.session_state[key]
+                    _clear_oauth_session_state()
                     
                     # Clear query params
                     st.query_params.clear()
@@ -263,6 +233,7 @@ def _handle_oauth_callback(session_manager: SessionManager):
                     st.markdown("[Tentar novamente](/)")
                     logger.error(f"Failed to create user from OAuth callback for {provider}")
                     # Clear invalid OAuth params
+                    _clear_oauth_session_state()
                     st.query_params.clear()
                     
             except Exception as e:
@@ -270,6 +241,7 @@ def _handle_oauth_callback(session_manager: SessionManager):
                 logger.error(f"OAuth callback exception: {error_msg}", exc_info=True)
                 
                 # Clear OAuth params on error
+                _clear_oauth_session_state()
                 st.query_params.clear()
                 
                 # User-friendly error messages
@@ -287,7 +259,31 @@ def _handle_oauth_callback(session_manager: SessionManager):
             st.error(f"Provider: {provider or 'não encontrado'}, Code: {'✓' if code else '✗'}, State: {'✓' if state else '✗'}")
             st.markdown("[Voltar para login](/)")
             # Clear invalid OAuth params
+            _clear_oauth_session_state()
             st.query_params.clear()
+
+
+def _start_oauth_login(provider: str, provider_label: str) -> None:
+    """Start OAuth login flow with explicit provider and state."""
+    handler = OAuthHandler(provider)
+    state = secrets.token_urlsafe(32)
+
+    st.session_state['oauth_provider'] = provider
+    st.session_state['oauth_state'] = state
+    st.session_state['login_initiated'] = True
+
+    auth_url = handler.get_authorization_url(state=state)
+    st.markdown(f"""
+    <meta http-equiv="refresh" content="0; url={auth_url}" />
+    """, unsafe_allow_html=True)
+    st.info(f"Redirecionando para {provider_label}...")
+
+
+def _clear_oauth_session_state() -> None:
+    """Clear transient OAuth keys from session state."""
+    for key in ['oauth_state', 'oauth_provider', 'login_initiated']:
+        if key in st.session_state:
+            del st.session_state[key]
 
 
 def _render_authenticated_app(session_manager: SessionManager, current_user):

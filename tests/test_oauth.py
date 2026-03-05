@@ -70,6 +70,14 @@ def test_invalid_provider():
         print(f"✓ Correctly raised ValueError: {e}")
 
 
+def test_validate_state():
+    """Test OAuth state validation helper."""
+    assert OAuthHandler.validate_state("abc", "abc") is True
+    assert OAuthHandler.validate_state("abc", "xyz") is False
+    assert OAuthHandler.validate_state("", "xyz") is False
+    assert OAuthHandler.validate_state("abc", "") is False
+
+
 if __name__ == "__main__":
     print("=" * 60)
     print("OAuth Implementation Tests")
