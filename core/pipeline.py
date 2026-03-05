@@ -400,7 +400,8 @@ class LegacyAdapter:
         Returns:
             Tuple of (files, contents, extract_path)
         """
-        handler = FileHandler()
+        file_handler_cls = file_handler_module.FileHandler
+        handler = file_handler_cls()
         return handler.extract_zip(zip_file, language)
     
     @staticmethod
