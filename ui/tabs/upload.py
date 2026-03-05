@@ -92,7 +92,7 @@ def render_upload_tab(settings: Dict[str, Any]) -> Tuple[List[str], List[str], s
             
             # File-specific suggestions
             if "tamanho" in str(e).lower():
-                st.info("📚 Limite máximo: 100MB por arquivo ZIP")
+                st.info(f"📚 Limite máximo: {config.MAX_ZIP_SIZE_MB}MB por arquivo ZIP")
             elif "formato" in str(e).lower():
                 st.info("📚 Formatos aceitos: .py, .java, .cpp, .c, .js, .ts, .go, .rs, .kt")
             
