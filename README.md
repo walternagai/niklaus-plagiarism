@@ -20,8 +20,8 @@ Niklaus uses a combination of static analysis and AI techniques to compare code 
   - **Similarity graph** showing connections between files (Phase 2)
 - **Cluster analysis**: Automatic detection of plagiarism clusters with severity classification (high, moderate, low).
 - **Visual diff view**: Side-by-side code comparison with highlighted differences (unified diff format).
-- **Enriched PDF reports**: Color-coded similarity tables, complexity metrics, AST scores, and cluster summaries.
-- **Export capabilities**: CSV, JSON, and PDF export options for reports.
+- **Export capabilities**: CSV and JSON export options for reports.
+- **PDF export roadmap**: Enriched PDF report generation is planned and not yet available in the UI.
 - **Security**: ZIP file validation (50MB limit, path traversal protection) and automatic cleanup of temporary files.
 
 ## Prerequisites
@@ -92,7 +92,7 @@ Then:
 - Similarity table with progress bars
 - AI-powered analysis for each suspicious pair
 - **Visual diff view** (toggle between side-by-side code and unified diff)
-- Export options (CSV, JSON, PDF)
+- Export options (CSV, JSON; PDF in roadmap)
 
 ### Tab 3: Statistics
 - Summary metrics (mean, median, std deviation)
