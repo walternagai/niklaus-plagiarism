@@ -33,7 +33,7 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     is_verified = Column(Boolean, default=False)
     
-    settings = Column(JSON, default={})
+    settings = Column(JSON, default=dict)
     
     submissions_count = Column(Integer, default=0)
     total_analyses = Column(Integer, default=0)
@@ -171,7 +171,7 @@ class AuditLog(Base):
     entity_type = Column(String(50), nullable=False)
     entity_id = Column(Integer)
     
-    details = Column(JSON, default={})
+    details = Column(JSON, default=dict)
     ip_address = Column(String(45))
     user_agent = Column(Text)
     
