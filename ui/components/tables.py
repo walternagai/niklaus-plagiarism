@@ -46,16 +46,18 @@ def display_similarity_table(
     
     filtered_df = df[df['Similaridade'] >= min_filter]
     
+    # Format similarity as percentage for display
+    filtered_df_display = filtered_df.copy()
+    filtered_df_display['Similaridade'] = filtered_df_display['Similaridade'].apply(lambda x: f"{x:.1%}")
+    
     # Display with progress bars
     st.dataframe(
-        filtered_df.style.format({"Similaridade": "{:.2%}"}),
+        filtered_df_display,
         use_container_width=True,
         column_config={
-            "Similaridade": st.column_config.ProgressColumn(
+            "Similaridade": st.column_config.TextColumn(
                 "Similaridade",
-                format="%.2f%%",
-                min_value=0,
-                max_value=1,
+                help="Porcentagem de similaridade entre os arquivos"
             )
         }
     )

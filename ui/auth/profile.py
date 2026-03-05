@@ -17,28 +17,38 @@ def render_profile_page():
     """Render user profile page."""
     
     user = st.session_state.user
+    user_id = user.get('id') if isinstance(user, dict) else user.id
+    user_email = user.get('email') if isinstance(user, dict) else user.email
+    user_name = user.get('name') if isinstance(user, dict) else user.name
+    is_admin = user.get('is_admin', False) if isinstance(user, dict) else getattr(user, 'is_admin', False)
     
     st.title("👤 Perfil")
-    st.markdown(f"**{user.email}**")
+    st.markdown(f"**{user_email}**")
     
     st.markdown("---")
     
-    # User info
-    col1, col2 = st.columns(2)
+    # User info from database
+    db = get_session()
+    user_repo = UserRepository(db)
+    user_obj = user_repo.find_by_id(user_id)
+    db.close()
     
-    with col1:
-        st.markdown("### Informações")
-        st.write(f"**Nome:** {user.name}")
-        st.write(f"**Email:** {user.email}")
-        st.write(f"**Papel:** {'👑 Administrador' if user.is_admin else '👤 Usuário'}")
-        st.write(f"**Cadastro:** {user.created_at.strftime('%d/%m/%Y') if user.created_at else 'N/A'}")
-        st.write(f"**Último login:** {user.last_login_at.strftime('%d/%m/%Y %H:%M') if user.last_login_at else 'N/A'}")
-    
-    with col2:
-        st.markdown("### Estatísticas")
-        st.write(f"**Submissões:** {user.submissions_count or 0}")
-        st.write(f"**Arquivos analisados:** {user.total_analyses or 0}")
-        st.write(f"**Pares suspeitos:** {user.total_suspicious_pairs or 0}")
+    if user_obj:
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("### Informações")
+            st.write(f"**Nome:** {user_obj.name}")
+            st.write(f"**Email:** {user_obj.email}")
+            st.write(f"**Papel:** {'👑 Administrador' if user_obj.role == 'admin' else '👤 Usuário'}")
+            st.write(f"**Cadastro:** {user_obj.created_at.strftime('%d/%m/%Y') if user_obj.created_at else 'N/A'}")
+            st.write(f"**Último login:** {user_obj.last_login_at.strftime('%d/%m/%Y %H:%M') if user_obj.last_login_at else 'N/A'}")
+        
+        with col2:
+            st.markdown("### Estatísticas")
+            st.write(f"**Submissões:** {user_obj.submissions_count or 0}")
+            st.write(f"**Arquivos analisados:** {user_obj.total_analyses or 0}")
+            st.write(f"**Pares suspeitos:** {user_obj.total_suspicious_pairs or 0}")
     
     st.markdown("---")
     
@@ -46,7 +56,6 @@ def render_profile_page():
     st.markdown("### ⚙️ Configurações")
     
     with st.form("settings_form"):
-        theme = st.selectbox("Tema", ["Claro", "Escuro"])
         language = st.selectbox("Linguagem padrão", ["Python", "Java", "C", "C++", "JavaScript"])
         notifications = st.checkbox("Receber notificações por email", value=True)
         
@@ -55,12 +64,11 @@ def render_profile_page():
             user_repo = UserRepository(db)
             
             settings = {
-                'theme': theme,
                 'language': language,
                 'notifications': notifications
             }
             
-            user_repo.update_settings(user.id, settings)
+            user_repo.update_settings(user_id, settings)
             db.close()
             
             st.success("Configurações salvas!")
@@ -77,7 +85,7 @@ def render_profile_page():
             
             db = get_session()
             cache_repo = CacheRepository(db)
-            removed = cache_repo.clear_user_cache(user.id)
+            removed = cache_repo.clear_user_cache(user_id)
             db.close()
             
             st.success(f"{removed} arquivos de cache removidos!")

@@ -36,9 +36,16 @@ def require_admin(func: Callable) -> Callable:
         
         user = st.session_state.user
         
-        if not user.is_admin:
+        if isinstance(user, dict):
+            is_admin = user.get('is_admin', False)
+            email = user.get('email', 'unknown')
+        else:
+            is_admin = getattr(user, 'is_admin', False)
+            email = getattr(user, 'email', 'unknown')
+        
+        if not is_admin:
             st.error("⛔ Acesso restrito a administradores.")
-            logger.warning(f"User {user.email} attempted to access admin page")
+            logger.warning(f"User {email} attempted to access admin page")
             st.stop()
         
         return func(*args, **kwargs)
@@ -51,9 +58,11 @@ def guest_required(func: Callable) -> Callable:
     @wraps(func)
     def wrapper(*args, **kwargs):
         if 'user' in st.session_state and st.session_state.user is not None:
-            st.info(f"ℹ️ Você já está logado como {st.session_state.user.name}")
-            if st.button("Ir para o Dashboard"):
-                st.switch_page("pages/dashboard.py")
+            user = st.session_state.user
+            name = user.get('name', 'unknown') if isinstance(user, dict) else getattr(user, 'name', 'unknown')
+            st.info(f"ℹ️ Você já está logado como {name}")
+            if st.button("Ir para a Página Principal"):
+                st.switch_page("app.py")
             st.stop()
         
         return func(*args, **kwargs)

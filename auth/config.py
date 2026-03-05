@@ -18,23 +18,42 @@ class OAuthConfig:
             import streamlit as st
             secrets = st.secrets
         except:
-            secrets = os.environ
+            secrets = {}
         
-        # Google
-        self.google_client_id = secrets.get('GOOGLE_CLIENT_ID', os.getenv('GOOGLE_CLIENT_ID', ''))
-        self.google_client_secret = secrets.get('GOOGLE_CLIENT_SECRET', os.getenv('GOOGLE_CLIENT_SECRET', ''))
-        self.google_redirect_uri = secrets.get('GOOGLE_REDIRECT_URI', os.getenv('GOOGLE_REDIRECT_URI', 'http://localhost:8501/oauth/callback/google'))
+        # Google - supports both flat and nested config
+        if 'google' in secrets:
+            google = secrets['google']
+            self.google_client_id = google.get('client_id', '')
+            self.google_client_secret = google.get('client_secret', '')
+            self.google_redirect_uri = google.get('redirect_uri', 'http://localhost:8501/oauth/callback/google')
+        else:
+            self.google_client_id = secrets.get('GOOGLE_CLIENT_ID', os.getenv('GOOGLE_CLIENT_ID', ''))
+            self.google_client_secret = secrets.get('GOOGLE_CLIENT_SECRET', os.getenv('GOOGLE_CLIENT_SECRET', ''))
+            self.google_redirect_uri = secrets.get('GOOGLE_REDIRECT_URI', os.getenv('GOOGLE_REDIRECT_URI', 'http://localhost:8501/oauth/callback/google'))
         
-        # GitHub
-        self.github_client_id = secrets.get('GITHUB_CLIENT_ID', os.getenv('GITHUB_CLIENT_ID', ''))
-        self.github_client_secret = secrets.get('GITHUB_CLIENT_SECRET', os.getenv('GITHUB_CLIENT_SECRET', ''))
-        self.github_redirect_uri = secrets.get('GITHUB_REDIRECT_URI', os.getenv('GITHUB_REDIRECT_URI', 'http://localhost:8501/oauth/callback/github'))
+        # GitHub - supports both flat and nested config
+        if 'github' in secrets:
+            github = secrets['github']
+            self.github_client_id = github.get('client_id', '')
+            self.github_client_secret = github.get('client_secret', '')
+            self.github_redirect_uri = github.get('redirect_uri', 'http://localhost:8501/oauth/callback/github')
+        else:
+            self.github_client_id = secrets.get('GITHUB_CLIENT_ID', os.getenv('GITHUB_CLIENT_ID', ''))
+            self.github_client_secret = secrets.get('GITHUB_CLIENT_SECRET', os.getenv('GITHUB_CLIENT_SECRET', ''))
+            self.github_redirect_uri = secrets.get('GITHUB_REDIRECT_URI', os.getenv('GITHUB_REDIRECT_URI', 'http://localhost:8501/oauth/callback/github'))
         
-        # Microsoft
-        self.microsoft_client_id = secrets.get('MICROSOFT_CLIENT_ID', os.getenv('MICROSOFT_CLIENT_ID', ''))
-        self.microsoft_client_secret = secrets.get('MICROSOFT_CLIENT_SECRET', os.getenv('MICROSOFT_CLIENT_SECRET', ''))
-        self.microsoft_redirect_uri = secrets.get('MICROSOFT_REDIRECT_URI', os.getenv('MICROSOFT_REDIRECT_URI', 'http://localhost:8501/oauth/callback/microsoft'))
-        self.microsoft_tenant_id = secrets.get('MICROSOFT_TENANT_ID', os.getenv('MICROSOFT_TENANT_ID', 'common'))
+        # Microsoft - supports both flat and nested config
+        if 'microsoft' in secrets:
+            microsoft = secrets['microsoft']
+            self.microsoft_client_id = microsoft.get('client_id', '')
+            self.microsoft_client_secret = microsoft.get('client_secret', '')
+            self.microsoft_redirect_uri = microsoft.get('redirect_uri', 'http://localhost:8501/oauth/callback/microsoft')
+            self.microsoft_tenant_id = microsoft.get('tenant_id', 'common')
+        else:
+            self.microsoft_client_id = secrets.get('MICROSOFT_CLIENT_ID', os.getenv('MICROSOFT_CLIENT_ID', ''))
+            self.microsoft_client_secret = secrets.get('MICROSOFT_CLIENT_SECRET', os.getenv('MICROSOFT_CLIENT_SECRET', ''))
+            self.microsoft_redirect_uri = secrets.get('MICROSOFT_REDIRECT_URI', os.getenv('MICROSOFT_REDIRECT_URI', 'http://localhost:8501/oauth/callback/microsoft'))
+            self.microsoft_tenant_id = secrets.get('MICROSOFT_TENANT_ID', os.getenv('MICROSOFT_TENANT_ID', 'common'))
         
         # Admin users
         self.admin_emails = self._load_admin_emails()

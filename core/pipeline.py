@@ -28,7 +28,7 @@ class AnalysisPipeline:
     def __init__(
         self,
         language: str,
-        api_key: str = None,
+        api_key: Optional[str] = None,
         model: str = None,
         max_workers: int = None,
         use_cache: bool = True
@@ -136,6 +136,27 @@ class AnalysisPipeline:
                 threshold
             )
             
+            # Calculate similarity statistics
+            textual_sims = results['textual_similarities']
+            if textual_sims:
+                similarities = [sim for _, _, sim in textual_sims]
+                avg_similarity = sum(similarities) / len(similarities)
+                max_similarity = max(similarities)
+            else:
+                avg_similarity = 0.0
+                max_similarity = 0.0
+            
+            # Convert suspicious_pairs to pairwise_results format
+            pairwise_results = [
+                {
+                    'file1': file1,
+                    'file2': file2,
+                    'similarity': sim,
+                    'is_suspicious': sim >= threshold
+                }
+                for file1, file2, sim in textual_sims
+            ]
+            
             # Stage 4: AI analysis (if enabled and API key provided)
             ai_analyses = {}
             if enable_ai and self.llm_client and suspicious_pairs:
@@ -164,6 +185,9 @@ class AnalysisPipeline:
                 'patterns': results['patterns'],
                 'ai_analyses': ai_analyses,
                 'suspicious_pairs': suspicious_pairs,
+                'pairwise_results': pairwise_results,
+                'average_similarity': avg_similarity,
+                'max_similarity': max_similarity,
                 'analysis_time': time.time() - start_time
             }
             

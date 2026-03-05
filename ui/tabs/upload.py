@@ -27,11 +27,34 @@ def render_upload_tab(settings: Dict[str, Any]) -> Tuple[List[str], List[str], s
     
     st.markdown("---")
     
+    # Check if there's a previous analysis
+    has_previous_analysis = bool(st.session_state.get('last_analysis'))
+    
+    if has_previous_analysis:
+        st.info("✅ Você já tem uma análise anterior. Deseja iniciar uma nova análise?")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            if st.button("📁 Nova Análise", type="primary", use_container_width=True):
+                # Clear previous analysis
+                for key in ['last_analysis', 'advanced_analysis', 'cluster_data']:
+                    if key in st.session_state:
+                        del st.session_state[key]
+                st.success("✅ Preparado para nova análise! Faça upload dos arquivos abaixo.")
+                st.rerun()
+        
+        with col2:
+            if st.button("📊 Ver Última Análise", type="secondary", use_container_width=True):
+                st.info("Navegue para a aba 'Resultados' para ver os detalhes da última análise.")
+        
+        st.markdown("---")
+    
     # File upload
     zip_file = st.file_uploader(
         "Carregar arquivo ZIP",
         type="zip",
-        help=f"ZIP com arquivos (máx: {config.MAX_ZIP_SIZE_MB}MB)"
+        help=f"ZIP com arquivos (máx: {config.MAX_ZIP_SIZE_MB}MB)",
+        key="zip_uploader"
     )
     
     if zip_file:
@@ -54,12 +77,54 @@ def render_upload_tab(settings: Dict[str, Any]) -> Tuple[List[str], List[str], s
             handler = FileHandler()
             files, contents, extract_path = handler.extract_zip(zip_file, settings['language'])
             st.toast(f"✅ {len(files)} arquivos extraídos com sucesso!")
+            
+            # Check minimum files
+            if len(files) < 2:
+                st.error("❌ Mínimo de arquivos insuficiente")
+                st.warning("💡 **Solução:** O ZIP deve conter pelo menos 2 arquivos para análise de plágio.")
+                return None, None, None, False
+            
             return files, contents, extract_path, True
+            
         except FileValidationError as e:
-            st.error(f"Erro de validação: {str(e)}")
+            st.error(f"❌ Erro de validação: {str(e)}")
+            st.warning("💡 **Solução:** Verifique se o arquivo ZIP contém apenas código-fonte válido.")
+            
+            # File-specific suggestions
+            if "tamanho" in str(e).lower():
+                st.info("📚 Limite máximo: 100MB por arquivo ZIP")
+            elif "formato" in str(e).lower():
+                st.info("📚 Formatos aceitos: .py, .java, .cpp, .c, .js, .ts, .go, .rs, .kt")
+            
             st.stop()
+            
         except Exception as e:
-            st.error(f"Erro ao extrair arquivo: {str(e)}")
+            error_msg = str(e)
+            
+            st.error(f"❌ Erro ao extrair arquivo")
+            
+            # Specific error messages
+            if "corrompido" in error_msg.lower() or "corrupted" in error_msg.lower():
+                st.warning("💡 **Solução:** O arquivo ZIP está corrompido. Tente:")
+                st.markdown("- Baixar o arquivo novamente")
+                st.markdown("- Usar outro navegador")
+                st.markdown("- Verificar a integridade do arquivo")
+            
+            elif "espaço" in error_msg.lower() or "space" in error_msg.lower():
+                st.warning("💡 **Solução:** Espaço em disco insuficiente.")
+                st.markdown("- Libere espaço em disco")
+                st.markdown("- Limpe arquivos temporários")
+            
+            elif "permissão" in error_msg.lower() or "permission" in error_msg.lower():
+                st.warning("💡 **Solução:** Sem permissão para escrever no diretório temporário.")
+                st.markdown("- Execute o aplicativo com permissões adequadas")
+            
+            else:
+                st.warning("💡 **Solução:** Tente novamente ou use outro arquivo ZIP.")
+            
+            with st.expander("🔍 Ver detalhes técnicos"):
+                st.code(error_msg, language="text")
+            
             st.stop()
     
     return None, None, None, False

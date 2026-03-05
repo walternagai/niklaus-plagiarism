@@ -3,8 +3,9 @@ Authentication module for Niklaus plagiarism detector.
 """
 
 from auth.models import User, Submission, AnalysisCache, AuditLog, Base
-from auth.database import DatabaseManager, get_db_manager, get_db, init_db
-from auth.oauth import OAuthHandler, OAuthConfig
+from auth.database import DatabaseManager, get_db_manager, get_db, get_session, init_db
+from auth.oauth import OAuthHandler
+from auth.config import OAuthConfig
 from auth.repository import UserRepository, SubmissionRepository, CacheRepository, AuditRepository
 from auth.decorators import require_auth, require_admin, guest_required
 from auth.session import SessionManager
@@ -21,6 +22,7 @@ __all__ = [
     'DatabaseManager',
     'get_db_manager',
     'get_db',
+    'get_session',
     'init_db',
     
     # OAuth

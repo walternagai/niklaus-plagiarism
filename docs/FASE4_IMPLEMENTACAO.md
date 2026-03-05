@@ -109,7 +109,7 @@ Tabs individuais:
 - Cluster statistics
 - Community detection
 
-### 6. **app_modular.py** (175 linhas)
+### 6. **app.py** (175 linhas)
 Aplicação principal modular:
 
 ```python
@@ -123,7 +123,7 @@ from ui.tabs.graph import render_graph_tab
 
 ## Comparação de Arquitetura
 
-| Aspecto | app.py Original | app_refactored.py | app_modular.py |
+| Aspecto | app.py Original | app_refactored.py | app.py |
 |---------|-----------------|-------------------|----------------|
 | **Linhas** | 1347 | 694 | 175 |
 | **Estrutura** | Monolítica | Modularizada | Completamente modular |
@@ -154,7 +154,7 @@ niklaus-plagiarism/
 │
 ├── app.py                      Original (1347 linhas)
 ├── app_refactored.py           FASE 3 (694 linhas)
-└── app_modular.py              FASE 4 (175 linhas)
+└── app.py              FASE 4 (175 linhas)
 ```
 
 **Total UI Modular:** ~1.354 linhas em 12 arquivos
@@ -199,7 +199,7 @@ from ui.components.tables import display_similarity_table
 ### Opção 1: Versão Modular (Mais Recomendada)
 
 ```bash
-streamlit run app_modular.py
+streamlit run app.py
 ```
 
 ### Opção 2: Versão Refatorada (FASE 3)
@@ -228,7 +228,7 @@ def render_nova_tab(results, settings):
     # Implementação
 ```
 
-2. Adicionar em `app_modular.py`:
+2. Adicionar em `app.py`:
 
 ```python
 from ui.tabs.nova_tab import render_nova_tab
@@ -314,7 +314,7 @@ st.plotly_chart(fig)
 - [x] Criar ui/tabs/statistics.py
 - [x] Criar ui/tabs/advanced.py
 - [x] Criar ui/tabs/graph.py
-- [x] Criar app_modular.py
+- [x] Criar app.py
 - [x] Documentar arquitetura
 - [x] Testar funcionamento
 
@@ -330,7 +330,7 @@ st.plotly_chart(fig)
 - Redução app principal: **87%** (1347 → 175 linhas)
 
 **Arquitetura Final:**
-- **3 versões funcionais**: app.py, app_refactored.py, app_modular.py
+- **3 versões funcionais**: app.py, app_refactored.py, app.py
 - **Modularização completa**: UI, Core, Utils
 - **Performance otimizada**: Processamento paralelo + cache
 - **Testes**: 65+ testes unitários

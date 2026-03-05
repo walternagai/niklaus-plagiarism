@@ -33,7 +33,6 @@ class Config:
     
     # UI Settings
     DEFAULT_THRESHOLD: float = 0.7
-    THEME_OPTIONS: Tuple[str, ...] = ("Claro", "Escuro")
     
     # Language Extensions Mapping
     LANGUAGE_EXTENSIONS: dict = None

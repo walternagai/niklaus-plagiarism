@@ -82,8 +82,12 @@ def _initiate_oauth(provider: str):
         
         auth_url = handler.get_authorization_url(state=state)
         
-        st.markdown(f"**Clique no link abaixo para autenticar:**")
-        st.markdown(f"[Login com {provider.title()}]({auth_url})")
+        # Automatic redirect using meta refresh
+        st.markdown(f"""
+        <meta http-equiv="refresh" content="0; url={auth_url}" />
+        <p>Redirecionando para {provider.title()}...</p>
+        <p>Se não for redirecionado automaticamente em 5 segundos, <a href="{auth_url}">clique aqui</a>.</p>
+        """, unsafe_allow_html=True)
         
         logger.info(f"OAuth login initiated for {provider}")
         

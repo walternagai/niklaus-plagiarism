@@ -15,12 +15,11 @@ def render_sidebar() -> Dict[str, Any]:
         Dictionary with user settings
     """
     with st.sidebar:
-        st.markdown("## :gear: Configurações")
+        # Header
+        _render_header()
         
-        # Theme selector
-        theme = _render_theme_selector()
-        
-        st.markdown("---")
+        # Quick Presets
+        _render_quick_presets()
         
         # API configuration
         api_key, model = _render_api_config()
@@ -38,15 +37,13 @@ def render_sidebar() -> Dict[str, Any]:
         _render_instructions()
         
         # Footer
-        st.markdown("---")
-        st.markdown(":computer: [GitHub](https://www.github.com/walternagai/niklaus-plagiarism)")
+        _render_footer()
     
     return {
         'api_key': api_key,
         'model': model,
         'language': language,
         'threshold': threshold,
-        'theme': theme,
         'max_workers': max_workers,
         'use_cache': use_cache,
         'enable_ai': enable_ai,
@@ -54,111 +51,196 @@ def render_sidebar() -> Dict[str, Any]:
     }
 
 
-def _render_theme_selector() -> str:
-    """Render theme selector."""
-    theme = st.selectbox("Tema Visual", config.THEME_OPTIONS)
+def _render_quick_presets():
+    """Render quick preset buttons for common configurations."""
+    st.markdown("### ⚡ Presets Rápidos")
     
-    if theme == "Escuro":
-        st.markdown("""
-        <style>
-        .stApp { background-color: #1e1e1e; color: #f0f0f0; }
-        .stMarkdown, .stText { color: #f0f0f0; }
-        </style>
-        """, unsafe_allow_html=True)
+    col1, col2, col3 = st.columns(3)
     
-    return theme
+    with col1:
+        if st.button("🚀 Rápido", use_container_width=True, help="Análise rápida com configurações básicas"):
+            st.session_state['preset_mode'] = 'quick'
+            st.session_state['threshold'] = 0.8
+            st.session_state['max_workers'] = 2
+            st.session_state['enable_ai'] = False
+            st.session_state['use_cache'] = True
+            st.toast("✅ Preset Rápido aplicado!")
+            st.rerun()
+    
+    with col2:
+        if st.button("🔍 Completo", use_container_width=True, help="Análise completa com IA"):
+            st.session_state['preset_mode'] = 'full'
+            st.session_state['threshold'] = 0.7
+            st.session_state['max_workers'] = 4
+            st.session_state['enable_ai'] = True
+            st.session_state['use_cache'] = True
+            st.toast("✅ Preset Completo aplicado!")
+            st.rerun()
+    
+    with col3:
+        if st.button("⚙️ Personalizado", use_container_width=True, help="Use configurações personalizadas"):
+            st.session_state['preset_mode'] = 'custom'
+            st.toast("ℹ️ Configure as opções abaixo")
+    
+    st.markdown("---")
+
+
+def _render_header():
+    """Render sidebar header with branding."""
+    st.markdown(
+        """
+        <div style='text-align: center; padding: 10px 0;'>
+            <h1 style='margin: 0; color: #1f77b4; font-size: 28px;'>🔍 Niklaus</h1>
+            <p style='margin: 5px 0 0 0; font-size: 14px; color: #666;'>Detector de Plágio</p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+    st.markdown("---")
 
 
 def _render_api_config() -> tuple:
     """Render API configuration section."""
-    try:
-        api_key = st.secrets["maritaca"]["MARITACA_API_KEY"]
-        model = st.secrets["maritaca"].get("MARITACA_MODEL", config.MARITACA_MODEL)
-        st.success("✅ API configurada")
-    except KeyError:
-        st.error("Configure MARITACA_API_KEY no arquivo .streamlit/secrets.toml")
-        with st.expander("📝 Como configurar"):
-            st.code("""
+    st.markdown("### 🔑 API")
+    
+    with st.container():
+        try:
+            api_key = st.secrets["maritaca"]["MARITACA_API_KEY"]
+            model = st.secrets["maritaca"].get("MARITACA_MODEL", config.MARITACA_MODEL)
+            
+            st.success("✅ API configurada")
+            st.caption(f"Modelo: `{model}`")
+            
+        except KeyError:
+            st.error("❌ API não configurada")
+            
+            with st.expander("⚙️ Como configurar", expanded=True):
+                st.markdown("""
+                **1. Crie o arquivo `.streamlit/secrets.toml`:**
+                """)
+                st.code("""
 [maritaca]
 MARITACA_API_KEY = "sua-chave-api-aqui"
 MARITACA_MODEL = "sabiazinho-4"
-            """, language="toml")
-        st.stop()
+                """, language="toml")
+                
+                st.markdown("""
+                **2. Obtenha sua chave em:**
+                - [Maritaca AI](https://maritaca.ai)
+                """)
+                
+            st.stop()
     
     return api_key, model
 
 
 def _render_language_selector() -> str:
     """Render language selector."""
-    st.markdown("### Linguagem")
+    st.markdown("### 💻 Linguagem")
     
     language = st.selectbox(
-        "Escolha a linguagem de programação",
+        "Selecione a linguagem",
         options=list(config.LANGUAGE_EXTENSIONS.keys()),
         index=0,
-        help="Selecione a linguagem dos arquivos"
+        help="Linguagem de programação dos arquivos"
     )
+    
+    ext = config.LANGUAGE_EXTENSIONS.get(language, 'py')
+    st.caption(f"Extensão: `.{ext}`")
     
     return language
 
 
 def _render_analysis_config() -> tuple:
     """Render analysis configuration section."""
-    st.markdown("### Análise")
+    st.markdown("### 📊 Análise")
     
+    # Get preset values if available
+    default_threshold = st.session_state.get('threshold', config.DEFAULT_THRESHOLD)
+    
+    # Preset selection
     preset = st.selectbox(
-        "Preset de análise",
-        ["Personalizado", "Conservador (80%)", "Moderado (70%)", "Agressivo (50%)"]
+        "Nível de sensibilidade",
+        options=["🔴 Agressivo (50%)", "🟡 Moderado (70%)", "🟢 Conservador (80%)", "⚙️ Personalizado"],
+        index=1,
+        help="Agressivo detecta mais plágio, Conservador menos"
     )
     
+    # Map presets to threshold values
     presets = {
-        "Conservador (80%)": 0.8,
-        "Moderado (70%)": 0.7,
-        "Agressivo (50%)": 0.5
+        "🔴 Agressivo (50%)": 0.5,
+        "🟡 Moderado (70%)": 0.7,
+        "🟢 Conservador (80%)": 0.8,
     }
     
-    default_threshold = presets.get(preset, st.session_state.get('threshold', config.DEFAULT_THRESHOLD))
+    # Use preset value or saved threshold
+    if preset in presets:
+        threshold = presets[preset]
+    else:
+        threshold = default_threshold
     
+    # Threshold slider
     threshold = st.slider(
-        "Limite de Similaridade",
+        "Similaridade mínima",
         min_value=0.0,
         max_value=1.0,
-        value=default_threshold,
+        value=threshold,
         step=0.01,
-        help="Similaridade mínima para considerar plágio"
+        help="Pares com similaridade ≥ este valor serão marcados"
     )
+    
+    # Show threshold value above slider
+    st.caption(f"**Valor selecionado: {threshold:.0%}**")
+    
+    # Show threshold interpretation
+    if threshold < 0.4:
+        st.warning("⚠️ Muito sensível - pode gerar muitos falsos positivos")
+    elif threshold < 0.6:
+        st.info("ℹ️ Alta sensibilidade - resultados detalhados")
+    elif threshold < 0.8:
+        st.success("✅ Sensibilidade moderada - equilibrado")
+    else:
+        st.success("✅ Conservador - alta confiança")
     
     return threshold, preset
 
 
 def _render_performance_config() -> tuple:
     """Render performance configuration section."""
-    st.markdown("### Performance")
+    st.markdown("### ⚡ Performance")
     
+    # Get preset values if available
+    default_workers = st.session_state.get('max_workers', config.PARALLEL_WORKERS)
+    default_cache = st.session_state.get('use_cache', True)
+    default_ai = st.session_state.get('enable_ai', True)
+    
+    # Parallel workers
     max_workers = st.slider(
-        "Workers Paralelos",
+        "Workers paralelos",
         min_value=1,
         max_value=8,
-        value=config.PARALLEL_WORKERS,
-        help="Mais workers = análise mais rápida (use com cuidado)"
+        value=default_workers,
+        help="Mais workers = análise mais rápida"
     )
     
+    # Checkboxes for cache and AI
     col1, col2 = st.columns(2)
     
     with col1:
         use_cache = st.checkbox(
-            "Usar cache",
-            value=True,
-            help="Armazena resultados para não reprocessar"
+            "💾 Cache",
+            value=default_cache,
+            help="Reutiliza resultados anteriores"
         )
     
     with col2:
         enable_ai = st.checkbox(
-            "Análise com IA",
-            value=True,
-            help="Usa Maritaca para analisar plágio"
+            "🤖 IA",
+            value=default_ai,
+            help="Análise avançada com Maritaca"
         )
     
+    # Cache stats
     if use_cache:
         _render_cache_stats()
     
@@ -173,14 +255,20 @@ def _render_cache_stats():
         cache = AnalysisCache()
         stats = cache.get_cache_stats()
         
-        with st.expander("📊 Cache Stats"):
-            st.metric("Arquivos", stats['file_count'])
-            st.metric("Tamanho", f"{stats['total_size_mb']:.2f} MB")
+        with st.expander("📈 Estatísticas do Cache", expanded=False):
+            col1, col2 = st.columns(2)
             
-            if st.button("🗑️ Limpar Cache"):
+            with col1:
+                st.metric("Arquivos", stats['file_count'])
+            
+            with col2:
+                st.metric("Tamanho", f"{stats['total_size_mb']:.2f} MB")
+            
+            if st.button("🗑️ Limpar Cache", use_container_width=True, type="secondary"):
                 removed = cache.clear_all_cache()
-                st.success(f"Removidos {removed} arquivos")
+                st.success(f"✓ {removed} arquivos removidos")
                 st.rerun()
+                
     except Exception:
         pass
 
@@ -188,8 +276,31 @@ def _render_cache_stats():
 def _render_instructions():
     """Render instructions section."""
     st.markdown("---")
-    st.markdown("### 📖 Instruções")
-    st.markdown("1. Escolha a linguagem")
-    st.markdown("2. Ajuste o limite")
-    st.markdown("3. Faça upload do ZIP")
-    st.markdown("4. Clique em 'Analisar'")
+    st.markdown("### 📖 Como usar")
+    
+    st.markdown("""
+**Passos para usar:**
+
+1️⃣ Configure a API
+2️⃣ Selecione a linguagem  
+3️⃣ Ajuste o threshold
+4️⃣ Faça upload do ZIP
+5️⃣ Clique em analisar
+""")
+
+
+def _render_footer():
+    """Render sidebar footer."""
+    st.markdown("---")
+    st.markdown(
+        """
+        <div style='text-align: center;'>
+            <small>
+                <a href='https://www.github.com/walternagai/niklaus-plagiarism' target='_blank'>
+                    💻 GitHub
+                </a>
+            </small>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )

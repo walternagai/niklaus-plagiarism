@@ -88,11 +88,11 @@ class SubmissionRepository:
     def find_by_id(self, submission_id: int) -> Optional[Submission]:
         return self.db.query(Submission).filter(Submission.id == submission_id).first()
     
-    def find_by_user(self, user_id: int, limit: int = 50, status: str = None) -> List[Submission]:
+    def find_by_user(self, user_id: int, limit: int = 50, offset: int = 0, status: str = None) -> List[Submission]:
         query = self.db.query(Submission).filter(Submission.user_id == user_id)
         if status:
             query = query.filter(Submission.status == status)
-        return query.order_by(desc(Submission.created_at)).limit(limit).all()
+        return query.order_by(desc(Submission.created_at)).offset(offset).limit(limit).all()
     
     def update_status(self, submission_id: int, status: str, error_message: str = None) -> None:
         submission = self.find_by_id(submission_id)

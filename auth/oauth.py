@@ -47,8 +47,16 @@ class OAuthHandler:
         if not state:
             state = secrets.token_urlsafe(32)
         
+        # Store state in session for validation
+        import streamlit as st
+        st.session_state['oauth_state'] = state
+        
         client_id = self.providers[self.provider]['client_id']
         redirect_uri = self.providers[self.provider]['redirect_uri']
+        
+        # Remove /oauth/callback/ suffix if present - Streamlit handles callbacks in main app
+        if '/oauth/callback/' in redirect_uri:
+            redirect_uri = redirect_uri.split('/oauth/callback/')[0]
         
         if self.provider == 'google':
             return f"https://accounts.google.com/o/oauth2/v2/auth?client_id={client_id}&redirect_uri={redirect_uri}&response_type=code&scope=openid email profile&state={state}"

@@ -3,7 +3,7 @@ Session management utilities for Streamlit.
 """
 
 import streamlit as st
-from typing import Optional
+from typing import Optional, Union, Dict, Any
 from datetime import datetime, timedelta
 
 from auth.models import User
@@ -22,26 +22,38 @@ class SessionManager:
     REDIRECT_KEY = 'redirect_after_login'
     
     @staticmethod
-    def login(user: User) -> None:
+    def login(user: Union[User, Dict[str, Any]]) -> None:
         """Create user session."""
-        st.session_state[SessionManager.SESSION_KEY] = user
+        if isinstance(user, dict):
+            user_dict = user
+        else:
+            user_dict = {
+                'id': user.id,
+                'email': user.email,
+                'name': user.name,
+                'role': user.role,
+                'is_admin': user.role == 'admin'
+            }
+        
+        st.session_state[SessionManager.SESSION_KEY] = user_dict
         st.session_state[SessionManager.SESSION_EXPIRY_KEY] = (
             datetime.utcnow() + timedelta(hours=24)
         )
         
         db = get_session()
         user_repo = UserRepository(db)
-        user_repo.update_last_login(user.id)
+        user_repo.update_last_login(user_dict['id'])
         db.close()
         
-        logger.info(f"User {user.email} logged in")
+        logger.info(f"User {user_dict['email']} logged in")
     
     @staticmethod
     def logout() -> None:
         """Logout current user and clear session."""
         if SessionManager.SESSION_KEY in st.session_state:
             user = st.session_state[SessionManager.SESSION_KEY]
-            logger.info(f"User {user.email if user else 'unknown'} logging out")
+            email = user.get('email', 'unknown') if isinstance(user, dict) else 'unknown'
+            logger.info(f"User {email} logging out")
         
         for key in list(st.session_state.keys()):
             del st.session_state[key]
@@ -49,7 +61,7 @@ class SessionManager:
         st.session_state.clear()
     
     @staticmethod
-    def get_current_user() -> Optional[User]:
+    def get_current_user() -> Optional[Dict[str, Any]]:
         """Get currently logged in user."""
         user = st.session_state.get(SessionManager.SESSION_KEY)
         
@@ -72,7 +84,7 @@ class SessionManager:
     def is_admin() -> bool:
         """Check if current user is admin."""
         user = SessionManager.get_current_user()
-        return user is not None and user.is_admin
+        return user is not None and user.get('is_admin', False)
     
     @staticmethod
     def set_redirect(page: str) -> None:
@@ -91,7 +103,7 @@ class SessionManager:
             del st.session_state[SessionManager.REDIRECT_KEY]
     
     @staticmethod
-    def refresh_user() -> Optional[User]:
+    def refresh_user() -> Optional[Dict[str, Any]]:
         """Refresh user data from database."""
         current_user = SessionManager.get_current_user()
         if not current_user:
@@ -99,13 +111,21 @@ class SessionManager:
         
         db = get_session()
         user_repo = UserRepository(db)
-        user = user_repo.find_by_id(current_user.id)
+        user = user_repo.find_by_id(current_user['id'])
         db.close()
         
         if user:
-            st.session_state[SessionManager.SESSION_KEY] = user
+            user_dict = {
+                'id': user.id,
+                'email': user.email,
+                'name': user.name,
+                'role': user.role,
+                'is_admin': user.role == 'admin'
+            }
+            st.session_state[SessionManager.SESSION_KEY] = user_dict
+            return user_dict
         
-        return user
+        return None
 
 
 def init_session_state() -> None:
