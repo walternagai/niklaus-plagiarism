@@ -267,6 +267,24 @@ class TestPersistence:
         
         removed = cache.clear_all_cache()
         assert removed == 1
+
+    def test_analysis_cache_uses_content_signature(self, tmp_path):
+        """Cache key must differ for same filenames with different content."""
+        from core.persistence import AnalysisCache
+
+        cache = AnalysisCache(cache_dir=str(tmp_path))
+
+        files = ['a.py', 'b.py']
+        contents_v1 = ['print(1)', 'print(2)']
+        contents_v2 = ['print(10)', 'print(20)']
+
+        cache.save(files, threshold=0.7, analysis_data={'version': 1}, contents=contents_v1, language='Python')
+
+        loaded_v1 = cache.load(files, threshold=0.7, contents=contents_v1, language='Python')
+        loaded_v2 = cache.load(files, threshold=0.7, contents=contents_v2, language='Python')
+
+        assert loaded_v1 == {'version': 1}
+        assert loaded_v2 is None
     
     def test_session_manager(self, tmp_path):
         """Test session manager."""

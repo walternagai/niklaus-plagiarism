@@ -121,7 +121,7 @@ class AnalysisPipeline:
         try:
             # Check cache first
             if self.cache:
-                cached = self.cache.load(files, threshold)
+                cached = self.cache.load(files, threshold, contents=contents, language=self.language)
                 if cached:
                     logger.info("Analysis loaded from cache")
                     if progress_callback:
@@ -216,7 +216,7 @@ class AnalysisPipeline:
             
             # Save to cache
             if self.cache:
-                self.cache.save(files, threshold, final_results, self.language)
+                self.cache.save(files, threshold, final_results, contents=contents, language=self.language)
             
             logger.info(f"Analysis completed in {final_results['analysis_time']:.2f}s")
             return final_results

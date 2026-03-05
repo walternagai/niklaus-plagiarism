@@ -30,7 +30,33 @@ class AnalysisCache:
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         logger.info(f"Cache directory: {self.cache_dir}")
     
-    def _get_cache_key(self, files: List[str], threshold: float) -> str:
+    def _content_signature(self, files: List[str], contents: Optional[List[str]], language: Optional[str]) -> str:
+        """Build deterministic signature from files, contents, and language."""
+        if contents is None:
+            file_list = sorted(files)
+            payload = f"{language or 'unknown'}::{repr(file_list)}"
+            return hashlib.sha256(payload.encode()).hexdigest()[:16]
+
+        pairs = sorted(zip(files, contents), key=lambda item: item[0])
+        hasher = hashlib.sha256()
+        hasher.update((language or 'unknown').encode())
+        hasher.update(b"\x00")
+
+        for filename, content in pairs:
+            hasher.update(str(filename).encode())
+            hasher.update(b"\x00")
+            hasher.update(hashlib.sha256(str(content).encode()).digest())
+            hasher.update(b"\x00")
+
+        return hasher.hexdigest()[:16]
+
+    def _get_cache_key(
+        self,
+        files: List[str],
+        threshold: float,
+        contents: Optional[List[str]] = None,
+        language: Optional[str] = None
+    ) -> str:
         """
         Generate unique cache key for file set.
         
@@ -41,23 +67,26 @@ class AnalysisCache:
         Returns:
             Cache filename
         """
-        # Sort files for deterministic key
-        sorted_files = sorted(files)
-        file_hash = hashlib.sha256(
-            ''.join(sorted_files).encode()
-        ).hexdigest()[:16]
+        file_hash = self._content_signature(files, contents, language)
         
         return f"analysis_{file_hash}_{threshold:.2f}.pkl"
-    
-    def _get_cache_path(self, files: List[str], threshold: float) -> Path:
+
+    def _get_cache_path(
+        self,
+        files: List[str],
+        threshold: float,
+        contents: Optional[List[str]] = None,
+        language: Optional[str] = None
+    ) -> Path:
         """Get full path to cache file."""
-        return self.cache_dir / self._get_cache_key(files, threshold)
+        return self.cache_dir / self._get_cache_key(files, threshold, contents=contents, language=language)
     
     def save(
         self,
         files: List[str],
         threshold: float,
         analysis_data: Dict,
+        contents: Optional[List[str]] = None,
         language: str = None
     ) -> Path:
         """
@@ -76,7 +105,7 @@ class AnalysisCache:
             CacheError: If save fails
         """
         try:
-            cache_file = self._get_cache_path(files, threshold)
+            cache_file = self._get_cache_path(files, threshold, contents=contents, language=language)
             
             cache_data = {
                 'timestamp': datetime.now().isoformat(),
@@ -104,6 +133,8 @@ class AnalysisCache:
         self,
         files: List[str],
         threshold: float,
+        contents: Optional[List[str]] = None,
+        language: Optional[str] = None,
         max_age_hours: int = None
     ) -> Optional[Dict]:
         """
@@ -118,7 +149,7 @@ class AnalysisCache:
             Cached analysis data or None if not found/expired
         """
         max_age_hours = max_age_hours or config.CACHE_EXPIRY_HOURS
-        cache_file = self._get_cache_path(files, threshold)
+        cache_file = self._get_cache_path(files, threshold, contents=contents, language=language)
         
         if not cache_file.exists():
             logger.debug(f"Cache not found: {cache_file.name}")
