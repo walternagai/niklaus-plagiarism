@@ -6,6 +6,7 @@ This version uses the modular UI architecture with authentication.
 import streamlit as st
 from typing import Dict, Any, List
 import shutil
+import math
 
 from ui.sidebar import render_sidebar
 from ui.tabs.upload import render_upload_tab
@@ -22,6 +23,40 @@ from auth.database import get_session, session_scope
 from auth.repository import UserRepository, SubmissionRepository
 
 logger = get_logger(__name__)
+
+
+def _to_json_safe(value: Any) -> Any:
+    """Convert nested objects to JSON-safe primitives for DB storage."""
+    if isinstance(value, dict):
+        safe_dict: Dict[str, Any] = {}
+        for k, v in value.items():
+            safe_dict[str(k)] = _to_json_safe(v)
+        return safe_dict
+
+    if isinstance(value, (list, tuple, set)):
+        return [_to_json_safe(v) for v in value]
+
+    # numpy scalars/arrays
+    try:
+        import numpy as np
+
+        if isinstance(value, np.ndarray):
+            return [_to_json_safe(v) for v in value.tolist()]
+        if isinstance(value, np.generic):
+            return _to_json_safe(value.item())
+    except Exception:
+        pass
+
+    if isinstance(value, float):
+        if math.isnan(value) or math.isinf(value):
+            return None
+        return value
+
+    if isinstance(value, (str, int, bool)) or value is None:
+        return value
+
+    # Fallback for any custom object
+    return str(value)
 
 
 def main():
@@ -495,6 +530,25 @@ def _save_submission(results: Dict[str, Any], user_id: int, total_files: int, se
                 if float(pair.get('similarity', 0) or 0) >= threshold
             ]
 
+            analysis_payload = _to_json_safe({
+                # Schema v2: store enough to render Results/Stats/Advanced/Graph
+                'schema_version': 2,
+                'files': results.get('files', files_list),
+                'language': results.get('language', settings.get('language', 'unknown')),
+                'threshold': threshold,
+                'suspicious_pairs': results.get('suspicious_pairs', []),
+                'pairwise_results': results.get('pairwise_results', []),
+                'similarity_matrix': results.get('similarity_matrix'),
+                'cluster_data': results.get('cluster_data'),
+                'metrics': results.get('metrics'),
+                'ast_similarities': results.get('ast_similarities'),
+                'patterns': results.get('patterns'),
+                'ai_analyses': results.get('ai_analyses'),
+                'average_similarity': results.get('average_similarity', 0.0),
+                'max_similarity': results.get('max_similarity', 0.0),
+                'analysis_time': results.get('analysis_time', 0.0),
+            })
+
             submission = submission_repo.create(
                 user_id=user_id,
                 filename=filename[:255],
@@ -509,24 +563,7 @@ def _save_submission(results: Dict[str, Any], user_id: int, total_files: int, se
                 max_similarity=results.get('max_similarity', 0.0),
                 analysis_time_seconds=results.get('analysis_time', 0.0),
                 status='completed',
-                analysis_data={
-                    # Schema v2: store enough to render Results/Stats/Advanced/Graph
-                    'schema_version': 2,
-                    'files': results.get('files', files_list),
-                    'language': results.get('language', settings.get('language', 'unknown')),
-                    'threshold': threshold,
-                    'suspicious_pairs': results.get('suspicious_pairs', []),
-                    'pairwise_results': results.get('pairwise_results', []),
-                    'similarity_matrix': results.get('similarity_matrix'),
-                    'cluster_data': results.get('cluster_data'),
-                    'metrics': results.get('metrics'),
-                    'ast_similarities': results.get('ast_similarities'),
-                    'patterns': results.get('patterns'),
-                    'ai_analyses': results.get('ai_analyses'),
-                    'average_similarity': results.get('average_similarity', 0.0),
-                    'max_similarity': results.get('max_similarity', 0.0),
-                    'analysis_time': results.get('analysis_time', 0.0),
-                }
+                analysis_data=analysis_payload
             )
 
             logger.info(f"Submission {submission.id} saved for user {user_id}")
