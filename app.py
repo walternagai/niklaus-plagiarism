@@ -370,6 +370,7 @@ def _render_authenticated_app(session_manager: SessionManager, current_user):
             st.toast("✅ Análise concluída com sucesso!")
             st.rerun()
     
+    # Check for loaded analysis (from history or new analysis)
     if st.session_state.get('last_analysis'):
         results = st.session_state['last_analysis']
         settings = st.session_state.get('settings', {})
@@ -390,13 +391,21 @@ def _render_authenticated_app(session_manager: SessionManager, current_user):
             render_history_tab(current_user.id)
     
     else:
-        if not should_analyze:
-            for i, tab in enumerate([tab2, tab3, tab4, tab5], start=2):
-                with tab:
-                    st.info("Nenhum resultado disponível. Execute uma análise primeiro.")
-            
-            with tab6:
-                render_history_tab(current_user.id)
+        # No analysis data available
+        with tab2:
+            st.info("📊 Nenhum resultado disponível. Execute uma análise ou carregue uma do histórico.")
+        
+        with tab3:
+            st.info("📈 Nenhum estatística disponível. Execute uma análise ou carregue uma do histórico.")
+        
+        with tab4:
+            st.info("🔬 Nenhuma análise avançada disponível. Execute uma análise ou carregue uma do histórico.")
+        
+        with tab5:
+            st.info("🕸️ Nenhum grafo disponível. Execute uma análise ou carregue uma do histórico.")
+        
+        with tab6:
+            render_history_tab(current_user.id)
 
 
 def _init_session_state():
