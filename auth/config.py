@@ -17,7 +17,8 @@ class OAuthConfig:
         try:
             import streamlit as st
             secrets = st.secrets
-        except:
+        except Exception as e:
+            logger.debug(f"OAuthConfig: unable to load Streamlit secrets: {e}")
             secrets = {}
         
         # Google - supports both flat and nested config
@@ -63,7 +64,8 @@ class OAuthConfig:
         try:
             import streamlit as st
             admin_list = st.secrets.get('ADMIN_EMAILS', '')
-        except:
+        except Exception as e:
+            logger.debug(f"OAuthConfig: unable to load ADMIN_EMAILS from secrets: {e}")
             admin_list = os.getenv('ADMIN_EMAILS', '')
         
         return set(email.strip().lower() for email in admin_list.split(',') if email.strip())

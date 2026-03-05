@@ -16,7 +16,7 @@ Base = declarative_base()
 class DatabaseManager:
     """Gerenciador do banco de dados."""
     
-    def __init__(self, database_url: str = None):
+    def __init__(self, database_url: Optional[str] = None):
         self.database_url = database_url or os.getenv(
             'DATABASE_URL', 
             'sqlite:///./niklaus.db'
@@ -86,6 +86,14 @@ def get_db() -> Generator[Session, None, None]:
         yield db
     finally:
         db.close()
+
+
+@contextmanager
+def session_scope() -> Generator[Session, None, None]:
+    """Provide a transactional scope around a series of operations."""
+    db_manager = get_db_manager()
+    with db_manager.session_scope() as session:
+        yield session
 
 
 def init_db() -> None:

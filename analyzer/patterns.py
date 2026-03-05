@@ -40,7 +40,7 @@ class PlagiarismPatternDetector:
         try:
             tree1 = ast.parse(code1)
             tree2 = ast.parse(code2)
-        except:
+        except (SyntaxError, ValueError, TypeError):
             return {'detected': False, 'variables_renamed': [], 'confidence': 0.0}
         
         # Extract variable names

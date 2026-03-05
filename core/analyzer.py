@@ -2,9 +2,10 @@
 Main analysis orchestrator for Niklaus plagiarism detector.
 """
 
-from typing import List, Dict, Any, Tuple, Optional, Callable
+from typing import List, Dict, Any, Tuple, Optional, Callable, Iterator
+import os
 import numpy as np
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
 
 from analyzer import ASTParser, CodeMetrics, ClusterDetector, PlagiarismPatternDetector
 from core.comparison import compare_files
@@ -15,10 +16,20 @@ from utils.logger import get_logger
 logger = get_logger(__name__)
 
 
+def _pair_indices(n: int) -> Iterator[Tuple[int, int]]:
+    for i in range(n):
+        for j in range(i + 1, n):
+            yield i, j
+
+
+def _compare_textual_pair(content1: str, content2: str, language: str) -> float:
+    return compare_files(content1, content2, language)
+
+
 class PlagiarismAnalyzer:
     """Orchestrates all plagiarism analysis operations."""
     
-    def __init__(self, language: str, max_workers: int = None):
+    def __init__(self, language: str, max_workers: Optional[int] = None):
         """
         Initialize analyzer.
         
@@ -29,7 +40,7 @@ class PlagiarismAnalyzer:
         from utils.config import config
         
         self.language = language
-        self.max_workers = max_workers or config.PARALLEL_WORKERS
+        self.max_workers: int = int(max_workers or config.PARALLEL_WORKERS)
         
         # Initialize analyzers
         self.ast_parser = ASTParser()
@@ -45,7 +56,7 @@ class PlagiarismAnalyzer:
         files: List[str],
         contents: List[str],
         threshold: float = 0.7,
-        progress_callback: Callable[[int, int, str], None] = None
+        progress_callback: Optional[Callable[[int, int, str], None]] = None
     ) -> Dict[str, Any]:
         """
         Perform complete analysis on file set.
@@ -128,15 +139,15 @@ class PlagiarismAnalyzer:
             logger.error(f"Analysis failed: {e}")
             raise AnalysisError(
                 f"Failed to analyze files: {str(e)}",
-                file1=files[0] if files else None,
-                file2=files[1] if len(files) > 1 else None
+                file1=files[0] if files else '',
+                file2=files[1] if len(files) > 1 else ''
             )
     
     def _calculate_textual_similarities(
         self,
         files: List[str],
         contents: List[str],
-        progress_callback: Callable = None
+        progress_callback: Optional[Callable[[int, int, str], None]] = None
     ) -> List[Tuple[str, str, float]]:
         """
         Calculate textual similarities in parallel.
@@ -153,40 +164,55 @@ class PlagiarismAnalyzer:
         total_pairs = n * (n - 1) // 2
         completed = 0
         
-        results = []
-        
-        def compare_wrapper(content1, content2):
-            return compare_files(content1, content2, self.language)
-        
+        results: List[Tuple[str, str, float]] = []
+
+        # Avoid submitting all O(n^2) futures at once (memory blow-up).
+        max_in_flight_factor = int(os.getenv('NIKLAUS_MAX_IN_FLIGHT_FACTOR', '4'))
+        max_in_flight = max(1, self.max_workers * max_in_flight_factor)
+
+        pair_iter = iter(_pair_indices(n))
+
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            futures = {}
-            
-            for i in range(n):
-                for j in range(i + 1, n):
-                    future = executor.submit(compare_wrapper, contents[i], contents[j])
-                    futures[future] = (i, j)
-            
-            for future in as_completed(futures):
-                i, j = futures[future]
+            in_flight: Dict[Any, Tuple[int, int]] = {}
+
+            def submit_next() -> bool:
                 try:
-                    similarity = future.result()
+                    i, j = next(pair_iter)
+                except StopIteration:
+                    return False
+                fut = executor.submit(_compare_textual_pair, contents[i], contents[j], self.language)
+                in_flight[fut] = (i, j)
+                return True
+
+            while len(in_flight) < max_in_flight and submit_next():
+                pass
+
+            while in_flight:
+                done_set, _ = wait(in_flight.keys(), return_when=FIRST_COMPLETED)
+                for done in done_set:
+                    i, j = in_flight.pop(done)
+                    break
+                try:
+                    similarity = float(done.result())
                     results.append((files[i], files[j], similarity))
-                    completed += 1
-                    
-                    if progress_callback:
-                        progress_callback(completed, total_pairs, f"Comparando {files[i]} vs {files[j]}")
-                        
                 except Exception as e:
                     logger.error(f"Error comparing {files[i]} and {files[j]}: {e}")
                     results.append((files[i], files[j], 0.0))
-        
+
+                completed += 1
+                if progress_callback:
+                    progress_callback(completed, total_pairs, f"Comparando {files[i]} vs {files[j]}")
+
+                while len(in_flight) < max_in_flight and submit_next():
+                    pass
+
         return results
     
     def _calculate_ast_similarities(
         self,
         files: List[str],
         contents: List[str],
-        progress_callback: Callable = None
+        progress_callback: Optional[Callable[[int, int, str], None]] = None
     ) -> List[Tuple[str, str, float]]:
         """
         Calculate AST similarities in parallel.
@@ -203,39 +229,53 @@ class PlagiarismAnalyzer:
         total_pairs = n * (n - 1) // 2
         completed = 0
         
-        results = []
-        
-        def ast_compare(content1, content2):
-            return self.ast_parser.structural_similarity(content1, content2, self.language.lower())
-        
+        results: List[Tuple[str, str, float]] = []
+
+        max_in_flight_factor = int(os.getenv('NIKLAUS_MAX_IN_FLIGHT_FACTOR', '4'))
+        max_in_flight = max(1, self.max_workers * max_in_flight_factor)
+        pair_iter = iter(_pair_indices(n))
+        language = self.language.lower()
+
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            futures = {}
-            
-            for i in range(n):
-                for j in range(i + 1, n):
-                    future = executor.submit(ast_compare, contents[i], contents[j])
-                    futures[future] = (i, j)
-            
-            for future in as_completed(futures):
-                i, j = futures[future]
+            in_flight: Dict[Any, Tuple[int, int]] = {}
+
+            def submit_next() -> bool:
                 try:
-                    similarity = future.result()
+                    i, j = next(pair_iter)
+                except StopIteration:
+                    return False
+                fut = executor.submit(self.ast_parser.structural_similarity, contents[i], contents[j], language)
+                in_flight[fut] = (i, j)
+                return True
+
+            while len(in_flight) < max_in_flight and submit_next():
+                pass
+
+            while in_flight:
+                done_set, _ = wait(in_flight.keys(), return_when=FIRST_COMPLETED)
+                for done in done_set:
+                    i, j = in_flight.pop(done)
+                    break
+                try:
+                    similarity = float(done.result())
                     results.append((files[i], files[j], similarity))
-                    completed += 1
-                    
-                    if progress_callback:
-                        progress_callback(completed, total_pairs, f"AST {files[i]} vs {files[j]}")
-                        
                 except Exception as e:
                     logger.error(f"Error in AST comparison {files[i]} and {files[j]}: {e}")
                     results.append((files[i], files[j], 0.0))
-        
+
+                completed += 1
+                if progress_callback:
+                    progress_callback(completed, total_pairs, f"AST {files[i]} vs {files[j]}")
+
+                while len(in_flight) < max_in_flight and submit_next():
+                    pass
+
         return results
     
     def _calculate_metrics(
         self,
         contents: List[str],
-        progress_callback: Callable = None
+        progress_callback: Optional[Callable[[int, int, str], None]] = None
     ) -> List[Dict[str, Any]]:
         """
         Calculate code metrics for each file in parallel.
@@ -262,25 +302,43 @@ class PlagiarismAnalyzer:
         
         results = []
         
+        max_in_flight_factor = int(os.getenv('NIKLAUS_MAX_IN_FLIGHT_FACTOR', '4'))
+        max_in_flight = max(1, self.max_workers * max_in_flight_factor)
+
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            futures = {
-                executor.submit(calculate_single_metrics, content): i
-                for i, content in enumerate(contents)
-            }
-            
-            for future in as_completed(futures):
-                i = futures[future]
+            in_flight: Dict[Any, int] = {}
+            idx_iter = iter(range(total))
+
+            def submit_next() -> bool:
                 try:
-                    metrics = future.result()
+                    i = next(idx_iter)
+                except StopIteration:
+                    return False
+                fut = executor.submit(calculate_single_metrics, contents[i])
+                in_flight[fut] = i
+                return True
+
+            while len(in_flight) < max_in_flight and submit_next():
+                pass
+
+            while in_flight:
+                done_set, _ = wait(in_flight.keys(), return_when=FIRST_COMPLETED)
+                for done in done_set:
+                    i = in_flight.pop(done)
+                    break
+                try:
+                    metrics = done.result()
                     results.append((i, metrics))
-                    completed += 1
-                    
-                    if progress_callback:
-                        progress_callback(completed, total, f"Métricas arquivo {i+1}")
-                        
                 except Exception as e:
                     logger.error(f"Error calculating metrics for file {i}: {e}")
                     results.append((i, {}))
+
+                completed += 1
+                if progress_callback:
+                    progress_callback(completed, total, f"Métricas arquivo {i+1}")
+
+                while len(in_flight) < max_in_flight and submit_next():
+                    pass
         
         # Sort by original order
         results.sort(key=lambda x: x[0])
@@ -339,6 +397,8 @@ class PlagiarismAnalyzer:
             Dictionary mapping "file1_file2" to pattern analysis
         """
         patterns = {}
+
+        file_to_idx = {f: i for i, f in enumerate(files)}
         
         # Create lookup for AST similarities
         ast_sim_map = {
@@ -351,8 +411,8 @@ class PlagiarismAnalyzer:
             
             try:
                 # Get file indices
-                idx1 = files.index(file1)
-                idx2 = files.index(file2)
+                idx1 = file_to_idx[file1]
+                idx2 = file_to_idx[file2]
                 
                 # Get AST similarity
                 ast_sim = ast_sim_map.get((file1, file2), 

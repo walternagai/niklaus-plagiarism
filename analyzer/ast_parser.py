@@ -30,7 +30,7 @@ class ASTParser:
     def __init__(self):
         self.language_stats = {}
     
-    def detect_language(self, filename: str, content: str = None) -> str:
+    def detect_language(self, filename: str, content: Optional[str] = None) -> str:
         """Detect programming language from filename and optionally content."""
         ext = '.' + filename.rsplit('.', 1)[-1] if '.' in filename else ''
         
@@ -110,7 +110,7 @@ class ASTParser:
         
         # Generate k-grams
         if len(tokens) < k:
-            return set(hash(''.join(tokens)))
+            return {hash(''.join(tokens))}
         
         kgrams = [''.join(tokens[i:i+k]) for i in range(len(tokens)-k+1)]
         
@@ -226,7 +226,7 @@ class ASTParser:
         try:
             tree1 = ast.parse(code1) if code1 else None
             tree2 = ast.parse(code2) if code2 else None
-        except:
+        except (SyntaxError, ValueError, TypeError):
             return patterns
         
         if not tree1 or not tree2:

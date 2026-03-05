@@ -98,7 +98,7 @@ class ClusterDetector:
         try:
             communities = list(nx.community.greedy_modularity_communities(G))
             return communities
-        except:
+        except Exception:
             return [set(G.nodes())]
     
     def get_cluster_stats(self, 

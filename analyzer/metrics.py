@@ -35,8 +35,8 @@ class CodeMetrics:
                         complexity += len(node.values) - 1
                     elif isinstance(node, (ast.And, ast.Or)):
                         complexity += 1
-            except:
-                pass
+            except (SyntaxError, ValueError, TypeError):
+                return complexity
         else:
             # Generic pattern matching for other languages
             decision_patterns = [
@@ -84,8 +84,8 @@ class CodeMetrics:
             try:
                 tree = ast.parse(code)
                 return sum(1 for node in ast.walk(tree) if isinstance(node, ast.FunctionDef))
-            except:
-                pass
+            except (SyntaxError, ValueError, TypeError):
+                return 0
         else:
             # Pattern matching for other languages
             patterns = {

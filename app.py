@@ -18,7 +18,7 @@ from ui.tabs.history import render_history_tab
 from core.pipeline import AnalysisPipeline
 from utils.logger import get_logger
 from auth import SessionManager, OAuthHandler, OAuthConfig
-from auth.database import get_session
+from auth.database import get_session, session_scope
 from auth.repository import UserRepository, SubmissionRepository
 
 logger = get_logger(__name__)
@@ -44,8 +44,8 @@ def main():
             # If already logged in and there are OAuth params, clear them
             if 'code' in st.query_params or 'state' in st.query_params:
                 st.query_params.clear()
-        except:
-            pass
+        except Exception as e:
+            logger.debug(f"Failed to clear query params: {e}")
     
     if not session_manager.is_authenticated():
         _render_auth_page(session_manager, oauth_config)
@@ -145,8 +145,8 @@ def _handle_oauth_callback(session_manager: SessionManager):
     if session_manager.is_authenticated():
         try:
             st.query_params.clear()
-        except:
-            pass
+        except Exception as e:
+            logger.debug(f"Failed to clear query params: {e}")
         return
     
     # Handle OAuth error response
@@ -320,8 +320,8 @@ def _render_authenticated_app(session_manager: SessionManager, current_user):
             # Clear OAuth parameters before logout
             try:
                 st.query_params.clear()
-            except:
-                pass
+            except Exception as e:
+                logger.debug(f"Failed to clear query params before logout: {e}")
             
             # Clear session
             session_manager.logout()
@@ -480,62 +480,58 @@ def _run_analysis(files: List[str], contents: List[str], settings: Dict[str, Any
 
 def _save_submission(results: Dict[str, Any], user_id: int, total_files: int, settings: Dict[str, Any]):
     """Save submission to database."""
-    db = get_session()
-    submission_repo = SubmissionRepository(db)
-    
     try:
-        files_list = results.get('files', [])
-        filename = ', '.join(files_list[:3]) if files_list else 'analysis'
-        if len(files_list) > 3:
-            filename += f' and {len(files_list) - 3} more'
-        
-        threshold = float(settings.get('threshold', results.get('threshold', 0.7)) or 0.7)
-        suspicious_pairs = [
-            pair for pair in results.get('pairwise_results', [])
-            if float(pair.get('similarity', 0) or 0) >= threshold
-        ]
-        
-        submission = submission_repo.create(
-            user_id=user_id,
-            filename=filename[:255],
-            language=settings.get('language', 'unknown'),
-            threshold=threshold,
-            max_workers=settings.get('max_workers', 4),
-            enable_ai=settings.get('enable_ai', False),
-            use_cache=settings.get('use_cache', True),
-            files_count=total_files,
-            suspicious_pairs_count=len(suspicious_pairs),
-            average_similarity=results.get('average_similarity', 0.0),
-            max_similarity=results.get('max_similarity', 0.0),
-            analysis_time_seconds=results.get('analysis_time', 0.0),
-            status='completed',
-            analysis_data={
-                # Schema v2: store enough to render Results/Stats/Advanced/Graph
-                'schema_version': 2,
-                'files': results.get('files', files_list),
-                'language': results.get('language', settings.get('language', 'unknown')),
-                'threshold': threshold,
-                'suspicious_pairs': results.get('suspicious_pairs', []),
-                'pairwise_results': results.get('pairwise_results', []),
-                'similarity_matrix': results.get('similarity_matrix'),
-                'cluster_data': results.get('cluster_data'),
-                'metrics': results.get('metrics'),
-                'ast_similarities': results.get('ast_similarities'),
-                'patterns': results.get('patterns'),
-                'ai_analyses': results.get('ai_analyses'),
-                'average_similarity': results.get('average_similarity', 0.0),
-                'max_similarity': results.get('max_similarity', 0.0),
-                'analysis_time': results.get('analysis_time', 0.0),
-            }
-        )
-        
-        logger.info(f"Submission {submission.id} saved for user {user_id}")
-        
+        with session_scope() as db:
+            submission_repo = SubmissionRepository(db)
+
+            files_list = results.get('files', [])
+            filename = ', '.join(files_list[:3]) if files_list else 'analysis'
+            if len(files_list) > 3:
+                filename += f' and {len(files_list) - 3} more'
+
+            threshold = float(settings.get('threshold', results.get('threshold', 0.7)) or 0.7)
+            suspicious_pairs = [
+                pair for pair in results.get('pairwise_results', [])
+                if float(pair.get('similarity', 0) or 0) >= threshold
+            ]
+
+            submission = submission_repo.create(
+                user_id=user_id,
+                filename=filename[:255],
+                language=settings.get('language', 'unknown'),
+                threshold=threshold,
+                max_workers=settings.get('max_workers', 4),
+                enable_ai=settings.get('enable_ai', False),
+                use_cache=settings.get('use_cache', True),
+                files_count=total_files,
+                suspicious_pairs_count=len(suspicious_pairs),
+                average_similarity=results.get('average_similarity', 0.0),
+                max_similarity=results.get('max_similarity', 0.0),
+                analysis_time_seconds=results.get('analysis_time', 0.0),
+                status='completed',
+                analysis_data={
+                    # Schema v2: store enough to render Results/Stats/Advanced/Graph
+                    'schema_version': 2,
+                    'files': results.get('files', files_list),
+                    'language': results.get('language', settings.get('language', 'unknown')),
+                    'threshold': threshold,
+                    'suspicious_pairs': results.get('suspicious_pairs', []),
+                    'pairwise_results': results.get('pairwise_results', []),
+                    'similarity_matrix': results.get('similarity_matrix'),
+                    'cluster_data': results.get('cluster_data'),
+                    'metrics': results.get('metrics'),
+                    'ast_similarities': results.get('ast_similarities'),
+                    'patterns': results.get('patterns'),
+                    'ai_analyses': results.get('ai_analyses'),
+                    'average_similarity': results.get('average_similarity', 0.0),
+                    'max_similarity': results.get('max_similarity', 0.0),
+                    'analysis_time': results.get('analysis_time', 0.0),
+                }
+            )
+
+            logger.info(f"Submission {submission.id} saved for user {user_id}")
     except Exception as e:
         logger.error(f"Failed to save submission: {e}")
-        db.rollback()
-    finally:
-        db.close()
 
 
 if __name__ == "__main__":

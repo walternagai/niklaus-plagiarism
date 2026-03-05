@@ -248,6 +248,8 @@ class AnalysisPipeline:
         """
         ai_analyses = {}
         completed = 0
+
+        file_to_idx = {f: i for i, f in enumerate(files)}
         
         # Create lookup for AST similarities
         ast_sim_map = {
@@ -260,8 +262,8 @@ class AnalysisPipeline:
         for file1, file2, textual_sim in suspicious_pairs:
             try:
                 # Get indices
-                idx1 = files.index(file1)
-                idx2 = files.index(file2)
+                idx1 = file_to_idx[file1]
+                idx2 = file_to_idx[file2]
                 
                 # Get AST similarity
                 ast_sim = ast_sim_map.get(

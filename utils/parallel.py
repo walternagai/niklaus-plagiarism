@@ -2,7 +2,7 @@
 Parallel processing utilities for Niklaus plagiarism detector.
 """
 
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED, as_completed
 from typing import List, Callable, Any, Tuple
 import time
 
@@ -28,7 +28,7 @@ class ParallelComparator:
         self,
         contents: List[str],
         compare_func: Callable[[str, str], float],
-        progress_callback: Callable[[int, int], None] = None
+        progress_callback: Callable[[int, int], None] | None = None
     ) -> List[Tuple[int, int, float]]:
         """
         Compare all pairs of files in parallel.
@@ -51,30 +51,49 @@ class ParallelComparator:
         
         logger.info(f"Starting parallel comparison of {total_pairs} pairs with {self.max_workers} workers")
         
-        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            futures = {}
-            
-            # Submit all tasks
+        max_in_flight = max(1, self.max_workers * 4)
+
+        def pair_indices():
             for i in range(n):
                 for j in range(i + 1, n):
-                    future = executor.submit(compare_func, contents[i], contents[j])
-                    futures[future] = (i, j)
-            
-            # Collect results
-            for future in as_completed(futures):
-                i, j = futures[future]
+                    yield i, j
+
+        pair_iter = iter(pair_indices())
+
+        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+            in_flight = {}
+
+            def submit_next() -> bool:
                 try:
-                    similarity = future.result()
+                    i, j = next(pair_iter)
+                except StopIteration:
+                    return False
+                fut = executor.submit(compare_func, contents[i], contents[j])
+                in_flight[fut] = (i, j)
+                return True
+
+            while len(in_flight) < max_in_flight and submit_next():
+                pass
+
+            while in_flight:
+                done_set, _ = wait(in_flight.keys(), return_when=FIRST_COMPLETED)
+                if not done_set:
+                    continue
+                done = next(iter(done_set))
+                i, j = in_flight.pop(done)
+                try:
+                    similarity = done.result()
                     results.append((i, j, similarity))
-                    completed += 1
-                    
-                    if progress_callback and completed % 10 == 0:
-                        progress_callback(completed, total_pairs)
-                        
                 except Exception as e:
                     logger.error(f"Comparison failed for pair ({i}, {j}): {e}")
-                    # Add zero similarity for failed comparisons
                     results.append((i, j, 0.0))
+
+                completed += 1
+                if progress_callback and completed % 10 == 0:
+                    progress_callback(completed, total_pairs)
+
+                while len(in_flight) < max_in_flight and submit_next():
+                    pass
         
         logger.info(f"Parallel comparison completed: {completed}/{total_pairs} pairs")
         return results
@@ -82,7 +101,7 @@ class ParallelComparator:
     def analyze_parallel(
         self,
         tasks: List[Tuple[Callable, tuple]],
-        progress_callback: Callable[[int, int], None] = None
+        progress_callback: Callable[[int, int], None] | None = None
     ) -> List[Any]:
         """
         Execute arbitrary tasks in parallel.
@@ -133,7 +152,7 @@ class ParallelComparator:
         self,
         func: Callable,
         items: List[Any],
-        progress_callback: Callable[[int, int], None] = None
+        progress_callback: Callable[[int, int], None] | None = None
     ) -> List[Any]:
         """
         Apply function to each item in parallel.
@@ -198,7 +217,7 @@ class BatchProcessor:
         self,
         items: List[Any],
         process_func: Callable[[List[Any]], List[Any]],
-        progress_callback: Callable[[int, int], None] = None
+        progress_callback: Callable[[int, int], None] | None = None
     ) -> List[Any]:
         """
         Process items in batches.

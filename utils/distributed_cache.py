@@ -133,7 +133,8 @@ class RedisCache(CacheBackend):
         except (zlib.error, json.JSONDecodeError):
             try:
                 return json.loads(value.decode('utf-8'))
-            except:
+            except (UnicodeDecodeError, json.JSONDecodeError) as e:
+                logger.debug(f"Redis cache decode failed for key={prefixed_key}: {e}")
                 return None
     
     def set(self, key: str, value: Any, ttl: int = 300) -> bool:
@@ -144,11 +145,13 @@ class RedisCache(CacheBackend):
             compressed = zlib.compress(serialized.encode('utf-8'))
             
             return self._client.setex(prefixed_key, ttl, compressed)
-        except:
+        except Exception as e:
+            logger.debug(f"Redis cache compressed set failed for key={prefixed_key}: {e}")
             try:
                 serialized = json.dumps(value)
                 return self._client.setex(prefixed_key, ttl, serialized.encode('utf-8'))
-            except:
+            except Exception as e2:
+                logger.debug(f"Redis cache fallback set failed for key={prefixed_key}: {e2}")
                 return False
     
     def delete(self, key: str) -> bool:
