@@ -148,7 +148,8 @@ class AnalysisCache:
         Returns:
             Cached analysis data or None if not found/expired
         """
-        max_age_hours = max_age_hours or config.CACHE_EXPIRY_HOURS
+        if max_age_hours is None:
+            max_age_hours = config.CACHE_EXPIRY_HOURS
         cache_file = self._get_cache_path(files, threshold, contents=contents, language=language)
         
         if not cache_file.exists():

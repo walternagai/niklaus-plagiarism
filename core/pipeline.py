@@ -79,6 +79,10 @@ class AnalysisPipeline:
             AnalysisCache = persistence_module.AnalysisCache
             self._cache = AnalysisCache()
         return self._cache
+
+    @cache.setter
+    def cache(self, value):
+        self._cache = value
     
     @property
     def llm_client(self):
@@ -432,7 +436,8 @@ class LegacyAdapter:
         Returns:
             Similarity score
         """
-        return compare_files(code1, code2, language)
+        compare_files_fn = comparison_module.compare_files
+        return compare_files_fn(code1, code2, language)
     
     @staticmethod
     def create_similarity_matrix(

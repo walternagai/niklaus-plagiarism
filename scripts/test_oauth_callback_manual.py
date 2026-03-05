@@ -14,7 +14,7 @@ from auth.database import get_session, init_db
 from auth.repository import UserRepository
 from auth.config import OAuthConfig
 
-def test_callback(code: str, state: str):
+def run_callback_test(code: str, state: str):
     print("=" * 60)
     print("Testing OAuth Callback Processing")
     print("=" * 60)
@@ -96,4 +96,4 @@ if __name__ == "__main__":
     code = sys.argv[1]
     state = sys.argv[2]
     
-    test_callback(code, state)
+    run_callback_test(code, state)
