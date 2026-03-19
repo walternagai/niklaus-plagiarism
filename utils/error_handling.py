@@ -1,15 +1,20 @@
 """
 Error handling utilities for Niklaus.
 Provides specific, actionable error messages for users.
+
+NOTE: The exception classes here are *local* variants used only within this
+UI helper module.  The canonical exception hierarchy lives in
+utils/exceptions.py.  Do not import these classes from external code — import
+from utils.exceptions instead.
 """
 
 from typing import Optional, Dict, Any
 import streamlit as st
 
 
-class NiklausError(Exception):
-    """Base exception for Niklaus-specific errors."""
-    
+class _LocalError(Exception):
+    """Internal base for UI-level error helpers in this module."""
+
     def __init__(self, message: str, suggestion: Optional[str] = None, help_url: Optional[str] = None):
         self.message = message
         self.suggestion = suggestion
@@ -17,23 +22,27 @@ class NiklausError(Exception):
         super().__init__(self.message)
 
 
-class FileValidationError(NiklausError):
-    """File validation errors."""
+# Aliases kept for backward compatibility within this module only
+NiklausError = _LocalError
+
+
+class FileValidationError(_LocalError):
+    """File validation errors (UI helper)."""
     pass
 
 
-class APIError(NiklausError):
-    """API-related errors."""
+class APIError(_LocalError):
+    """API-related errors (UI helper)."""
     pass
 
 
-class AuthenticationError(NiklausError):
-    """Authentication errors."""
+class AuthenticationError(_LocalError):
+    """Authentication errors (UI helper)."""
     pass
 
 
-class AnalysisError(NiklausError):
-    """Analysis-related errors."""
+class AnalysisError(_LocalError):
+    """Analysis-related errors (UI helper)."""
     pass
 
 

@@ -168,3 +168,11 @@ cython_debug/
 .niklaus_cache/
 extracted_files/
 .pytest_cache/
+
+# SQLite database (local data — must not be committed)
+niklaus.db
+*.db-shm
+*.db-wal
+
+# Niklaus disk session files
+.niklaus_session.json
