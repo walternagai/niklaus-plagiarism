@@ -1,236 +1,276 @@
-# Authentication Setup Guide
+# Guia de Autenticação
 
-## Prerequisites
+Referência para configurar e operar o sistema de autenticação OAuth do Niklaus.
 
-1. Python 3.8+ installed
-2. Dependencies installed:
-   ```bash
-   pip install -r requirements.txt
-   ```
+---
 
-## Database Initialization
+## Pré-requisitos
 
-Before using authentication, initialize the database:
+1. Python 3.9+ e dependências instaladas: `pip install -r requirements.txt`
+2. Banco de dados inicializado: `python scripts/init_db.py`
+3. Pelo menos um provedor OAuth configurado (Google, GitHub ou Microsoft)
 
-```bash
-python scripts/init_db.py
-```
+---
 
-This creates the SQLite database (`niklaus.db`) with the following tables:
-- `users` - User accounts
-- `submissions` - Analysis history
-- `analysis_cache` - Result caching
-- `audit_log` - Activity logging
-
-## Creating Admin Users
-
-### Method 1: Using the script
-
-```bash
-python scripts/create_admin.py
-```
-
-Enter email and name when prompted.
-
-### Method 2: Via OAuth (automatic)
-
-Admins are automatically created when logging in via OAuth if their email is in the admin list.
-
-## OAuth Configuration
-
-### 1. Copy the example file
+## Configuração rápida
 
 ```bash
 cp secrets.toml.example .streamlit/secrets.toml
-```
-
-### 2. Configure OAuth Providers
-
-#### Google OAuth
-
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project or select existing
-3. Enable Google+ API
-4. Go to "Credentials" → "Create Credentials" → "OAuth client ID"
-5. Application type: "Web application"
-6. Add authorized redirect URI: `http://localhost:8501`
-7. Copy Client ID and Client Secret to `.streamlit/secrets.toml`:
-
-```toml
-GOOGLE_CLIENT_ID = "your-client-id.apps.googleusercontent.com"
-GOOGLE_CLIENT_SECRET = "your-client-secret"
-GOOGLE_REDIRECT_URI = "http://localhost:8501"
-```
-
-#### GitHub OAuth
-
-1. Go to GitHub Settings → Developer settings → OAuth Apps → New OAuth App
-2. Application name: "Niklaus"
-3. Homepage URL: `http://localhost:8501`
-4. Authorization callback URL: `http://localhost:8501`
-5. Copy Client ID and Client Secret to `.streamlit/secrets.toml`:
-
-```toml
-GITHUB_CLIENT_ID = "your-client-id"
-GITHUB_CLIENT_SECRET = "your-client-secret"
-GITHUB_REDIRECT_URI = "http://localhost:8501"
-```
-
-#### Microsoft OAuth
-
-1. Go to [Azure Portal](https://portal.azure.com/)
-2. Azure Active Directory → App registrations → New registration
-3. Name: "Niklaus"
-4. Redirect URI: Web `http://localhost:8501`
-5. Copy Application (client) ID to `.streamlit/secrets.toml`
-6. Create client secret and copy to `.streamlit/secrets.toml`:
-
-```toml
-MICROSOFT_CLIENT_ID = "your-client-id"
-MICROSOFT_CLIENT_SECRET = "your-client-secret"
-MICROSOFT_TENANT_ID = "common"  # or your tenant ID
-MICROSOFT_REDIRECT_URI = "http://localhost:8501"
-```
-
-### 3. Set Admin Emails
-
-Add admin email addresses to `.streamlit/secrets.toml`:
-
-```toml
-ADMIN_EMAILS = [
-    "admin@example.com",
-    "another-admin@example.com"
-]
-```
-
-## Running the Application
-
-```bash
+# Edite .streamlit/secrets.toml com suas credenciais
 streamlit run app.py
 ```
 
-## Features
+---
 
-### For Users
-- OAuth login (Google, GitHub, Microsoft)
-- View submission history
-- Private analysis results
-- Profile management
+## Arquivo `.streamlit/secrets.toml`
 
-### For Admins
-- All user features, plus:
-- View all submissions
-- Manage users
-- System statistics
-- Audit logs
+```toml
+# ─── Chave de segurança da aplicação (OBRIGATÓRIO) ───────────────────────────
+# Usada para:
+#   1. Assinar o estado OAuth com HMAC-SHA256 (proteção CSRF)
+#   2. Derivar a chave Fernet para criptografar tokens OAuth no banco
+# Gere com: python3 -c "import secrets; print(secrets.token_urlsafe(32))"
+NIKLAUS_SECRET_KEY = "sua-chave-aleatoria-longa"
 
-## Architecture
+# ─── Admins ──────────────────────────────────────────────────────────────────
+# Emails separados por vírgula. Esses usuários recebem role='admin' ao fazer login.
+ADMIN_EMAILS = "voce@exemplo.com,outro@exemplo.com"
+
+# ─── Maritaca AI ─────────────────────────────────────────────────────────────
+[maritaca]
+MARITACA_API_KEY = "sua-chave-maritaca"
+MARITACA_MODEL   = "sabiazinho-4"
+
+# ─── Google OAuth ────────────────────────────────────────────────────────────
+[google]
+client_id     = "xxxx.apps.googleusercontent.com"
+client_secret = "GOCSPX-xxxx"
+redirect_uri  = "http://localhost:8501"   # sem /oauth/callback/...
+
+# ─── GitHub OAuth ────────────────────────────────────────────────────────────
+[github]
+client_id     = "Ov23lixxxx"
+client_secret = "xxxxxxxx"
+redirect_uri  = "http://localhost:8501"
+
+# ─── Microsoft OAuth ─────────────────────────────────────────────────────────
+[microsoft]
+client_id     = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+client_secret = "xxxxxxxx"
+tenant_id     = "common"   # ou o tenant ID da sua organização
+redirect_uri  = "http://localhost:8501"
+```
+
+> O arquivo `.streamlit/secrets.toml` já está no `.gitignore`. **Nunca o versione.**
+
+---
+
+## Configurar provedores OAuth
+
+### Google
+
+1. Acesse [Google Cloud Console](https://console.cloud.google.com/)
+2. Crie ou selecione um projeto.
+3. Ative a **Google+ API** (ou **Google Identity**).
+4. Vá em **APIs & Services → Credentials → Create Credentials → OAuth client ID**.
+5. Tipo: **Web application**.
+6. Authorized redirect URIs: `http://localhost:8501` (apenas a URL base — sem `/oauth/callback`).
+7. Copie **Client ID** e **Client Secret** para `secrets.toml`.
+
+### GitHub
+
+1. Acesse **GitHub Settings → Developer settings → OAuth Apps → New OAuth App**.
+2. Application name: Niklaus
+3. Homepage URL: `http://localhost:8501`
+4. Authorization callback URL: `http://localhost:8501`
+5. Copie **Client ID** e **Client Secret** para `secrets.toml`.
+
+### Microsoft (Entra ID / Azure AD)
+
+1. Acesse [Azure Portal](https://portal.azure.com/) → **Azure Active Directory → App registrations → New registration**.
+2. Nome: Niklaus.
+3. Redirect URI: Web → `http://localhost:8501`
+4. Copie o **Application (client) ID**.
+5. Em **Certificates & secrets → New client secret**, copie o valor.
+6. Preencha `secrets.toml` com `client_id`, `client_secret` e `tenant_id`.
+
+> Para produção, use URLs HTTPS e atualize os redirect URIs no provedor e no `secrets.toml`.
+
+---
+
+## Criar usuário administrador
+
+### Via OAuth (automático)
+Inclua o e-mail em `ADMIN_EMAILS` — o usuário receberá `role='admin'` ao fazer login.
+
+### Via script (criação direta no banco)
+```bash
+python scripts/create_admin.py
+# Informe e-mail e nome quando solicitado
+```
+
+---
+
+## Segurança de tokens
+
+Os tokens OAuth (access e refresh) são **criptografados com Fernet/AES-128** antes de serem persistidos no banco de dados.
+
+- A chave de criptografia é derivada de `NIKLAUS_SECRET_KEY` via SHA-256.
+- Tokens armazenados sem criptografia (antes desta versão) são lidos com fallback transparente.
+- Quando `NIKLAUS_SECRET_KEY` não está configurado, um aviso é emitido e uma chave fraca derivada dos secrets OAuth é usada.
+
+Se você rotacionar `NIKLAUS_SECRET_KEY`, tokens existentes não poderão ser descriptografados — usuários precisarão fazer login novamente.
+
+---
+
+## Estado OAuth e proteção CSRF
+
+Cada fluxo de login gera um `state` no formato:
+
+```
+{provider}:{nonce}:{hmac_sha256_truncado_24_chars}
+```
+
+Exemplo: `google:ABCDEFabcdef123456789012:a1b2c3d4e5f6g7h8i9j0k1l2`
+
+O `state` é verificado no callback com `OAuthHandler.verify_state_signature()` usando HMAC-SHA256. Uma falha na verificação rejeita o callback.
+
+---
+
+## Fluxo OAuth passo a passo
+
+```
+1. Usuário clica "Login com Google"
+   → app.py: _start_oauth_login('google')
+   → cria state = OAuthHandler.create_state('google')
+   → salva state e provider em st.session_state
+   → redireciona para Google via <meta http-equiv="refresh">
+
+2. Google autentica o usuário e redireciona para:
+   http://localhost:8501?code=AUTHORIZATION_CODE&state=STATE
+
+3. Streamlit recarrega app.py
+   → _handle_oauth_callback() detecta 'code' e 'state' nos query_params
+   → OAuthHandler.verify_state_signature(state)  [valida HMAC]
+   → OAuthHandler('google').handle_callback(code, state)
+     → troca code por access_token via POST
+     → obtém perfil do usuário via GET
+     → encrypt_token(access_token)  [Fernet]
+     → upsert no banco (create_user_from_oauth)
+   → SessionManager.login(user_dict)
+   → st.query_params.clear()
+   → st.rerun()
+
+4. App principal renderizado para o usuário autenticado
+```
+
+---
+
+## Arquitetura da autenticação
 
 ```
 auth/
-├── models.py          # SQLAlchemy models (User, Submission, etc.)
-├── database.py        # Database manager and session handling
-├── repository.py      # Data access layer (CRUD operations)
-├── oauth.py          # OAuth handlers for providers
-├── config.py         # OAuth configuration loader
-├── session.py        # Streamlit session management
-└── decorators.py     # Auth decorators (@require_auth, @require_admin)
+├── models.py      # User, Submission, AnalysisCache, AuditLog (SQLAlchemy)
+├── database.py    # DatabaseManager, get_session(), session_scope()
+├── repository.py  # UserRepository, SubmissionRepository, CacheRepository, AuditRepository
+├── oauth.py       # OAuthHandler — generate URL, callback, HMAC state, token encrypt
+├── config.py      # OAuthConfig, NIKLAUS_SECRET_KEY, encrypt_token(), decrypt_token()
+├── session.py     # SessionManager (Streamlit session state, expiração 24h)
+└── decorators.py  # @require_auth, @require_admin
 
 ui/auth/
-├── login.py          # Login page UI
-├── dashboard.py      # User dashboard
-├── history.py        # Submission history view
-├── profile.py        # User profile management
-└── admin.py          # Admin panel
+├── login.py       # Página de login OAuth
+├── dashboard.py   # Dashboard do usuário
+├── history.py     # Histórico de submissões
+├── profile.py     # Perfil do usuário
+└── admin.py       # Painel de administração
 
 scripts/
-├── init_db.py        # Initialize database
-└── create_admin.py   # Create admin user manually
+├── init_db.py     # Cria tabelas
+└── create_admin.py # Cria admin manualmente
 ```
 
-## Database Schema
+---
 
-### Users Table
-- id (Primary Key)
-- email (Unique)
-- name
-- role (user/admin)
-- oauth_provider
-- oauth_id
-- avatar_url
-- is_active
-- is_verified
-- created_at
-- updated_at
-- last_login_at
+## Schema do banco
 
-### Submissions Table
-- id (Primary Key)
-- user_id (Foreign Key)
-- total_files
-- total_pairs_analyzed
-- analysis_time
-- status
-- has_high_similarity
-- results_summary (JSON)
-- created_at
+### Tabela `users`
+| Campo | Tipo | Descrição |
+|---|---|---|
+| `id` | Integer PK | |
+| `email` | String unique | |
+| `name` | String | |
+| `role` | String | `user` ou `admin` |
+| `oauth_provider` | String | google / github / microsoft |
+| `oauth_id` | String | ID do usuário no provedor |
+| `oauth_access_token` | Text | **Criptografado com Fernet** |
+| `oauth_refresh_token` | Text | **Criptografado com Fernet** |
+| `oauth_token_expires_at` | DateTime | |
+| `is_active`, `is_verified` | Boolean | |
+| `submissions_count` | Integer | Incrementado automaticamente |
+| `total_analyses` | Integer | Incrementado automaticamente |
+| `total_suspicious_pairs` | Integer | Incrementado automaticamente |
+| `created_at`, `updated_at`, `last_login_at`, `last_submission_at` | DateTime | |
 
-### Analysis Cache Table
-- id (Primary Key)
-- cache_key (Unique)
-- result_data (JSON)
-- created_at
-- expires_at
+### Tabela `submissions`
+| Campo | Tipo | Descrição |
+|---|---|---|
+| `id` | Integer PK | |
+| `user_id` | Integer FK | Cascade delete |
+| `filename` | String | Nome do ZIP |
+| `language`, `threshold` | | Configuração usada |
+| `files_count`, `suspicious_pairs_count` | Integer | |
+| `average_similarity`, `max_similarity` | Float | |
+| `status` | String | pending / processing / completed / error |
+| `analysis_data` | JSON | Schema v2 (veja `_save_submission` em `app.py`) |
+| `created_at`, `processed_at` | DateTime | |
 
-### Audit Log Table
-- id (Primary Key)
-- user_id (Foreign Key)
-- action
-- entity_type
-- entity_id
-- details (JSON)
-- ip_address
-- created_at
-
-## Security Notes
-
-1. **Never commit `.streamlit/secrets.toml` to version control**
-2. Add `.streamlit/secrets.toml` to `.gitignore`
-3. Use environment variables in production
-4. Enable HTTPS in production
-5. Rotate OAuth secrets periodically
-6. Review audit logs regularly
+---
 
 ## Troubleshooting
 
-### "Database locked" error
-- Close other connections to the database
-- Use SQLite only for development (PostgreSQL recommended for production)
+### "Provider: não encontrado, Code: ✓, State: ✓"
+O provider não foi recuperado nem da sessão nem do estado OAuth.
+- Verifique se `NIKLAUS_SECRET_KEY` é idêntico ao usado quando o state foi gerado.
+- Tente iniciar o login novamente (o state expira ou pode ser invalidado por reinicialização do servidor).
 
-### OAuth not working
-- Verify redirect URIs match exactly
-- Check if OAuth app is approved/published
-- Ensure secrets are correctly set in `.streamlit/secrets.toml`
+### "redirect_uri_mismatch"
+O `redirect_uri` em `secrets.toml` e no console do provedor devem ser **exatamente iguais** (incluindo protocolo e ausência de trailing slash).
 
-### Permission denied errors
-- Check database file permissions
-- Ensure directory is writable
+### "Sessão de login inválida ou expirada"
+O estado HMAC não passou na verificação. Pode ocorrer se `NIKLAUS_SECRET_KEY` mudou ou se o state foi adulterado. Tente iniciar o login novamente.
 
-## Production Deployment
+### "Database locked"
+Use PostgreSQL em produção. SQLite tem limitações de concorrência.
 
-For production:
+### Tokens não descriptografados após rotação de `NIKLAUS_SECRET_KEY`
+Tokens criptografados com a chave anterior tornam-se ilegíveis. Os usuários afetados precisam fazer login novamente para que novos tokens criptografados sejam gerados.
 
-1. Use PostgreSQL instead of SQLite:
-   ```bash
-   export DATABASE_URL="postgresql://user:pass@host:5432/niklaus"
-   ```
+---
 
-2. Enable HTTPS and set secure redirect URIs
+## Produção
 
-3. Use environment variables instead of secrets.toml
+```bash
+# PostgreSQL
+export DATABASE_URL="postgresql://user:pass@host:5432/niklaus"
 
-4. Configure proper CORS settings
+# Secrets via env vars (alternativa ao secrets.toml)
+export NIKLAUS_SECRET_KEY="chave-producao"
+export GOOGLE_CLIENT_ID="..."
+export GOOGLE_CLIENT_SECRET="..."
+export GOOGLE_REDIRECT_URI="https://niklaus.seudominio.com"
 
-5. Enable rate limiting
+# Inicializar
+python scripts/init_db.py
 
-6. Set up backup strategy for database
+# Executar
+streamlit run app.py --server.port 8501
+```
+
+Checklist de produção:
+- [ ] HTTPS habilitado (nginx, Caddy ou Cloudflare)
+- [ ] `NIKLAUS_SECRET_KEY` configurada com valor forte e aleatório
+- [ ] Redirect URIs atualizados para HTTPS nos consoles dos provedores
+- [ ] `secrets.toml` fora do repositório
+- [ ] Backup automático do banco de dados
+- [ ] Revisão periódica dos audit logs

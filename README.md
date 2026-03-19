@@ -1,145 +1,252 @@
-# Niklaus-plagiarism
+# Niklaus — Detecção de Plágio em Código
 
-## Purpose
+Sistema avançado de detecção de plágio para trabalhos de programação. Combina análise estática, comparação estrutural (AST), métricas de complexidade e IA (Maritaca Sabiazinho-4) para identificar e classificar similaridades entre arquivos de código-fonte.
 
-The purpose of the Niklaus project is to provide a tool that can detect plagiarism in programming assignments. It is designed to help educators identify cases of academic dishonesty and ensure that students are submitting original work.
+---
 
-## How it works
+## Funcionalidades
 
-Niklaus uses a combination of static analysis and AI techniques to compare code submissions and identify similarities. When a new assignment is submitted, Niklaus extracts features from the code, such as variable names, function names, and control structures, and uses Maritaca's Sabiazinho model for intelligent analysis.
+| Recurso | Descrição |
+|---|---|
+| Detecção automática | Compara todos os pares de arquivos em paralelo |
+| Multi-linguagem | Python, C, C++, Java, JavaScript, TypeScript, Go, Rust, Kotlin |
+| Análise AST | Similaridade estrutural (Python nativo; fingerprint para demais) |
+| Métricas de código | LOC, complexidade ciclomática, contagem de funções, MI, Halstead |
+| Classificação de plágio | 8 tipos com confidence score |
+| IA por par suspeito | Análise textual via Maritaca Sabiazinho-4 |
+| Visualizações | Heatmap, histograma, grafo interativo de similaridade, radar chart |
+| Clustering | Detecção hierárquica de grupos de plágio com badge de severidade |
+| Histórico | Submissões por usuário com filtros SQL, paginação e ações em lote |
+| Exportação | CSV (pares + métricas) e JSON completos para download |
+| Autenticação OAuth | Google, GitHub e Microsoft |
+| Cancelamento | Análise cancelável pelo usuário a qualquer momento |
 
-## Features
+---
 
-- **Automated plagiarism detection**: Niklaus can automatically compare code submissions to flag potential instances of plagiarism.
-- **Multi-language support**: Supports C, C++, Java, JavaScript, Python, Go, Rust, TypeScript, and Kotlin.
-- **Customizable settings**: Educators can configure Niklaus to adjust the sensitivity of the plagiarism detection algorithm and set thresholds for similarity scores.
-- **Detailed reports**: Niklaus generates detailed reports that highlight similarities between code submissions and provide AI-powered analysis via Maritaca's Sabiazinho model.
-- **Interactive visualizations**: 
-  - Heatmaps for similarity matrices
-  - Radar charts for code metrics comparison
-  - **Similarity graph** showing connections between files (Phase 2)
-- **Cluster analysis**: Automatic detection of plagiarism clusters with severity classification (high, moderate, low).
-- **Visual diff view**: Side-by-side code comparison with highlighted differences (unified diff format).
-- **Export capabilities**: CSV and JSON export options for reports.
-- **PDF export roadmap**: Enriched PDF report generation is planned and not yet available in the UI.
-- **Security**: ZIP file validation (50MB limit, path traversal protection) and automatic cleanup of temporary files.
+## Pré-requisitos
 
-## Prerequisites
+- Python 3.9+
+- Chave de API Maritaca (obtenha em [maritaca.ai](https://maritaca.ai))
+- Conta OAuth em pelo menos um dos provedores suportados (Google, GitHub, Microsoft)
 
-- Python 3.8 or higher
-- Maritaca API key (get one at https://maritaca.ai/)
+---
 
-## Installation
+## Instalação
 
 ```bash
 git clone https://github.com/walternagai/niklaus-plagiarism.git
 cd niklaus-plagiarism
 pip install -r requirements.txt
+python scripts/init_db.py
 ```
 
-## Configuration
+---
 
-Create `.streamlit/secrets.toml` with your Maritaca API credentials:
+## Configuração
+
+Crie `.streamlit/secrets.toml` baseando-se no exemplo:
+
+```bash
+cp secrets.toml.example .streamlit/secrets.toml
+```
+
+Edite o arquivo com suas credenciais:
 
 ```toml
+# Chave da aplicação — obrigatória para segurança do estado OAuth e criptografia de tokens
+NIKLAUS_SECRET_KEY = "sua-chave-secreta-longa-e-aleatoria"
+
+# Admin emails (opcional — separados por vírgula)
+ADMIN_EMAILS = "voce@exemplo.com"
+
+# Maritaca AI
 [maritaca]
-MARITACA_API_KEY = "your-api-key-here"
-MARITACA_MODEL = "sabiazinho-4"
+MARITACA_API_KEY  = "sua-chave-maritaca"
+MARITACA_MODEL    = "sabiazinho-4"
+
+# OAuth — configure ao menos um provedor
+[google]
+client_id      = "seu-google-client-id"
+client_secret  = "seu-google-client-secret"
+redirect_uri   = "http://localhost:8501"
+
+[github]
+client_id      = "seu-github-client-id"
+client_secret  = "seu-github-client-secret"
+redirect_uri   = "http://localhost:8501"
+
+[microsoft]
+client_id      = "seu-microsoft-client-id"
+client_secret  = "seu-microsoft-client-secret"
+tenant_id      = "common"
+redirect_uri   = "http://localhost:8501"
 ```
 
-## Usage
+> **Nota de segurança:** `NIKLAUS_SECRET_KEY` é usada para assinar o estado OAuth (proteção contra CSRF) e para criptografar tokens de acesso armazenados no banco de dados com Fernet/AES-128. Configure-a com um valor aleatório longo. Se ausente, um aviso é emitido e um fallback fraco é usado.
+
+---
+
+## Execução
 
 ```bash
 streamlit run app.py
 ```
 
-Then:
-1. **Select the programming language** of the files you want to compare.
-2. **Adjust the similarity threshold** (default: 0.7 or 70%).
-3. **Upload a ZIP file** containing the source code files to compare.
-4. **Wait for analysis** - Niklaus will generate a detailed report highlighting potential plagiarism.
-5. **Explore tabs**:
-   - **Upload & Analysis**: File upload and analysis trigger
-   - **Results**: Filtered similarity table with AI analysis and visual diff
-   - **Statistics**: Heatmaps and similarity distribution
-   - **Advanced Analysis**: AST similarity, code metrics, and plagiarism pattern detection
-   - **Similarity Graph**: Interactive network visualization of file clusters
+Acesse `http://localhost:8501` e faça login com um dos provedores OAuth configurados.
 
-**Note**: Maximum ZIP file size is 50MB. Files are automatically cleaned up after analysis.
+---
 
-## Supported Languages
+## Como usar
 
-| Language | Extension | AST Parsing |
-|----------|-----------|-------------|
-| Python | .py | Full support |
-| C | .c | Fingerprint-based |
-| C++ | .cpp | Fingerprint-based |
-| Java | .java | Fingerprint-based |
-| JavaScript | .js | Fingerprint-based |
-| TypeScript | .ts | Fingerprint-based |
-| Go | .go | Fingerprint-based |
-| Rust | .rs | Fingerprint-based |
-| Kotlin | .kt | Fingerprint-based |
+1. **Faça login** via Google, GitHub ou Microsoft.
+2. Na aba **Upload & Análise**:
+   - Selecione a linguagem dos arquivos.
+   - Ajuste o threshold de similaridade (padrão: 70%).
+   - Configure workers paralelos e ative/desative IA.
+   - Envie um arquivo **ZIP** contendo os códigos a comparar.
+   - Clique em **Analisar Arquivos**.
+3. Acompanhe o progresso — é possível **cancelar** a análise a qualquer momento.
+4. Explore os resultados nas abas:
 
-## Tabs Overview
+| Aba | Conteúdo |
+|---|---|
+| **Resultados** | Tabela de similaridade, análise IA, diff visual lado a lado |
+| **Estatísticas** | Heatmap, histograma por faixa, preview de arquivos |
+| **Análise Avançada** | AST, métricas de complexidade, radar chart, padrões de plágio |
+| **Grafo de Similaridade** | Rede interativa, clusters, comunidades |
+| **Histórico** | Submissões anteriores com filtros, carregamento e exclusão em lote |
 
-### Tab 1: Upload & Analysis
-- File upload interface
-- Language and threshold selection
-- Last analysis summary
+5. **Exporte** resultados em CSV ou JSON pela aba Resultados.
 
-### Tab 2: Results
-- Similarity table with progress bars
-- AI-powered analysis for each suspicious pair
-- **Visual diff view** (toggle between side-by-side code and unified diff)
-- Export options (CSV, JSON; PDF in roadmap)
+---
 
-### Tab 3: Statistics
-- Summary metrics (mean, median, std deviation)
-- Similarity heatmap
-- Distribution histogram by similarity bands
-- File preview
+## Linguagens suportadas
 
-### Tab 4: Advanced Analysis
-- **Structural (AST) similarity** - compares code structure, not just text
-- **Code complexity metrics** - LOC, cyclomatic complexity, function count, nesting depth, maintainability index
-- **Radar chart comparison** - visual metrics comparison between file pairs
-- **Plagiarism pattern detection** - identifies 8 types of plagiarism with confidence scores
+| Linguagem | Extensão | AST detalhado | Fingerprint Winnowing |
+|---|---|---|---|
+| Python | `.py` | Sim (AST nativo) | Sim |
+| Java | `.java` | — | Sim |
+| C | `.c` | — | Sim |
+| C++ | `.cpp, .cc, .cxx` | — | Sim |
+| JavaScript | `.js` | — | Sim |
+| TypeScript | `.ts, .tsx` | — | Sim |
+| Go | `.go` | — | Sim |
+| Rust | `.rs` | — | Sim |
+| Kotlin | `.kt, .kts` | — | Sim |
 
-### Tab 5: Similarity Graph (Phase 2)
-- **Interactive network visualization** showing file connections
-- Nodes = files, edges = similarity above threshold
-- Edge thickness proportional to similarity
-- **Cluster coloring** - files grouped by similarity clusters
-- **Cluster details**: central files, statistics, severity badges
-- **Community detection** using greedy modularity optimization
+> Fingerprints usam SHA-256 para resultados determinísticos entre processos e reinicializações.
 
-## Technology Stack
+---
 
-- **Frontend**: Streamlit (interactive web interface)
-- **Backend**: Python with OpenAI SDK (compatible with Maritaca API)
-- **AI Model**: Maritaca Sabiazinho-4 (Brazilian LLM for code analysis)
-- **Visualization**: Plotly (heatmaps, charts, network graphs)
-- **Graph Analysis**: NetworkX (similarity graphs, community detection)
-- **Clustering**: SciPy (hierarchical clustering)
-- **Code Analysis**: AST parsing (Python native), fingerprint algorithms
-- **Export**: FPDF (PDF reports), Pandas (CSV/JSON)
+## Tipos de plágio detectados
 
-## Plagiarism Types Detected
+| Tipo | Descrição |
+|---|---|
+| `COPIA_DIRETA` | Similaridade textual e estrutural > 95% |
+| `RENOMEACAO_VARIAVEIS` | Estrutura idêntica, variáveis/parâmetros renomeados |
+| `REORDENACAO_CODIGO` | Blocos reorganizados com conteúdo equivalente |
+| `INSERCAO_CODIGO_MORTO` | Código morto ou comentários excessivos inseridos |
+| `REFATORACAO_LEVE` | Pequenas modificações estruturais |
+| `REFATORACAO_PESADA` | Refatoração significativa mantendo funcionalidade |
+| `SIMILARIDADE_BAIXA` | Código provavelmente original |
+| `REUSO_LEGITIMO` | Reutilização de bibliotecas ou padrões comuns |
 
-1. **COPIA_DIRETA** - Direct copy (>95% similarity)
-2. **RENOMEACAO_VARIAVEIS** - Variable/function renaming
-3. **REORDENACAO_CODIGO** - Code block reordering
-4. **INSERCAO_CODIGO_MORTO** - Dead code insertion
-5. **REFATORACAO_LEVE** - Light refactoring
-6. **REFATORACAO_PESADA** - Heavy refactoring
-7. **SIMILARIDADE_BAIXA** - Low similarity (likely original)
-8. **REUSO_LEGITIMO** - Legitimate code reuse
+---
 
-## Contributing
+## Arquitetura
 
-If you are interested in contributing to the Niklaus project, please read our [contributing guidelines](CONTRIBUTING.md) for more information.
+```
+niklaus-plagiarism/
+├── app.py                    # Entrypoint Streamlit + fluxo OAuth
+├── core/
+│   ├── pipeline.py           # Pipeline de análise (coordenação)
+│   ├── analyzer.py           # Orquestrador paralelo (textual, AST, métricas, padrões)
+│   ├── file_handler.py       # Extração ZIP com validação de path traversal
+│   ├── comparison.py         # Comparação textual (SequenceMatcher)
+│   ├── llm_client.py         # Cliente Maritaca (rate limiting, retry)
+│   └── persistence.py        # Cache JSON em disco (Winnowing, TTL no filename)
+├── auth/
+│   ├── models.py             # Modelos SQLAlchemy (User, Submission, AuditLog)
+│   ├── database.py           # DatabaseManager + session_scope()
+│   ├── repository.py         # Repositórios com filtros SQL e bulk delete
+│   ├── oauth.py              # OAuthHandler (estado assinado HMAC, tokens Fernet)
+│   ├── config.py             # OAuthConfig + encrypt_token / decrypt_token
+│   └── session.py            # SessionManager (Streamlit session state)
+├── analyzer/
+│   ├── ast_parser.py         # ASTParser (SHA-256 fingerprint, detecção de linguagem)
+│   ├── metrics.py            # CodeMetrics (Halstead corrigido, MI, CC)
+│   ├── clustering.py         # ClusterDetector (hierárquico + comunidades)
+│   └── patterns.py           # PlagiarismPatternDetector (8 tipos, guards estruturais)
+├── export/
+│   └── service.py            # ExportService (to_csv, to_json, to_summary_csv)
+├── ui/
+│   ├── sidebar.py
+│   └── tabs/
+│       ├── upload.py         # Upload + início de análise
+│       ├── results.py        # Resultados + diff visual + exportação
+│       ├── statistics.py     # Heatmap + histograma
+│       ├── advanced.py       # AST + métricas + padrões
+│       ├── graph.py          # Grafo interativo
+│       └── history.py        # Histórico com SQL filtering + bulk delete
+├── utils/
+│   ├── config.py             # Configurações globais
+│   ├── exceptions.py         # Hierarquia de exceções + raise_if_cancelled()
+│   ├── db_cache.py           # QueryCache + SubmissionCache (LRU+TTL)
+│   └── performance.py        # @track_performance decorator
+├── tests/                    # 102 testes pytest
+├── scripts/                  # Utilitários (init_db, create_admin, test_oauth_*)
+└── docs/                     # Documentação técnica
+```
 
-## License
+---
 
-This project is licensed under the CC0 1.0 Universal License - see the [LICENSE](LICENSE) file for details.
+## Stack tecnológica
+
+| Camada | Tecnologia |
+|---|---|
+| Interface | Streamlit |
+| Análise IA | Maritaca Sabiazinho-4 (via OpenAI SDK) |
+| Banco de dados | SQLite (dev) / PostgreSQL (prod) via SQLAlchemy |
+| Criptografia | `cryptography` (Fernet/AES-128 para tokens OAuth) |
+| Visualização | Plotly |
+| Grafo | NetworkX |
+| Clustering | SciPy |
+| Exportação | CSV nativo Python + JSON |
+
+---
+
+## Testes
+
+```bash
+# Suite completa (exceto testes lentos)
+pytest tests/ -k "not slow"
+
+# Incluindo o teste de rate limiter (~1s extra)
+pytest tests/
+
+# Com cobertura
+pytest tests/ --cov=. --cov-report=html
+```
+
+A suite conta com **102 testes** cobrindo: análise de AST, métricas, padrões, pipeline, comparação, cache, OAuth, repositório, exportação e normalização de histórico.
+
+---
+
+## Segurança
+
+- Tokens OAuth (access + refresh) criptografados em repouso com **Fernet/AES-128** antes de persistir no banco.
+- Estado OAuth assinado com **HMAC-SHA256** usando `NIKLAUS_SECRET_KEY`, prevenindo CSRF e adulteração.
+- Cache de disco em **JSON** (não pickle) — elimina risco de execução remota de código via cache adulterado.
+- Validação de **path traversal** no upload de ZIP.
+- `niklaus.db` adicionado ao `.gitignore` — nunca versionado.
+- Sessões expiram após 24 horas.
+
+---
+
+## Contribuindo
+
+Veja [CONTRIBUTING.md](CONTRIBUTING.md) para detalhes de setup, padrões de código e fluxo de PR.
+
+## Licença
+
+CC0 1.0 Universal — veja [LICENSE](LICENSE).

@@ -1,132 +1,134 @@
-# Guia de Configuração OAuth
+# Configuração de Redirect URI para OAuth
 
-## 🔑 Configuração Correta do Redirect URI
+## Regra fundamental
 
-Para OAuth funcionar com Streamlit, **NÃO** use URLs como:
+O Streamlit não tem roteamento por path — todas as páginas são renderizadas em `/`. Por isso, o redirect URI OAuth **deve apontar para a URL base**, sem sufixo `/oauth/callback/...`:
+
 ```
-❌ http://localhost:8501/oauth/callback/google
-``
-
-Use **apenas a URL base**:
-```
-✅ http://localhost:8501
+✅  http://localhost:8501
+❌  http://localhost:8501/oauth/callback/google
 ```
 
-## 📋 Passos para Configurar Google OAuth
+Configure o mesmo valor no console do provedor e em `secrets.toml`.
 
-### 1. No Google Cloud Console
+---
 
-1. Acesse: https://console.cloud.google.com/
-2. Vá em **APIs & Services** → **Credentials**
-3. Crie ou edite suas credenciais OAuth 2.0
-4. Configure:
-
-**Authorized JavaScript origins:**
-```
-http://localhost:8501
-```
-
-**Authorized redirect URIs:**
-```
-http://localhost:8501
-```
-
-⚠️ **IMPORTANTE:** NÃO adicione `/oauth/callback/google` - use apenas a URL base!
-
-### 2. No `.streamlit/secrets.toml`
+## secrets.toml
 
 ```toml
+NIKLAUS_SECRET_KEY = "chave-aleatoria"   # assina o estado OAuth
+
 [google]
-client_id = "YOUR_GOOGLE_CLIENT_ID_HERE"
-client_secret = "YOUR_GOOGLE_CLIENT_SECRET_HERE"
-redirect_uri = "http://localhost:8501"
+client_id     = "GOOGLE_CLIENT_ID"
+client_secret = "GOOGLE_CLIENT_SECRET"
+redirect_uri  = "http://localhost:8501"
 
 [github]
-client_id = "YOUR_GITHUB_CLIENT_ID"
-client_secret = "YOUR_GITHUB_CLIENT_SECRET"
-redirect_uri = "http://localhost:8501"
+client_id     = "GITHUB_CLIENT_ID"
+client_secret = "GITHUB_CLIENT_SECRET"
+redirect_uri  = "http://localhost:8501"
 
 [microsoft]
-client_id = "YOUR_MICROSOFT_CLIENT_ID"
-client_secret = "YOUR_MICROSOFT_CLIENT_SECRET"
-redirect_uri = "http://localhost:8501"
-tenant_id = "common"
+client_id     = "MICROSOFT_CLIENT_ID"
+client_secret = "MICROSOFT_CLIENT_SECRET"
+tenant_id     = "common"
+redirect_uri  = "http://localhost:8501"
 
-ADMIN_EMAILS = "seu.email@gmail.com"
+ADMIN_EMAILS = "seu.email@exemplo.com"
 ```
 
-## 🔄 Fluxo OAuth Corrigido
+---
 
-### O que mudou:
+## Como configurar cada provedor
 
-**Antes (quebrado):**
+### Google Cloud Console
+1. **APIs & Services → Credentials** → selecione sua credencial OAuth.
+2. Em **Authorized redirect URIs**, adicione:
+   - `http://localhost:8501` (desenvolvimento)
+   - `https://seudominio.com` (produção — apenas HTTPS)
+3. Em **Authorized JavaScript origins**, adicione a mesma URL.
+
+### GitHub
+1. **Settings → Developer settings → OAuth Apps** → selecione o app.
+2. Em **Authorization callback URL**: `http://localhost:8501`
+
+### Microsoft (Entra ID)
+1. **Azure Portal → App registrations** → selecione o app.
+2. **Authentication → Platform configurations → Web → Redirect URIs**: `http://localhost:8501`
+
+---
+
+## Fluxo implementado
+
 ```
-Usuário → Google OAuth → http://localhost:8501/oauth/callback/google
-                              ↓
-                        ❌ Página não existe no Streamlit MultiPage
+Usuário clica "Login com Google"
+  ↓
+app.py: _start_oauth_login('google')
+  → state = OAuthHandler.create_state('google')   # google:nonce:hmac
+  → st.session_state['oauth_provider'] = 'google'
+  → st.session_state['oauth_state'] = state
+  → redireciona para URL de autorização Google
+
+Google authentica → redireciona para:
+  http://localhost:8501?code=AUTH_CODE&state=google:nonce:hmac
+
+app.py carrega → _handle_oauth_callback()
+  → recupera provider do signed state (ou session_state)
+  → OAuthHandler.verify_state_signature(state)   # valida HMAC
+  → OAuthHandler.handle_callback(code, state)
+    → troca code por access_token
+    → obtém perfil do usuário
+    → criptografa tokens (Fernet)
+    → upsert no banco
+  → SessionManager.login(user_dict)
+  → st.query_params.clear()
+  → st.rerun() → app principal
 ```
 
-**Depois (corrigido):**
+### Proteção de estado OAuth
+
+O `state` transporta o provider de forma segura e autenticada:
+
 ```
-Usuário → Google OAuth → http://localhost:8501?code=XYZ&state=ABC
-                              ↓
-                        ✅ app.py processa callback via query_params
-                              ↓
-                         Login realizado → Redireciona para app principal
+formato: {provider}:{nonce_24chars}:{hmac_sha256[:24]}
+exemplo: google:ABCxyz123456789012345:a1b2c3d4e5f6g7h8i9j0k1l2
 ```
 
-## 🧪 Testando a Configuração
+O HMAC é calculado com `NIKLAUS_SECRET_KEY`. Uma falha na verificação rejeita o callback imediatamente — o usuário vê "Sessão de login inválida ou expirada".
 
-1. **Teste OAuth Config:**
-   ```bash
-   python scripts/test_oauth_config.py
-   ```
+---
 
-2. **Inicie o app:**
-   ```bash
-   streamlit run app.py
-   ```
+## Problemas comuns
 
-3. **Acesse:** `http://localhost:8501`
+| Erro | Causa | Solução |
+|---|---|---|
+| `redirect_uri_mismatch` | redirect_uri no `secrets.toml` diferente do console do provedor | Torne os valores idênticos (maiúsc./minúsc., trailing slash) |
+| `Provider: não encontrado` | Provider não recuperado nem da sessão nem do state | Inicie o login novamente; verifique `NIKLAUS_SECRET_KEY` |
+| `Sessão de login inválida` | HMAC falhou — state adulterado ou `NIKLAUS_SECRET_KEY` mudou | Inicie o login novamente |
+| Tela branca após callback | redirect_uri aponta para path errado ou app não iniciado | Use apenas a URL base (`http://localhost:8501`) |
+| `Access blocked: app is pending` | App do Google em modo de teste | Adicione o e-mail como Test User no console |
 
-4. **Clique em:** "Login com Google"
+---
 
-5. **Resultado esperado:**
-   - Redireciona para Google
-   - Após autorização, volta para `http://localhost:8501?code=XYZ&state=ABC`
-   - Processa login automaticamente
-   - Mostra "✅ Bem-vindo, {nome}!"
-   - Redireciona para página principal
+## Checklist
 
-## 🐛 Problemas Comuns
+- [ ] redirect_uri = `http://localhost:8501` (sem path) no `secrets.toml`
+- [ ] Mesmo valor no console do provedor
+- [ ] `NIKLAUS_SECRET_KEY` configurado
+- [ ] App reiniciado após mudanças no `secrets.toml`
+- [ ] Cache do navegador limpo (`Ctrl+Shift+R`)
+- [ ] Para produção: HTTPS e redirect_uri atualizado para `https://...`
 
-### "Página em branco após OAuth"
+---
 
-**Causa:** redirect_uri incorreto no Google Cloud Console
+## Teste rápido
 
-**Solução:** Configure redirect_uri como:
-- ✅ `http://localhost:8501`
-- ❌ `http://localhost:8501/oauth/callback/google`
+```bash
+# Verificar configuração OAuth (sem Streamlit rodando)
+python scripts/test_oauth_config.py
 
-### "redirect_uri_mismatch"
+# Iniciar app
+streamlit run app.py
+```
 
-**Causa:** redirect_uri no app diferente do Google Cloud Console
-
-**Solução:** Mantenha o mesmo valor em ambos:
-- `secrets.toml` → `redirect_uri = "http://localhost:8501"`
-- Google Cloud Console → Authorized redirect URIs → `http://localhost:8501`
-
-### "Access blocked: app is pending"
-
-**Causa:** App em modo de teste no Google Cloud Console
-
-**Solução:** Adicione seu email como **Test User** ou publique o app
-
-## 📝 Checklist
-
-- [ ] Redirect URI configurado como `http://localhost:8501` (sem `/oauth/callback`)
-- [ ] Client ID e Client Secret no `.streamlit/secrets.toml`
-- [ ] redirect_uri idêntico no Google Cloud Console e no app
-- [ ] ADMIN_EMAILS configurado corretamente
-- [ ] App reiniciado após mudanças
-- [ ] Cache do navegador limpo (Ctrl+Shift+R)
+Acesse `http://localhost:8501` → clique em um botão de login → autentique no provedor → deve retornar ao app com "✅ Bem-vindo, Nome!".

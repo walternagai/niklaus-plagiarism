@@ -1,470 +1,494 @@
-# Guia do Desenvolvedor - Niklaus Plagiarism Detector
+# Guia do Desenvolvedor — Niklaus
 
-## Arquitetura do Sistema
+Referência técnica para quem trabalha no código do Niklaus: arquitetura, APIs internas, padrões de código e práticas de desenvolvimento.
 
-### Visão Geral
+---
 
-O Niklaus é um detector de plágio modular com as seguintes camadas:
-
-```
-┌─────────────────────────────────────────┐
-│         Interface (UI/Streamlit)         │
-│   - app.py (Main Application)            │
-│   - ui/ (Componentes)                     │
-│   - tabs/ (Abas)                          │
-└─────────────────────────────────────────┘
-                    ↓
-┌─────────────────────────────────────────┐
-│         Lógica de Negócio                │
-│   - core/ (Analise)                       │
-│   - auth/ (Autenticação)                 │
-│   - utils/ (Utilitários)                 │
-└─────────────────────────────────────────┘
-                    ↓
-┌─────────────────────────────────────────┐
-│         Persistência                     │
-│   - Database (SQLAlchemy)                │
-│   - Cache (Disk + Query Cache)          │
-└─────────────────────────────────────────┘
-```
-
-## Estrutura de Diretórios
+## Arquitetura
 
 ```
-niklaus-plagiarism/
-├── app.py                    # Aplicação principal
-├── core/                     # Motor de análise
-│   ├── analyzer.py          # Analisador principal
-│   ├── pipeline.py          # Pipeline de análise
-│   ├── file_handler.py      # Manipulação de arquivos
-│   ├── llm_client.py        # Cliente Maritaca AI
-│   ├── comparison.py        # Comparação textual
-│   └── persistence.py       # Cache em disco
-├── auth/                     # Sistema de autenticação
-│   ├── models.py            # Modelos SQLAlchemy
-│   ├── database.py          # Gerenciador DB
-│   ├── repository.py        # Repositórios
-│   ├── oauth.py             # Handler OAuth
-│   ├── config.py            # Configuração OAuth
-│   ├── session.py           # Gerenciador de sessão
-│   └── decorators.py        # Decorators de auth
-├── ui/                       # Interface do usuário
-│   ├── sidebar.py           # Sidebar
-│   ├── tutorial.py          # Tutorial interativo
-│   ├── tooltips.py          # Tooltips e ajuda
-│   ├── auth/                # UI de autenticação
-│   ├── components/          # Componentes reutilizáveis
-│   └── tabs/                # Abas da aplicação
-│       ├── upload.py
-│       ├── results.py
-│       ├── statistics.py
-│       ├── advanced.py
-│       ├── graph.py
-│       ├── history.py
-│       └── performance.py   # Dashboard de performance
-├── utils/                    # Utilitários
-│   ├── config.py            # Configurações globais
-│   ├── logger.py            # Logging
-│   ├── exceptions.py        # Exceções customizadas
-│   ├── error_handling.py    # Tratamento de erros
-│   ├── lazy_loader.py       # Lazy loading
-│   ├── db_cache.py          # Cache de queries
-│   └── performance.py       # Métricas de performance
-├── tests/                    # Testes automatizados
-└── scripts/                  # Scripts utilitários
+┌──────────────────────────────────────────────────────────┐
+│                   Interface (Streamlit)                    │
+│  app.py — OAuth callback, roteamento de abas, análise     │
+│  ui/tabs/*.py — upload, results, stats, advanced, graph,  │
+│                 history                                   │
+└──────────────────────────────────────────────────────────┘
+                            ↓
+┌──────────────────────────────────────────────────────────┐
+│                   Lógica de negócio                       │
+│  core/pipeline.py  — coordenação, cache, cancelamento     │
+│  core/analyzer.py  — execução paralela das etapas         │
+│  auth/             — OAuth, sessão, repositórios           │
+│  export/service.py — exportação CSV/JSON                  │
+└──────────────────────────────────────────────────────────┘
+                            ↓
+┌──────────────────────────────────────────────────────────┐
+│                   Primitivos                              │
+│  analyzer/*.py — AST, métricas, clustering, padrões       │
+│  core/comparison.py — similaridade textual                │
+│  core/llm_client.py — Maritaca API                        │
+└──────────────────────────────────────────────────────────┘
+                            ↓
+┌──────────────────────────────────────────────────────────┐
+│                   Persistência                            │
+│  auth/database.py — SQLAlchemy (SQLite / PostgreSQL)      │
+│  core/persistence.py — cache JSON em disco                │
+│  utils/db_cache.py — QueryCache + SubmissionCache         │
+└──────────────────────────────────────────────────────────┘
 ```
 
-## Componentes Principais
+---
 
-### 1. Pipeline de Análise (`core/pipeline.py`)
-
-O pipeline coordena todas as etapas de análise:
+## Pipeline de análise
 
 ```python
 from core.pipeline import AnalysisPipeline
 
 pipeline = AnalysisPipeline(
-    language='Python',
-    api_key='your_api_key',
+    language='python',
+    api_key='sua_chave_maritaca',   # None desativa IA
     max_workers=4,
     use_cache=True
 )
 
+def is_cancelled() -> bool:
+    return st.session_state.get('cancel_analysis', False)
+
+def on_progress(stage: str, current: int, total: int):
+    print(f"{stage}: {current}/{total}")
+
 results = pipeline.run_full_analysis(
-    files=file_list,
-    contents=content_list,
+    files=['a.py', 'b.py'],
+    contents=[code_a, code_b],
     threshold=0.7,
     enable_ai=True,
-    progress_callback=callback
+    progress_callback=on_progress,
+    cancel_check=is_cancelled
 )
 ```
 
-**Etapas do Pipeline:**
-1. Análise Textual (similaridade de código)
-2. Análise AST (árvore sintática)
-3. Métricas de Código (complexidade, estilo)
-4. Clustering (agrupamento)
-5. Análise IA (opcional, via Maritaca)
+O resultado contém:
+- `files`, `language`, `threshold`, `analysis_time`
+- `textual_similarities` — lista de `(file1, file2, score)`
+- `ast_similarities` — lista de `(file1, file2, score)`
+- `metrics` — lista de dicts por arquivo
+- `similarity_matrix` — ndarray NxN
+- `cluster_data` — hierarquia + comunidades
+- `patterns` — dict `"f1_f2"` → análise de padrão
+- `pairwise_results` — todos os pares com scores consolidados
+- `suspicious_pairs` — pares acima do threshold
+- `ai_analyses` — análise textual IA por par suspeito (se habilitado)
 
-### 2. Sistema de Cache (`utils/db_cache.py`)
+### Cancelamento cooperativo
 
-Cache de queries com TTL (Time-To-Live):
+O cancelamento é implementado via `AnalysisCancelledError`. Qualquer ponto interno que chame `raise_if_cancelled(cancel_check)` pode interromper o fluxo.
 
 ```python
-from utils.db_cache import cached_query, get_query_cache
+from utils.exceptions import raise_if_cancelled, AnalysisCancelledError
 
-@cached_query(ttl=300, key_prefix='submissions_')
-def get_user_submissions(user_id: int):
-    # Query cached por 5 minutos
-    return db.query(Submission).filter(...).all()
-
-# Estatísticas do cache
-stats = get_query_cache().get_stats()
-print(f"Hit rate: {stats['hit_rate']:.2f}%")
+def raise_if_cancelled(cancel_check) -> None:
+    """Lança AnalysisCancelledError se cancel_check() retornar True."""
+    if cancel_check is not None and cancel_check():
+        raise AnalysisCancelledError("Analysis cancelled by user")
 ```
 
-### 3. Performance Monitoring (`utils/performance.py`)
+Chame `raise_if_cancelled` em loops longas ou entre etapas. Capture `AnalysisCancelledError` no nível superior.
 
-Decorações para rastreamento de performance:
+### Análise apenas textual (sem AST/métricas/IA)
 
 ```python
-from utils.performance import track_performance, PerformanceContext
-
-@track_performance('database.query')
-def expensive_query():
-    # Automaticamente rastreia tempo de execução
-    return db.query(...)
-
-with PerformanceContext('file.upload'):
-    # Rastreia tempo de execução do bloco
-    process_files(files)
+results = pipeline.run_textual_only(
+    files=['a.py', 'b.py'],
+    contents=[code_a, code_b],
+    threshold=0.7
+)
 ```
 
-### 4. Lazy Loading (`utils/lazy_loader.py`)
-
-Carregamento sob demanda de componentes:
+Ou use os métodos públicos do analisador diretamente:
 
 ```python
-from utils.lazy_loader import LazyModule, LazyTabLoader
-
-# Lazy import de módulos pesados
-plotly = LazyModule('plotly.graph_objects')
-networkx = LazyModule('networkx')
-
-# Lazy loading de abas
-loader = LazyTabLoader()
-if loader.is_tab_loaded('results'):
-    # Aba já carregada
-    data = loader.get_tab_data('results')
+analyzer = pipeline.analyzer
+sims   = analyzer.calculate_textual_similarities(files, contents)
+matrix = analyzer.build_matrix(files, sims)
+pairs  = analyzer.get_suspicious_pairs(sims, threshold=0.7)
 ```
 
-### 5. Tutorial Interativo (`ui/tutorial.py`)
+---
 
-Sistema de onboarding guiado:
+## Cache em disco (`core/persistence.py`)
 
 ```python
-from ui.tutorial import start_tutorial, render_tutorial_step
+from core.persistence import AnalysisCache
 
-# Iniciar tutorial
-start_tutorial('getting_started')
+cache = AnalysisCache(cache_dir='.niklaus_cache')
 
-# Renderizar passo atual
-render_tutorial_step('getting_started')
+# Salvar
+cache.save(files, threshold, results, contents=contents, language='python')
+
+# Carregar (None se não encontrado ou expirado)
+data = cache.load(files, threshold, contents=contents, language='python')
+
+# max_age_hours=0 → bypass (útil em testes)
+data = cache.load(files, threshold, max_age_hours=0)
+
+# Limpeza
+removed = cache.clear_old_cache(max_age_days=7)
+removed = cache.clear_all_cache()
+
+# Estatísticas (sem abrir arquivos)
+stats = cache.get_cache_stats()
+# {'file_count': N, 'active_count': N, 'expired_count': N, ...}
 ```
 
-## Banco de Dados
-
-### Modelos
-
-**User:**
-```python
-class User(Base):
-    id: int
-    email: str
-    name: str
-    role: str  # 'user', 'admin'
-    is_active: bool
-    oauth_provider: str
-    oauth_id: str
-    created_at: datetime
-    last_login_at: datetime
+O formato é JSON (não pickle). O timestamp de expiração é codificado no nome do arquivo:
+```
+analysis_{content_sig}_{threshold:.2f}_{expire_ts}.json
 ```
 
-**Submission:**
-```python
-class Submission(Base):
-    id: int
-    user_id: int
-    filename: str
-    language: str
-    status: str  # 'pending', 'processing', 'completed', 'error'
-    files_count: int
-    suspicious_pairs_count: int
-    average_similarity: float
-    max_similarity: float
-    analysis_data: dict
-    created_at: datetime
-    processed_at: datetime
-```
+`clear_old_cache()` filtra por nome de arquivo — sem I/O desnecessário.
 
-### Repositórios
+---
 
-Use o padrão Repository para acesso a dados:
+## Repositórios (`auth/repository.py`)
+
+Use o padrão Repository para acesso a dados. Sempre envolva `get_session()` em um context manager:
 
 ```python
+from auth.database import get_session, session_scope
 from auth.repository import UserRepository, SubmissionRepository
-from auth.database import get_session
+from contextlib import closing
 
-db = get_session()
-user_repo = UserRepository(db)
-submission_repo = SubmissionRepository(db)
+# Leitura simples
+with closing(get_session()) as db:
+    user_repo = UserRepository(db)
+    user = user_repo.find_by_email('alice@example.com')
 
-# Criar usuário
-user = user_repo.create(
-    email='user@example.com',
-    name='User Name',
-    oauth_provider='google',
-    oauth_id='123456'
-)
+# Escrita com rollback automático
+with session_scope() as db:
+    submission_repo = SubmissionRepository(db)
+    sub = submission_repo.create(
+        user_id=user.id,
+        filename='turma.zip',
+        language='python',
+        threshold=0.7,
+        files_count=20,
+        suspicious_pairs_count=3,
+        status='completed',
+    )
+```
 
-# Buscar submissões com cache
-submissions = submission_repo.find_by_user(
-    user_id=user.id,
+### Filtros SQL no histórico
+
+`find_by_user()` aceita filtros que são aplicados no banco (não em Python):
+
+```python
+from datetime import datetime
+
+subs = submission_repo.find_by_user(
+    user_id=42,
     limit=50,
     offset=0,
-    use_cache=True
+    status='completed',
+    date_start=datetime(2025, 1, 1),
+    date_end=datetime(2025, 12, 31),
+    min_similarity=0.5,
+    max_similarity=1.0,
+    use_cache=False,
 )
 ```
 
-## Configuração
+### Bulk delete
 
-### Variáveis de Ambiente
-
-Crie `.streamlit/secrets.toml`:
-
-```toml
-[google]
-client_id = "your_google_client_id"
-client_secret = "your_google_client_secret"
-redirect_uri = "http://localhost:8501"
-
-[github]
-client_id = "your_github_client_id"
-client_secret = "your_github_client_secret"
-
-[microsoft]
-client_id = "your_microsoft_client_id"
-client_secret = "your_microsoft_client_secret"
-
-[maritaca]
-MARITACA_API_KEY = "your_maritaca_api_key"
-MARITACA_MODEL = "sabiazinho-4"
-
-ADMIN_EMAILS = "admin1@example.com,admin2@example.com"
+```python
+count = submission_repo.delete_all_by_user(user_id=42)
+# DELETE FROM submissions WHERE user_id = 42
 ```
 
-### Configuração Global (`utils/config.py`)
+### Contadores de usuário
+
+`SubmissionRepository.create()` incrementa automaticamente:
+- `User.submissions_count`
+- `User.total_analyses`
+- `User.total_suspicious_pairs`
+- `User.last_submission_at`
+
+---
+
+## Exportação (`export/service.py`)
+
+```python
+from export.service import ExportService
+
+# JSON completo — bytes UTF-8
+json_bytes = ExportService.to_json(results)
+
+# CSV de pares suspeitos — bytes UTF-8 BOM (Excel compatível)
+csv_bytes = ExportService.to_csv(results)
+
+# CSV de métricas por arquivo
+summary_bytes = ExportService.to_summary_csv(results)
+
+# Uso no Streamlit
+st.download_button("Download JSON", data=json_bytes, file_name="niklaus.json", mime="application/json")
+st.download_button("Download CSV", data=csv_bytes, file_name="niklaus.csv", mime="text/csv")
+```
+
+---
+
+## Autenticação OAuth
+
+### Fluxo completo
+
+```
+Usuário → "Login com Google"
+    ↓
+app.py: _start_oauth_login('google')
+    ↓ cria state = OAuthHandler.create_state('google')   # provider:nonce:hmac
+    ↓ salva em st.session_state['oauth_provider'] e ['oauth_state']
+    ↓ redireciona via <meta http-equiv="refresh">
+    ↓
+Google → http://localhost:8501?code=XYZ&state=provider:nonce:sig
+    ↓
+app.py: _handle_oauth_callback()
+    ↓ OAuthHandler.verify_state_signature(state)   # valida HMAC
+    ↓ OAuthHandler(provider).handle_callback(code, state)
+    ↓   troca code por access_token
+    ↓   obtém perfil do usuário
+    ↓   encrypt_token(access_token)  # Fernet/AES-128
+    ↓   create_user_from_oauth(...)  # upsert no DB
+    ↓
+SessionManager.login(user_dict)
+    ↓
+st.rerun() → app principal
+```
+
+### API OAuth
+
+```python
+from auth.oauth import OAuthHandler
+from auth.config import OAuthConfig, encrypt_token, decrypt_token
+
+# Criar estado assinado (provider + nonce + hmac)
+state = OAuthHandler.create_state('google')
+
+# Validar estado recebido no callback
+is_valid = OAuthHandler.verify_state_signature(state)
+
+# Extrair provider do estado (antes de verificar o HMAC)
+provider = OAuthHandler.extract_provider_from_state(state)
+
+# Obter URL de autorização (sem side effects em session_state)
+handler = OAuthHandler('google')
+url = handler.get_authorization_url(state=state)
+
+# Processar callback (retorna objeto User ou None)
+user_obj = handler.handle_callback(code, state, expected_state=state)
+
+# Criptografia de tokens
+ciphertext = encrypt_token("ya29.access-token")
+plaintext  = decrypt_token(ciphertext)
+```
+
+### Chave secreta
+
+A `NIKLAUS_SECRET_KEY` em `.streamlit/secrets.toml` serve para:
+1. Assinar o estado OAuth com HMAC-SHA256 (proteção contra CSRF).
+2. Derivar a chave Fernet para criptografar tokens OAuth no banco.
+
+Se ausente, um aviso é emitido e um fallback fraco baseado nos secrets OAuth é usado.
+
+---
+
+## Exceções
+
+```python
+from utils.exceptions import (
+    NiklausError,           # base
+    FileValidationError,    # ZIP/arquivo inválido
+    ZipExtractionError,     # falha na extração
+    LanguageDetectionError, # extensão não suportada
+    MaritacaAPIError,       # falha na API Maritaca
+    RateLimitError,         # rate limit excedido
+    AnalysisError,          # falha na análise
+    AnalysisCancelledError, # cancelado pelo usuário
+    CacheError,             # falha no cache
+    ConfigurationError,     # configuração inválida
+    ParallelProcessingError,# falha no pool de threads
+    raise_if_cancelled,     # helper de cancelamento
+)
+```
+
+Sempre use `raise ... from e` ao encadear exceções:
+
+```python
+try:
+    result = do_something()
+except SomeError as e:
+    raise NiklausError("contexto") from e
+```
+
+---
+
+## Performance monitoring
+
+```python
+from utils.performance import track_performance, PerformanceContext, get_performance_metrics
+
+@track_performance('my.operation')
+def my_function():
+    ...
+
+with PerformanceContext('file.upload'):
+    process_files(files)
+
+metrics = get_performance_metrics()
+dashboard = get_performance_dashboard()
+```
+
+---
+
+## Configuração global
 
 ```python
 from utils.config import config
 
-# Acessar configurações
-default_threshold = config.DEFAULT_THRESHOLD  # 0.7
-max_workers = config.PARALLEL_WORKERS  # 4
-language_extensions = config.LANGUAGE_EXTENSIONS  # {'Python': 'py', ...}
+config.MARITACA_MODEL      # 'sabiazinho-4'
+config.MARITACA_TIMEOUT    # 30
+config.MAX_ZIP_SIZE_MB     # 50
+config.PARALLEL_WORKERS    # 4
+config.DEFAULT_THRESHOLD   # 0.7
+config.CACHE_EXPIRY_HOURS  # 24
+config.LANGUAGE_EXTENSIONS # {'Python': 'py', 'Java': 'java', ...}
 ```
 
-## Autenticação OAuth
+Override via variável de ambiente:
+```bash
+PARALLEL_WORKERS=8 streamlit run app.py
+```
 
-### Fluxo de Autenticação
+---
 
-1. Usuário clica em "Login com Google/GitHub/Microsoft"
-2. Sistema gera URL de autorização OAuth
-3. Usuário é redirecionado para o provider
-4. Provider redireciona de volta com `code` e `state`
-5. Sistema troca `code` por token de acesso
-6. Sistema obtém dados do usuário
-7. Sistema cria/atualiza usuário no banco
-8. Sistema cria sessão
+## Lazy loading
 
-### Implementação
+Módulos pesados (Plotly, NetworkX, scipy) são carregados sob demanda:
 
 ```python
-from auth import OAuthHandler, SessionManager
+from utils.lazy_loader import LazyModule
 
-# Iniciar login
-handler = OAuthHandler('google')
-auth_url = handler.get_authorization_url()
+plotly = LazyModule('plotly.graph_objects')
+nx     = LazyModule('networkx')
 
-# Callback após autenticação
-user_info = handler.handle_callback(code, state)
-session_manager = SessionManager()
-session_manager.login(user_info)
+# O import real acontece aqui
+fig = plotly.Figure()
 ```
 
-### Decorators
+---
+
+## Banco de dados
+
+### Schema atual
+
+**users**
+- `id`, `email` (unique), `name`, `role` (user/admin)
+- `oauth_provider`, `oauth_id`
+- `oauth_access_token`, `oauth_refresh_token` — **criptografados com Fernet**
+- `oauth_token_expires_at`
+- `avatar_url`, `locale`, `timezone`
+- `is_active`, `is_verified`
+- `settings` (JSON)
+- `submissions_count`, `total_analyses`, `total_suspicious_pairs` — contadores denormalizados
+- `created_at`, `updated_at`, `last_login_at`, `last_submission_at`
+
+**submissions**
+- `id`, `user_id` (FK cascade delete)
+- `filename`, `language`, `threshold`, `max_workers`, `enable_ai`, `use_cache`
+- `files_count`, `suspicious_pairs_count`, `average_similarity`, `max_similarity`, `analysis_time_seconds`
+- `status` (pending/processing/completed/error), `error_message`
+- `analysis_data` (JSON — schema v2)
+- `created_at`, `processed_at`
+
+**analysis_cache**, **audit_log** — consulte `auth/models.py`
+
+### Session scope
 
 ```python
-from auth.decorators import require_auth, require_admin
+from auth.database import session_scope
 
-@require_auth
-def protected_view():
-    # Apenas usuários autenticados
-    pass
-
-@require_admin
-def admin_view():
-    # Apenas administradores
-    pass
+with session_scope() as db:
+    # commit automático no final; rollback em exceção
+    db.add(SomeModel(...))
 ```
 
-## Testes
-
-### Executar Testes
+### Inicializar banco
 
 ```bash
-# Todos os testes
-pytest tests/
-
-# Testes específicos
-pytest tests/test_pipeline.py
-
-# Com cobertura
-pytest tests/ --cov=. --cov-report=html
+python scripts/init_db.py
+python scripts/create_admin.py   # cria admin via prompt
 ```
 
-### Estrutura de Testes
-
-```python
-import pytest
-from core.pipeline import AnalysisPipeline
-
-def test_pipeline_initialization():
-    pipeline = AnalysisPipeline(language='Python')
-    assert pipeline.language == 'Python'
-    assert pipeline.max_workers == 4
-
-def test_textual_analysis():
-    pipeline = AnalysisPipeline(language='Python')
-    results = pipeline.run_textual_analysis(
-        files=['file1.py', 'file2.py'],
-        contents=['print("hello")', 'print("world")']
-    )
-    assert 'similarity_matrix' in results
-```
-
-## Performance
-
-### Otimizações Implementadas
-
-1. **Lazy Loading**: Módulos pesados carregados sob demanda
-2. **Query Cache**: Resultados de DB cacheados com TTL
-3. **Performance Tracking**: Métricas de tempo de execução
-4. **Parallel Processing**: Análise paralela com ThreadPoolExecutor
-5. **Memory Optimization**: Limpeza de cache automática
-
-### Monitorar Performance
-
-```python
-from utils.performance import get_performance_dashboard
-
-# Dashboard completo
-dashboard = get_performance_dashboard()
-print(f"Total calls: {dashboard['summary']['total_calls']}")
-print(f"Success rate: {dashboard['summary']['overall_success_rate']:.1f}%")
-
-# Top operações lentas
-for op in dashboard['top_slow']:
-    print(f"{op['name']}: {op['avg_time']:.4f}s")
-```
-
-### Cache Stats
-
-```python
-from utils.db_cache import get_cache_stats
-
-stats = get_cache_stats()
-print(f"Cache hits: {stats['query_cache']['hits']}")
-print(f"Hit rate: {stats['query_cache']['hit_rate']:.1f}%")
-```
-
-## Debugging
-
-### Logs
-
-```python
-from utils.logger import get_logger
-
-logger = get_logger(__name__)
-logger.info("Message")
-logger.warning("Warning")
-logger.error("Error", exc_info=True)
-```
-
-### Desabilitar Cache (Desenvolvimento)
-
-```python
-# Na sessão Streamlit
-st.session_state['query_cache_enabled'] = False
-```
+---
 
 ## Deploy
 
-### Requisitos
-
-- Python 3.9+
-- SQLite ou PostgreSQL
-- Streamlit Cloud, heroku, ou servidor próprio
-
-### Passos
-
-1. Configure secrets
-2. Instale dependências: `pip install -r requirements.txt`
-3. Inicialize DB: `python scripts/init_db.py`
-4. Execute: `streamlit run app.py`
-
-### Variáveis de Produção
+### Desenvolvimento
 
 ```bash
-STREAMLIT_SERVER_PORT=8501
-STREAMLIT_SERVER_ADDRESS=0.0.0.0
-DATABASE_URL=postgresql://...
+streamlit run app.py
 ```
 
-## Contribuindo
+### Produção (exemplo)
 
-1. Fork o repositório
-2. Crie branch: `git checkout -b feature/nova-feature`
-3. Commit: `git commit -m 'Adiciona nova feature'`
-4. Push: `git push origin feature/nova-feature`
-5. Abra Pull Request
+```bash
+# Variáveis de ambiente
+export DATABASE_URL="postgresql://user:pass@host:5432/niklaus"
+export NIKLAUS_SECRET_KEY="chave-aleatoria-longa"
+export STREAMLIT_SERVER_PORT=8501
+export STREAMLIT_SERVER_ADDRESS=0.0.0.0
 
-### Padrões de Código
+streamlit run app.py
+```
 
-- Siga PEP 8
-- Escreva docstrings
-- Adicione testes
-- Atualize documentação
+Requisitos adicionais para produção:
+- HTTPS (configurar via proxy reverso: nginx, Caddy)
+- PostgreSQL em vez de SQLite
+- Backup automático do banco
+- Rotação periódica de `NIKLAUS_SECRET_KEY` (invalida tokens criptografados — usuários precisam fazer login novamente)
+
+---
 
 ## FAQ
 
-**Q: Como adicionar novo provider OAuth?**
+**Como adicionar um novo provedor OAuth?**
+1. Adicione campos em `auth/config.py` (`_load` no `__init__`).
+2. Implemente `get_authorization_url`, `_exchange_code_for_token` e `_get_user_profile` para o provider em `auth/oauth.py`.
+3. Adicione o provider em `OAuthHandler.__init__` e `self.providers`.
+4. Exiba o botão de login em `app.py: _render_auth_page()`.
 
-A: Crie handler em `auth/oauth.py` e adicione configuração em `auth/config.py`.
+**Como criar uma nova aba?**
+1. Crie `ui/tabs/minha_aba.py` com `def render_minha_aba(results, settings): ...`
+2. Importe e registre em `app.py: _render_authenticated_app()`.
 
-**Q: Como criar nova aba?**
+**Como desabilitar o cache em testes?**
+```python
+pipeline = AnalysisPipeline(language='python', use_cache=False)
+# ou
+cache.load(files, threshold, max_age_hours=0)  # sempre retorna None
+```
 
-A: Crie arquivo em `ui/tabs/` e importe em `app.py`.
+**Como limpar o cache em disco?**
+```python
+from core.persistence import AnalysisCache
+AnalysisCache().clear_all_cache()
+```
 
-**Q: Como otimizar queries lentas?**
+**Como rodar apenas testes rápidos?**
+```bash
+pytest tests/ -k "not slow"
+```
 
-A: Use `@cached_query` decorator ou implemente cache específico.
-
-**Q: Como limpar cache?**
-
-A: Use `clear_all_caches()` de `utils.db_cache`.
+---
 
 ## Contato
 
 - Issues: [GitHub Issues](https://github.com/walternagai/niklaus-plagiarism/issues)
-- Email: dev@example.com
+- E-mail: [walternagai@unifei.edu.br](mailto:walternagai@unifei.edu.br)

@@ -1,68 +1,67 @@
-# Niklaus Analyzer Module - Guia de Uso
+# Guia do Módulo Analyzer
 
-## Visão Geral
+O pacote `analyzer/` fornece os primitivos de análise de baixo nível usados pelo pipeline. Ele contém quatro classes independentes e um módulo `__init__.py` que as exporta.
 
-O módulo `analyzer` fornece análise avançada de plágio com 4 componentes principais:
-
-1. **ASTParser** - Parsing e comparação de árvores sintáticas
-2. **CodeMetrics** - Cálculo de métricas de complexidade
-3. **ClusterDetector** - Detecção de clusters de similaridade
-4. **PlagiarismPatternDetector** - Detecção de padrões de plágio
-
-## Instalação de Dependências
-
-```bash
-pip install -r requirements.txt
+```python
+from analyzer import ASTParser, CodeMetrics, ClusterDetector, PlagiarismPatternDetector
 ```
 
-Dependências principais:
-- `scipy>=1.11.0` - Clustering hierárquico
-- `scikit-learn>=1.3.0` - Machine learning utilities
-- `networkx>=3.0` - Grafos de similaridade
-- `plotly>=5.18.0` - Visualizações interativas
-- `fpdf>=1.7.2` - Relatórios PDF
+---
 
-## Uso dos Módulos
+## 1. ASTParser — Análise Estrutural
 
-### 1. ASTParser - Análise Estrutural
+Parsing de AST para Python e fingerprint Winnowing determinístico para demais linguagens.
 
 ```python
 from analyzer.ast_parser import ASTParser
 
 parser = ASTParser()
 
-# Detectar linguagem
-language = parser.detect_language('example.py', content)
-# Retorna: 'python', 'java', 'javascript', etc.
+# Detectar linguagem pelo filename (fallback: conteúdo)
+lang = parser.detect_language('exemplo.py')          # 'python'
+lang = parser.detect_language('Main.java')           # 'java'
+lang = parser.detect_language('unknown', content='def foo(): pass')  # 'python'
 
-# Análise estrutural
-code1 = "def foo(a, b): return a + b"
-code2 = "def bar(x, y): return x + y"
+# Fingerprint Winnowing (SHA-256, determinístico entre processos)
+fp1 = parser.extract_code_fingerprint("def foo(a, b): return a + b", k=5)
+fp2 = parser.extract_code_fingerprint("def bar(x, y): return x + y", k=5)
+jaccard = len(fp1 & fp2) / len(fp1 | fp2)  # similaridade por Jaccard
 
-similarity = parser.structural_similarity(code1, code2, 'python')
-# Retorna: 0.95 (muito similar estruturalmente)
+# Similaridade estrutural (Python: AST; outros: fingerprint)
+sim = parser.structural_similarity(code1, code2, 'python')  # 0.0–1.0
 
-# Extrair features AST
-features = parser.parse_python_ast(code1)
-# Retorna: {'functions': [...], 'variables': [...], 'imports': [...], ...}
+# Parse AST Python
+features = parser.parse_python_ast(code)
+# {
+#   'functions': [{'name': 'foo', 'args': ['a', 'b'], 'line': 1}],
+#   'classes': [],
+#   'imports': [],
+#   'variables': ['a', 'b'],
+#   'calls': [],
+#   'loops': [],
+#   'conditionals': [],
+#   'operators': []
+# }
 
-# Fingerprint (Winnowing)
-fp1 = parser.extract_code_fingerprint(code1, k=5)
-fp2 = parser.extract_code_fingerprint(code2, k=5)
-# Comparar fingerprints
-
-# Detectar refactoring
+# Padrões de refatoração (apenas Python)
 patterns = parser.detect_refactoring_patterns(code1, code2)
-# Retorna: [{'type': 'VARIABLE_RENAME', 'description': '...', 'confidence': 0.8}]
+# [{'type': 'VARIABLE_RENAME', 'description': '...', 'confidence': 0.8},
+#  {'type': 'FUNCTION_RENAME', 'description': '...', 'confidence': 0.8}]
 ```
 
-### 2. CodeMetrics - Métricas de Complexidade
+### Notas importantes
+
+- `extract_code_fingerprint()` usa **SHA-256** internamente — fingerprints são estáveis entre processos e reinicializações (diferente do `hash()` built-in do Python, que varia por `PYTHONHASHSEED`).
+- `detect_language()` corrige a precedência de operadores no fallback por conteúdo: `'def ' in content or ('import ' in content and '#' in content)`.
+
+---
+
+## 2. CodeMetrics — Métricas de Complexidade
 
 ```python
 from analyzer.metrics import CodeMetrics
 
 metrics = CodeMetrics()
-
 code = """
 def fibonacci(n):
     if n <= 1:
@@ -70,30 +69,46 @@ def fibonacci(n):
     return fibonacci(n-1) + fibonacci(n-2)
 """
 
-# Calcular todas as métricas
-all_metrics = metrics.calculate_all_metrics(code, 'python')
-# Retorna: {
-#   'loc': {'total': 5, 'code': 4, 'comments': 0, 'blank': 1},
-#   'cyclomatic_complexity': 3,
+# Todas as métricas de uma vez
+result = metrics.calculate_all_metrics(code, 'python')
+# {
+#   'loc': {'total': 6, 'code': 4, 'comments': 0, 'blank': 2},
+#   'cyclomatic_complexity': 2,
 #   'function_count': 1,
-#   'max_nesting_depth': 2,
-#   'maintainability_index': 85.6,
-#   'halstead': {...}
+#   'max_nesting_depth': 1,
+#   'maintainability_index': 88.4,
+#   'halstead': {'vocabulary': N, 'length': N, 'volume': ..., 'difficulty': ..., 'effort': ...}
 # }
 
-# Comparar métricas entre dois códigos
-metrics1 = metrics.calculate_all_metrics(code1, 'python')
-metrics2 = metrics.calculate_all_metrics(code2, 'python')
+# Individualmente
+cc  = metrics.calculate_cyclomatic_complexity(code, 'python')
+loc = metrics.count_loc(code)
+mi  = metrics.calculate_maintainability_index(code, 'python')
+h   = metrics.calculate_halstead_metrics(code, 'python')
 
-comparison = metrics.compare_metrics(metrics1, metrics2)
-# Retorna: {'loc_similarity': 0.95, 'cyclomatic_similarity': 0.87, ...}
+# Comparar dois conjuntos de métricas
+m1 = metrics.calculate_all_metrics(code1, 'python')
+m2 = metrics.calculate_all_metrics(code2, 'python')
+comp = metrics.compare_metrics(m1, m2)
+# {
+#   'loc_similarity': 0.95, 'cyclomatic_similarity': 0.87,
+#   'function_count_similarity': 1.0, 'nesting_similarity': 0.9,
+#   'maintainability_similarity': 0.92, 'overall_similarity': 0.93
+# }
 
-# Detectar anomalias
-anomalies = metrics.detect_anomalies(textual_sim, comparison)
-# Retorna: [{'type': 'METRIC_MISMATCH', 'description': '...', 'confidence': 0.75}]
+# Detectar anomalias que indicam plágio com refatoração
+anomalies = metrics.detect_anomalies(textual_sim=0.8, metrics_comparison=comp)
 ```
 
-### 3. ClusterDetector - Clusters de Similaridade
+### Notas importantes
+
+- **Halstead `n1` corrigido**: conta operadores *encontrados no código*, não o tamanho do conjunto de referência (que era sempre 42). O resultado é válido para cálculo de Volume, Dificuldade e Esforço de Halstead.
+- `count_loc()` usa `str.splitlines()` — conta corretamente arquivos sem newline final.
+- O índice de manutenibilidade (MI) usa a fórmula simplificada `171 - 5.2 ln(V) - 0.23 G - 16.2 ln(LOC)`, substituindo Volume de Halstead por LOC quando necessário.
+
+---
+
+## 3. ClusterDetector — Clusters de Similaridade
 
 ```python
 from analyzer.clustering import ClusterDetector
@@ -101,29 +116,28 @@ import numpy as np
 
 detector = ClusterDetector()
 
-# Matriz de similaridade (NxN)
-similarity_matrix = np.array([
+sim_matrix = np.array([
     [1.0, 0.9, 0.3],
     [0.9, 1.0, 0.2],
     [0.3, 0.2, 1.0]
 ])
-files = ['file1.py', 'file2.py', 'file3.py']
+files = ['a.py', 'b.py', 'c.py']
 
 # Clustering hierárquico
-clusters = detector.hierarchical_clustering(similarity_matrix, files, threshold=0.3)
-# Retorna: {1: ['file1.py', 'file2.py'], 2: ['file3.py']}
+clusters = detector.hierarchical_clustering(sim_matrix, files, threshold=0.3)
+# {1: ['a.py', 'b.py'], 2: ['c.py']}
 
-# Construir grafo de similaridade
-graph = detector.build_similarity_graph(similarity_matrix, files, min_similarity=0.7)
+# Grafo de similaridade
+graph = detector.build_similarity_graph(sim_matrix, files, min_similarity=0.7)
 # NetworkX Graph
 
-# Detectar comunidades
+# Comunidades (greedy modularity)
 communities = detector.detect_communities(graph)
-# Retorna: [{0, 1}, {2}]
+# [{0, 1}, {2}]
 
 # Análise completa
-analysis = detector.analyze_clusters(similarity_matrix, files, min_similarity=0.5)
-# Retorna: {
+analysis = detector.analyze_clusters(sim_matrix, files, min_similarity=0.5)
+# {
 #   'clusters': {...},
 #   'num_clusters': 2,
 #   'largest_cluster': 2,
@@ -132,7 +146,9 @@ analysis = detector.analyze_clusters(similarity_matrix, files, min_similarity=0.
 # }
 ```
 
-### 4. PlagiarismPatternDetector - Detecção de Padrões
+---
+
+## 4. PlagiarismPatternDetector — Detecção de Padrões
 
 ```python
 from analyzer.patterns import PlagiarismPatternDetector
@@ -140,226 +156,163 @@ from analyzer.patterns import PlagiarismPatternDetector
 detector = PlagiarismPatternDetector()
 
 code1 = "def add(a, b): return a + b"
-code2 = "def sum(x, y): return x + y"
+code2 = "def sum(x, y): return x + y"  # parâmetros renomeados
 
-# Detectar renomeação de variáveis
-rename_analysis = detector.detect_variable_renaming(code1, code2, 'python')
-# Retorna: {'detected': True, 'variables_renamed': [('a', 'x'), ('b', 'y')], 'confidence': 0.85}
+# Renomeação de variáveis/parâmetros
+result = detector.detect_variable_renaming(code1, code2, 'python')
+# {
+#   'detected': True,
+#   'variables_renamed': [('a', 'x'), ('b', 'y')],
+#   'confidence': 0.75
+# }
 
-# Detectar reordenação de código
-reorder_analysis = detector.detect_code_reordering(code1, code2)
-# Retorna: {'detected': False, 'reordered_blocks': [], 'confidence': 0.0}
+# Reordenação de código
+result = detector.detect_code_reordering(code1, code2)
+# {'detected': bool, 'reordered_blocks': [], 'confidence': float}
 
-# Detectar inserção de código morto
-deadcode_analysis = detector.detect_dead_code_insertion(code1, code2)
-# Retorna: {'detected': False, 'inserted_lines': 0, 'confidence': 0.0}
+# Inserção de código morto
+result = detector.detect_dead_code_insertion(code1, code2)
+# {'detected': bool, 'inserted_lines': int, 'confidence': float}
 
-# Análise completa
-full_analysis = detector.comprehensive_analysis(
+# Análise abrangente
+analysis = detector.comprehensive_analysis(
     code1, code2,
-    textual_sim=0.75,
+    textual_sim=0.6,
     ast_sim=0.95,
-    metrics_comp={'overall_similarity': 0.85}
+    metrics_comp={'overall_similarity': 0.9}
 )
-# Retorna: {
+# {
 #   'plagiarism_type': 'RENOMEACAO_VARIAVEIS',
 #   'plagiarism_description': 'Variáveis e/ou funções renomeadas...',
-#   'confidence': 0.85,
+#   'confidence': 0.71,
 #   'patterns_detected': {...},
 #   'explanation': 'O código estrutural é muito similar (95%)...'
 # }
-
-# Classificar tipo de plágio
-plagiarism_type = detector.classify_plagiarism_type(
-    textual_sim=0.75,
-    ast_sim=0.95,
-    metrics_comparison={'overall_similarity': 0.85},
-    pattern_analysis={'variable_renaming': {'detected': True}}
-)
-# Retorna: 'RENOMEACAO_VARIAVEIS'
 ```
 
-## Tipos de Plágio Detectados
+### Guards na detecção de renomeação
 
-O sistema classifica em 8 tipos:
+O detector usa verificações estruturais antes de classificar como renomeação, evitando falsos positivos:
 
-1. **COPIA_DIRETA** - Similaridade > 95% textual e estrutural
-2. **RENOMEACAO_VARIAVEIS** - Estrutura similar, variáveis renomeadas
-3. **REORDENACAO_CODIGO** - Blocos reorganizados mas funcionalmente equivalentes
-4. **INSERCAO_CODIGO_MORTO** - Código morto ou comentários inseridos
-5. **REFATORACAO_LEVE** - Pequenas modificações estruturais
-6. **REFATORACAO_PESADA** - Refatoração significativa mantendo funcionalidade
-7. **SIMILARIDADE_BAIXA** - Código provavelmente original
-8. **REUSO_LEGITIMO** - Reutilização de bibliotecas/código comum
+1. Requer ao menos uma variável/parâmetro diferente entre os arquivos.
+2. Rejeita quando variáveis e funções são idênticas (`vars1 == vars2 and funcs1 == funcs2`).
+3. Rejeita quando sobreposição de nomes > 90% (não é renomeação).
+4. Verifica que assinaturas de função (nº de argumentos) são iguais.
+5. Só sinaliza pares com nomes efetivamente distintos (não mapeia nomes iguais).
 
-## Integração com a Interface Streamlit
+A `confidence` retornada é 0.75 (anteriormente 0.85 — reduzida para refletir a natureza heurística).
 
-Os módulos estão totalmente integrados no `app.py` e operam automaticamente:
+`_extract_all_names()` agora coleta parâmetros de função (`ast.arg`) além de variáveis de atribuição (`ast.Store`) — corrigindo o caso em que apenas parâmetros eram renomeados.
 
-### Fluxo de Análise (Phase 2)
+---
 
-1. **Upload de arquivos** → Validação e extração do ZIP
-2. **Similaridade textual** → Matriz de similaridade comparando todos os pares
-3. **Análise AST** → Similaridade estrutural calculada para cada par
-4. **Métricas de complexidade** → LOC, CC, funções, aninhamento, MI
-5. **Clustering** → Detecção automática de grupos de plágio
-6. **Detecção de padrões** → Classificação do tipo de plágio
-7. **Visualização** → Grafo interativo, heatmaps, radar charts
+## Tipos de plágio
 
-### Abas da Interface
+| Tipo | Condição de classificação |
+|---|---|
+| `COPIA_DIRETA` | Textual > 95% e AST > 95% |
+| `RENOMEACAO_VARIAVEIS` | Renomeação detectada + textual > 60% e AST > 85% |
+| `REORDENACAO_CODIGO` | Reordenação detectada + AST > 90% |
+| `INSERCAO_CODIGO_MORTO` | Dead code detectada |
+| `REFATORACAO_PESADA` | Textual < 70% mas AST > 80% |
+| `REFATORACAO_LEVE` | Textual > 70% e AST > 85% e métricas > 70% |
+| `SIMILARIDADE_BAIXA` | Textual < 50% e AST < 60% |
+| `REUSO_LEGITIMO` | Default |
 
-| Tab | Funcionalidade | Módulos Usados |
-|-----|---------------|----------------|
-| Upload & Análise | Upload, configuração, resumo | - |
-| Resultados | Tabela de similaridade, AI analysis, diff visual | PlagiarismPatternDetector |
-| Estatísticas | Heatmap, histograma, preview | - |
-| Análise Avançada | AST, métricas, radar, padrões | ASTParser, CodeMetrics, PlagiarismPatternDetector |
-| Grafo de Similaridade | Rede interativa, clusters, comunidades | ClusterDetector |
+---
 
-## Exemplo Completo de Uso
+## Exemplo completo via pipeline (recomendado)
+
+Para análise de múltiplos arquivos, use o `AnalysisPipeline` em vez de chamar os módulos diretamente:
+
+```python
+from core.pipeline import AnalysisPipeline
+
+pipeline = AnalysisPipeline(
+    language='python',
+    api_key=None,        # None desativa análise IA
+    max_workers=4,
+    use_cache=True
+)
+
+results = pipeline.run_full_analysis(
+    files=['a.py', 'b.py', 'c.py'],
+    contents=[code_a, code_b, code_c],
+    threshold=0.7,
+    enable_ai=False
+)
+# results contém: files, textual_similarities, ast_similarities,
+#   metrics, similarity_matrix, cluster_data, patterns,
+#   pairwise_results, suspicious_pairs, ...
+```
+
+---
+
+## Exemplo standalone (sem pipeline)
 
 ```python
 from analyzer import ASTParser, CodeMetrics, ClusterDetector, PlagiarismPatternDetector
 import numpy as np
 
-# Inicializar analisadores
-ast_parser = ASTParser()
-metrics_calculator = CodeMetrics()
-cluster_detector = ClusterDetector()
-pattern_detector = PlagiarismPatternDetector()
+files    = ['a.py', 'b.py', 'c.py']
+contents = [open(f).read() for f in files]
 
-# Carregar códigos
-codes = ['codigo1.py', 'codigo2.py', 'codigo3.py']
-contents = [open(f).read() for f in codes]
+parser   = ASTParser()
+metrics  = CodeMetrics()
+clusters = ClusterDetector()
+patterns = PlagiarismPatternDetector()
 
-# 1. Análise estrutural (AST)
-ast_similarities = []
-for i in range(len(contents)):
-    for j in range(i+1, len(contents)):
-        sim = ast_parser.structural_similarity(contents[i], contents[j], 'python')
-        ast_similarities.append((codes[i], codes[j], sim))
+# 1. Similaridade estrutural
+n = len(files)
+sim_matrix = np.eye(n)
+pairs = []
+for i in range(n):
+    for j in range(i+1, n):
+        sim = parser.structural_similarity(contents[i], contents[j], 'python')
+        sim_matrix[i, j] = sim_matrix[j, i] = sim
+        pairs.append((files[i], files[j], sim))
 
-# 2. Métricas de complexidade
-all_metrics = [metrics_calculator.calculate_all_metrics(c, 'python') for c in contents]
+# 2. Métricas por arquivo
+all_metrics = [metrics.calculate_all_metrics(c, 'python') for c in contents]
 
 # 3. Clustering
-sim_matrix = np.zeros((len(contents), len(contents)))
-# ... preencher matriz ...
+cluster_result = clusters.analyze_clusters(sim_matrix, files)
 
-cluster_result = cluster_detector.analyze_clusters(sim_matrix, codes)
-
-# 4. Detecção de padrões
-for file1, file2, sim in ast_similarities:
+# 4. Padrões para pares suspeitos
+for f1, f2, sim in pairs:
     if sim > 0.7:
-        analysis = pattern_detector.comprehensive_analysis(
-            contents[codes.index(file1)],
-            contents[codes.index(file2)],
-            textual_sim=sim,
-            ast_sim=sim,
-            metrics_comp=metrics_calculator.compare_metrics(
-                all_metrics[codes.index(file1)],
-                all_metrics[codes.index(file2)]
-            )
+        i1, i2 = files.index(f1), files.index(f2)
+        comp = metrics.compare_metrics(all_metrics[i1], all_metrics[i2])
+        analysis = patterns.comprehensive_analysis(
+            contents[i1], contents[i2],
+            textual_sim=sim, ast_sim=sim, metrics_comp=comp
         )
-        print(f"{file1} vs {file2}: {analysis['plagiarism_type']}")
-        print(f"Confiança: {analysis['confidence']:.2f}")
-        print(f"Explicação: {analysis['explanation']}")
+        print(f"{f1} vs {f2}: {analysis['plagiarism_type']} (conf={analysis['confidence']:.2f})")
 ```
 
-## Linguagens Suportadas
+---
 
-| Linguagem | Extensão | AST Detalhado | Fingerprint |
-|-----------|----------|---------------|-------------|
-| Python | .py | Sim (nativo) | Sim |
-| C | .c | Não | Sim |
-| C++ | .cpp | Não | Sim |
-| Java | .java | Não | Sim |
-| JavaScript | .js | Não | Sim |
-| TypeScript | .ts | Não | Sim |
-| Go | .go | Não | Sim |
-| Rust | .rs | Não | Sim |
-| Kotlin | .kt | Não | Sim |
-
-## Novidades da Phase 2
-
-### Grafo de Similaridade Interativo
-- Visualização NetworkX Plotly com layout spring
-- Nós coloridos por cluster
-- Arestas proporcionais à similaridade
-- Hover com estatísticas detalhadas
-- Detecção de comunidades (greedy modularity)
-
-### Diff Visual
-- Toggle entre "Código lado a lado" e "Diff interativo"
-- Linhas adicionadas destacadas em verde
-- Linhas removidas destacadas em vermelho
-- Numeração preservada
-
-### PDF Enriquecido
-- Tabela de similaridade colorida
-- Tabela de métricas de complexidade
-- Similaridade AST ordenada
-- Resumo de clusters com estatísticas
-- Badge de severidade por cluster
-
-### UI Expandida
-- 9 linguagens no seletor (era 5)
-- 5 abas (era 4)
-- Resumo de clusters na Tab 5
-- Arquivos centrais identificados
-
-## Testando
+## Testes
 
 ```bash
-# Executar testes básicos
-python3 -c "
-from analyzer import ASTParser, CodeMetrics, ClusterDetector, PlagiarismPatternDetector
-print('Todos os módulos importados com sucesso!')
-"
+# Suite completa do analyzer
+pytest tests/test_analyzer.py -v
 
-# Testar AST parsing
-python3 -c "
-from analyzer.ast_parser import ASTParser
-parser = ASTParser()
-code = 'def foo(a, b): return a + b'
-features = parser.parse_python_ast(code)
-print('Functions:', features['functions'])
-print('AST parsing OK!')
-"
-
-# Testar clustering
-python3 -c "
-from analyzer.clustering import ClusterDetector
-import numpy as np
-detector = ClusterDetector()
-sim = np.array([[1.0, 0.9], [0.9, 1.0]])
-result = detector.analyze_clusters(sim, ['a.py', 'b.py'])
-print('Clusters:', result['num_clusters'])
-print('Clustering OK!')
-"
+# Importação rápida
+python3 -c "from analyzer import ASTParser, CodeMetrics, ClusterDetector, PlagiarismPatternDetector; print('OK')"
 ```
 
-## Limitações Conhecidas
+---
 
-- **Linguagens**: Parsing AST detalhado funciona melhor em Python. Outras linguagens usam approach genérico (fingerprint).
-- **Código muito longo**: Pode haver lentidão em arquivos > 10.000 linhas.
-- **Dependências**: Requer networkx, scipy, scikit-learn instalados.
+## Limitações conhecidas
 
-## Manutenção
+- **AST detalhado** funciona apenas em Python. Outras linguagens usam fingerprint Winnowing.
+- **Fingerprint** compara apenas estrutura léxica — não semântica. Código equivalente com sintaxe diferente pode ter baixa similaridade.
+- **Detecção de renomeação** usa heurísticas (contagem e comparação de nomes) — não garante 100% de precisão.
+- Arquivos muito longos (> 10.000 linhas) podem tornar o cálculo de métricas lento.
 
-Para atualizar ou adicionar novas linguagens:
-
-```python
-# Em analyzer/ast_parser.py
-SUPPORTED_LANGUAGES = {
-    'nova_linguagem': {
-        'extensions': ['.nl'],
-        'comment_single': '//',
-        'comment_multi': ('/*', '*/')
-    }
-}
-```
+---
 
 ## Contato
 
-Para dúvidas ou sugestões: walternagai@unifei.edu.br
+Dúvidas ou sugestões: [walternagai@unifei.edu.br](mailto:walternagai@unifei.edu.br)
