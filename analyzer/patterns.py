@@ -51,24 +51,61 @@ class PlagiarismPatternDetector:
         funcs1 = self._extract_all_names(tree1, 'function')
         funcs2 = self._extract_all_names(tree2, 'function')
         
-        # Check if same number of unique identifiers
+        # Check if same number of unique identifiers AND structural similarity
         if len(vars1) == len(vars2) and len(funcs1) == len(funcs2):
-            # Likely renaming if counts match
+            # Require at least some variables to be present to avoid trivial matches
+            if len(vars1) == 0:
+                return {'detected': False, 'variables_renamed': [], 'confidence': 0.0}
+
+            # Guard: if BOTH variables AND functions are identical, it's not renaming
+            if vars1 == vars2 and funcs1 == funcs2:
+                return {'detected': False, 'variables_renamed': [], 'confidence': 0.0}
+
+            # Guard: require that at least some variable names differ between the two codes
+            vars_overlap = len(vars1 & vars2) / max(len(vars1), 1)
+            if vars_overlap > 0.9:
+                # Almost all variable names are the same — not a rename scenario
+                return {'detected': False, 'variables_renamed': [], 'confidence': 0.0}
+
+            # Guard: structural similarity — compare function argument counts
+            # (same number of args per function is a strong signal of renaming)
+            try:
+                arg_counts1 = sorted(
+                    len(node.args.args)
+                    for node in ast.walk(tree1)
+                    if isinstance(node, ast.FunctionDef)
+                )
+                arg_counts2 = sorted(
+                    len(node.args.args)
+                    for node in ast.walk(tree2)
+                    if isinstance(node, ast.FunctionDef)
+                )
+                if arg_counts1 != arg_counts2:
+                    # Different function signatures — unlikely to be simple renaming
+                    return {'detected': False, 'variables_renamed': [], 'confidence': 0.0}
+            except Exception:
+                pass
+
+            # Build variable rename mapping (by sorted order as best-effort)
+            # Only map variables that actually differ between the two files
             renamed_vars = []
-            if len(vars1) > 0:
-                # Map most likely renames (by position or frequency)
-                for v1 in sorted(vars1):
-                    for v2 in sorted(vars2):
-                        if v2 not in [r[1] for r in renamed_vars]:
-                            renamed_vars.append((v1, v2))
-                            break
-            
+            seen_new: set = set()
+            vars_only_in_1 = sorted(vars1 - vars2)
+            vars_only_in_2 = sorted(vars2 - vars1)
+            for v1, v2 in zip(vars_only_in_1, vars_only_in_2):
+                if v2 not in seen_new:
+                    renamed_vars.append((v1, v2))
+                    seen_new.add(v2)
+
+            if not renamed_vars:
+                return {'detected': False, 'variables_renamed': [], 'confidence': 0.0}
+
             return {
                 'detected': True,
                 'variables_renamed': renamed_vars,
-                'confidence': 0.85
+                'confidence': 0.75
             }
-        
+
         return {'detected': False, 'variables_renamed': [], 'confidence': 0.0}
     
     def _detect_variable_renaming_generic(self, code1: str, code2: str) -> Dict:
@@ -96,17 +133,26 @@ class PlagiarismPatternDetector:
         return {'detected': False, 'variables_renamed': [], 'confidence': 0.0}
     
     def _extract_all_names(self, tree: ast.AST, name_type: str) -> Set[str]:
-        """Extract all names of a specific type from AST."""
+        """Extract all names of a specific type from AST.
+
+        For 'variable', collects:
+          - assignment targets (ast.Store context)
+          - function parameters (ast.arg nodes)
+        Both are user-defined identifiers that could be renamed in plagiarism.
+        """
         names = set()
-        
+
         for node in ast.walk(tree):
             if name_type == 'variable':
                 if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
                     names.add(node.id)
+                elif isinstance(node, ast.arg):
+                    # Function parameters are prime candidates for renaming
+                    names.add(node.arg)
             elif name_type == 'function':
                 if isinstance(node, ast.FunctionDef):
                     names.add(node.name)
-        
+
         return names
     
     def detect_code_reordering(self, code1: str, code2: str, language: str = 'python') -> Dict:

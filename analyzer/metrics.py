@@ -154,15 +154,16 @@ class CodeMetrics:
             operators = {'+', '-', '*', '/', '%', '==', '!=', '<', '>', '<=', '>=',
                         'and', 'or', 'not', 'in', 'is', '+=', '-=', '*=', '/=',
                         '(', ')', '[', ']', '{', '}', ',', ':', ';'}
-            
+
             # Extract tokens
             tokens = re.findall(r'\b\w+\b|[^\w\s]', code)
-            
-            # Simplified counting
-            n1 = len(operators)  # Unique operators
-            n2 = len(set(t for t in tokens if t.isalnum()))  # Unique operands
+
+            # Count distinct operators *found in the code* (not the reference set size)
+            found_operators = {t for t in tokens if t in operators}
+            n1 = len(found_operators)  # Unique operators present in code
+            n2 = len(set(t for t in tokens if t not in operators and t.strip()))  # Unique operands
             N1 = sum(1 for t in tokens if t in operators)  # Total operators
-            N2 = sum(1 for t in tokens if t.isalnum())  # Total operands
+            N2 = sum(1 for t in tokens if t not in operators and t.strip())  # Total operands
             
             n = n1 + n2  # Vocabulary
             N = N1 + N2  # Program length

@@ -394,10 +394,6 @@ def _render_authenticated_app(session_manager: SessionManager, current_user):
     tabs = st.tabs([label for _, label in tab_specs])
     tab_map = {key: tab for (key, _), tab in zip(tab_specs, tabs)}
     
-    # Initialize cancel flag
-    if 'cancel_analysis' not in st.session_state:
-        st.session_state['cancel_analysis'] = False
-    
     with tab_map['upload']:
         files, contents, extract_path, should_analyze = render_upload_tab(settings)
         
@@ -469,7 +465,7 @@ def _render_authenticated_app(session_manager: SessionManager, current_user):
 def _init_session_state():
     """Initialize session state variables."""
     defaults = {
-        'cancel': False,
+        'cancel_analysis': False,
         'last_analysis': None,
         'advanced_analysis': None,
         'cluster_data': None,

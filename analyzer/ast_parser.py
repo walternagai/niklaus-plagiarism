@@ -40,7 +40,7 @@ class ASTParser:
         
         # Fallback to content-based detection
         if content:
-            if 'def ' in content or 'import ' in content and '#' in content:
+            if 'def ' in content or ('import ' in content and '#' in content):
                 return 'python'
             elif 'public class ' in content or 'System.out.println' in content:
                 return 'java'
@@ -100,33 +100,42 @@ class ASTParser:
         
         return features
     
+    @staticmethod
+    def _sha256_int(text: str) -> int:
+        """Return a stable integer hash of *text* using SHA-256."""
+        return int(hashlib.sha256(text.encode()).hexdigest(), 16)
+
     def extract_code_fingerprint(self, code: str, k: int = 5) -> set:
         """
         Generate code fingerprint using Winnowing algorithm.
         Effective for detecting plagiarism with variable renaming.
+
+        Uses SHA-256-derived integers instead of Python's built-in hash()
+        to ensure deterministic results across processes and interpreter
+        restarts (hash randomisation is disabled).
         """
         # Tokenize code (simplified)
         tokens = re.findall(r'\b\w+\b|[^\w\s]', code)
-        
+
         # Generate k-grams
         if len(tokens) < k:
-            return {hash(''.join(tokens))}
-        
+            return {self._sha256_int(''.join(tokens))}
+
         kgrams = [''.join(tokens[i:i+k]) for i in range(len(tokens)-k+1)]
-        
-        # Hash k-grams
-        hashes = [hash(kg) for kg in kgrams]
-        
+
+        # Hash k-grams deterministically
+        hashes = [self._sha256_int(kg) for kg in kgrams]
+
         # Window size
         w = max(4, len(hashes) // 10)
-        
-        # Winnowing
+
+        # Winnowing: select the minimum hash per sliding window
         fingerprints = set()
         for i in range(len(hashes)-w+1):
             window = hashes[i:i+w]
             min_hash = min(window)
             fingerprints.add(min_hash)
-        
+
         return fingerprints
     
     def compare_ast_structures(self, ast1: Dict, ast2: Dict) -> float:
