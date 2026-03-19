@@ -2,11 +2,71 @@
 OAuth configuration manager for Niklaus.
 """
 
+import base64
+import hashlib
 import os
-from typing import Set
+from typing import Optional, Set
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Token encryption helpers (Fernet / AES-128-CBC)
+# ---------------------------------------------------------------------------
+
+def _get_fernet_key() -> bytes:
+    """Derive a 32-byte Fernet key from NIKLAUS_SECRET_KEY env / Streamlit secret.
+
+    The raw value is SHA-256-hashed so any length of secret works, then
+    URL-safe base64-encoded (Fernet requires exactly 32 raw bytes encoded as
+    url-safe base64).
+    """
+    try:
+        import streamlit as st
+        raw = st.secrets.get("NIKLAUS_SECRET_KEY", "")
+    except Exception:
+        raw = ""
+
+    if not raw:
+        raw = os.getenv("NIKLAUS_SECRET_KEY", "")
+
+    if not raw:
+        logger.warning(
+            "NIKLAUS_SECRET_KEY is not set. OAuth tokens will use a weak "
+            "derivation key. Set NIKLAUS_SECRET_KEY in your secrets/env."
+        )
+        # Fallback: derive from module path so it is at least stable per installation
+        raw = __file__
+
+    key_bytes = hashlib.sha256(str(raw).encode()).digest()  # always 32 bytes
+    return base64.urlsafe_b64encode(key_bytes)
+
+
+def encrypt_token(plaintext: Optional[str]) -> Optional[str]:
+    """Encrypt *plaintext* token with Fernet. Returns base64 ciphertext string."""
+    if not plaintext:
+        return plaintext
+    try:
+        from cryptography.fernet import Fernet
+        f = Fernet(_get_fernet_key())
+        return f.encrypt(plaintext.encode()).decode()
+    except Exception as exc:
+        logger.error(f"Token encryption failed: {exc}")
+        return plaintext  # Fallback: store unencrypted rather than lose the token
+
+
+def decrypt_token(ciphertext: Optional[str]) -> Optional[str]:
+    """Decrypt Fernet *ciphertext* token. Returns plaintext string."""
+    if not ciphertext:
+        return ciphertext
+    try:
+        from cryptography.fernet import Fernet, InvalidToken
+        f = Fernet(_get_fernet_key())
+        return f.decrypt(ciphertext.encode()).decode()
+    except Exception:
+        # Token may be stored in plaintext (before encryption was introduced)
+        return ciphertext
 
 
 class OAuthConfig:
@@ -56,9 +116,39 @@ class OAuthConfig:
             self.microsoft_redirect_uri = secrets.get('MICROSOFT_REDIRECT_URI', os.getenv('MICROSOFT_REDIRECT_URI', 'http://localhost:8501/oauth/callback/microsoft'))
             self.microsoft_tenant_id = secrets.get('MICROSOFT_TENANT_ID', os.getenv('MICROSOFT_TENANT_ID', 'common'))
         
+        # Application secret key (used for HMAC signing of OAuth state)
+        self.secret_key: str = self._load_secret_key()
+
         # Admin users
         self.admin_emails = self._load_admin_emails()
     
+    def _load_secret_key(self) -> str:
+        """Load NIKLAUS_SECRET_KEY from Streamlit secrets or environment."""
+        try:
+            import streamlit as st
+            value = st.secrets.get("NIKLAUS_SECRET_KEY", "")
+        except Exception:
+            value = ""
+
+        if not value:
+            value = os.getenv("NIKLAUS_SECRET_KEY", "")
+
+        if not value:
+            logger.warning(
+                "NIKLAUS_SECRET_KEY is not configured. OAuth state signing will "
+                "use a weak fallback key. Set NIKLAUS_SECRET_KEY for security."
+            )
+            # Derive a semi-stable fallback from available OAuth secrets so
+            # existing deployments don't break, but it is weaker than an
+            # explicit key.
+            value = "|".join([
+                self.google_client_secret or "",
+                self.github_client_secret or "",
+                self.microsoft_client_secret or "",
+            ]) or "niklaus-insecure-fallback"
+
+        return value
+
     def _load_admin_emails(self) -> Set[str]:
         """Load admin emails from config."""
         try:

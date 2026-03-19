@@ -75,3 +75,6 @@ sqlalchemy>=2.0.0
 authlib>=1.2.0
 requests>=2.31.0
 passlib>=1.7.4
+
+# Security: symmetric encryption for OAuth tokens at rest
+cryptography>=42.0.0

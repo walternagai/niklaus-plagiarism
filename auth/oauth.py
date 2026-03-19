@@ -10,7 +10,7 @@ from datetime import datetime, UTC
 
 from auth.models import User
 from auth.database import get_session
-from auth.config import OAuthConfig
+from auth.config import OAuthConfig, encrypt_token, decrypt_token
 from auth.repository import UserRepository
 from utils.logger import get_logger
 
@@ -221,16 +221,14 @@ class OAuthHandler:
 
     @staticmethod
     def _sign_state_payload(payload: str) -> str:
-        """Sign OAuth state payload with app-local secret material."""
+        """Sign OAuth state payload using NIKLAUS_SECRET_KEY (from config).
+
+        Falls back to a derived key from OAuth secrets if the explicit key is
+        not set — but that is considered insecure and logged as a warning.
+        """
         config = OAuthConfig()
-        secret_seed = "|".join([
-            config.google_client_secret or "",
-            config.github_client_secret or "",
-            config.microsoft_client_secret or "",
-            config.google_client_id or "",
-            config.github_client_id or "",
-            config.microsoft_client_id or "",
-        ])
+        # Use the dedicated application secret key (NIKLAUS_SECRET_KEY)
+        secret_seed = config.secret_key
         digest = hmac.new(secret_seed.encode(), payload.encode(), hashlib.sha256).hexdigest()
         return digest[:24]
 
@@ -250,64 +248,89 @@ class OAuthHandler:
 
             token_data = self._exchange_code_for_token(code)
             access_token = token_data.get('access_token')
-            
+            refresh_token = token_data.get('refresh_token')
+
             if not access_token:
                 logger.error("No access token in response")
                 return None
-            
+
             profile = self._get_user_profile(access_token)
             normalized = self._normalize_profile(profile, access_token)
-            
+
             if not normalized.get('email'):
                 logger.error("No email in user profile")
                 return None
-            
+
             user = OAuthHandler.create_user_from_oauth(
                 email=normalized['email'],
                 name=normalized.get('name', normalized['email'].split('@')[0]),
                 provider=self.provider,
                 oauth_id=normalized.get('oauth_id'),
-                avatar_url=normalized.get('avatar_url')
+                avatar_url=normalized.get('avatar_url'),
+                access_token=access_token,
+                refresh_token=refresh_token,
             )
-            
+
             logger.info(f"OAuth login successful for {normalized['email']} via {self.provider}")
             return user
-            
+
         except Exception as e:
             logger.error(f"OAuth callback error: {str(e)}")
             return None
     
     @staticmethod
-    def create_user_from_oauth(email: str, name: str, provider: str, 
-                             oauth_id: str = None, avatar_url: str = None) -> User:
+    def create_user_from_oauth(
+        email: str,
+        name: str,
+        provider: str,
+        oauth_id: str = None,
+        avatar_url: str = None,
+        access_token: str = None,
+        refresh_token: str = None,
+    ) -> User:
+        """Create or update a user from OAuth profile data.
+
+        Access and refresh tokens are encrypted at rest using Fernet before
+        being persisted to the database.
+        """
+        # Encrypt tokens before storing
+        encrypted_access = encrypt_token(access_token)
+        encrypted_refresh = encrypt_token(refresh_token)
+
         db = get_session()
-        user_repo = UserRepository(db)
-        
-        user = user_repo.find_by_email(email)
-        
-        if user:
-            user.name = name
-            user.avatar_url = avatar_url
-            user.oauth_provider = provider
-            user.oauth_id = oauth_id
-            user.last_login_at = utcnow()
-            user.is_active = True
-            db.commit()
-            db.refresh(user)
-            logger.info(f"Updated existing user: {email}")
-        else:
-            role = 'admin' if OAuthConfig().is_admin(email) else 'user'
-            user = user_repo.create(
-                email=email,
-                name=name,
-                role=role,
-                oauth_provider=provider,
-                oauth_id=oauth_id,
-                avatar_url=avatar_url,
-                is_active=True,
-                is_verified=True
-            )
-            logger.info(f"Created new user: {email} (role: {role})")
-        
-        db.close()
-        return user
+        try:
+            user_repo = UserRepository(db)
+
+            user = user_repo.find_by_email(email)
+
+            if user:
+                user.name = name
+                user.avatar_url = avatar_url
+                user.oauth_provider = provider
+                user.oauth_id = oauth_id
+                user.oauth_access_token = encrypted_access
+                user.oauth_refresh_token = encrypted_refresh
+                user.last_login_at = utcnow()
+                user.is_active = True
+                db.commit()
+                db.refresh(user)
+                logger.info(f"Updated existing user: {email}")
+            else:
+                role = 'admin' if OAuthConfig().is_admin(email) else 'user'
+                user = user_repo.create(
+                    email=email,
+                    name=name,
+                    role=role,
+                    oauth_provider=provider,
+                    oauth_id=oauth_id,
+                    avatar_url=avatar_url,
+                    oauth_access_token=encrypted_access,
+                    oauth_refresh_token=encrypted_refresh,
+                    is_active=True,
+                    is_verified=True,
+                )
+                logger.info(f"Created new user: {email} (role: {role})")
+
+            return user
+        finally:
+            db.close()

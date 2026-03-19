@@ -1,13 +1,26 @@
 """
 Persistence and caching module for Niklaus plagiarism detector.
+
+Cache files are stored as JSON (not pickle) to eliminate the unsafe
+deserialization risk that pickle carries.  The expiry timestamp is encoded
+in the filename so that clear_old_cache() can filter without opening files.
+
+File naming scheme:
+    analysis_{content_sig}_{threshold:.2f}_{expire_ts}.json
+
+where expire_ts is a Unix timestamp (integer seconds) indicating when the
+entry is considered stale.
 """
 
 import json
-import pickle
+import math
 import hashlib
+import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from datetime import datetime, timedelta
+
+import numpy as np
 
 from utils.config import config
 from utils.exceptions import CacheError
@@ -16,22 +29,91 @@ from utils.logger import get_logger
 logger = get_logger(__name__)
 
 
+# ---------------------------------------------------------------------------
+# JSON serialisation helpers for numpy / datetime types
+# ---------------------------------------------------------------------------
+
+class _NumpyEncoder(json.JSONEncoder):
+    """JSON encoder that handles numpy scalars, arrays, NaN, and Inf."""
+
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        if isinstance(obj, np.generic):
+            return obj.item()
+        if isinstance(obj, datetime):
+            return {"__datetime__": obj.isoformat()}
+        return super().default(obj)
+
+    def encode(self, obj):
+        # Pre-process floats to replace NaN/Inf with None
+        return super().encode(self._sanitise(obj))
+
+    def iterencode(self, obj, _one_shot=False):
+        return super().iterencode(self._sanitise(obj), _one_shot)
+
+    @staticmethod
+    def _sanitise(obj):
+        if isinstance(obj, float):
+            if math.isnan(obj) or math.isinf(obj):
+                return None
+            return obj
+        if isinstance(obj, dict):
+            # JSON keys must be strings — coerce numpy ints/floats to str
+            return {
+                (str(k.item()) if isinstance(k, np.generic) else str(k) if not isinstance(k, str) else k):
+                _NumpyEncoder._sanitise(v)
+                for k, v in obj.items()
+            }
+        if isinstance(obj, (list, tuple)):
+            return [_NumpyEncoder._sanitise(v) for v in obj]
+        if isinstance(obj, np.ndarray):
+            return _NumpyEncoder._sanitise(obj.tolist())
+        if isinstance(obj, np.generic):
+            return _NumpyEncoder._sanitise(obj.item())
+        return obj
+
+
+def _json_object_hook(obj):
+    """Restore types serialised by _NumpyEncoder."""
+    if "__datetime__" in obj:
+        return datetime.fromisoformat(obj["__datetime__"])
+    return obj
+
+
+def _json_dumps(data: Any) -> str:
+    return json.dumps(data, cls=_NumpyEncoder)
+
+
+def _json_loads(text: str) -> Any:
+    return json.loads(text, object_hook=_json_object_hook)
+
+
+# ---------------------------------------------------------------------------
+# AnalysisCache
+# ---------------------------------------------------------------------------
+
 class AnalysisCache:
-    """Manages persistent cache for analysis results."""
-    
+    """Manages persistent cache for analysis results (JSON-backed)."""
+
+    _FILE_GLOB = "analysis_*.json"
+
     def __init__(self, cache_dir: str = None):
-        """
-        Initialize cache manager.
-        
-        Args:
-            cache_dir: Directory to store cache files
-        """
         self.cache_dir = Path(cache_dir or config.CACHE_DIR)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         logger.info(f"Cache directory: {self.cache_dir}")
-    
-    def _content_signature(self, files: List[str], contents: Optional[List[str]], language: Optional[str]) -> str:
-        """Build deterministic signature from files, contents, and language."""
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    def _content_signature(
+        self,
+        files: List[str],
+        contents: Optional[List[str]],
+        language: Optional[str],
+    ) -> str:
+        """Build deterministic 16-char hex signature from files, contents, language."""
         if contents is None:
             file_list = sorted(files)
             payload = f"{language or 'unknown'}::{repr(file_list)}"
@@ -39,342 +121,281 @@ class AnalysisCache:
 
         pairs = sorted(zip(files, contents), key=lambda item: item[0])
         hasher = hashlib.sha256()
-        hasher.update((language or 'unknown').encode())
+        hasher.update((language or "unknown").encode())
         hasher.update(b"\x00")
-
         for filename, content in pairs:
             hasher.update(str(filename).encode())
             hasher.update(b"\x00")
             hasher.update(hashlib.sha256(str(content).encode()).digest())
             hasher.update(b"\x00")
-
         return hasher.hexdigest()[:16]
 
-    def _get_cache_key(
+    def _cache_filename(
         self,
         files: List[str],
         threshold: float,
         contents: Optional[List[str]] = None,
-        language: Optional[str] = None
+        language: Optional[str] = None,
+        expire_ts: Optional[int] = None,
     ) -> str:
-        """
-        Generate unique cache key for file set.
-        
-        Args:
-            files: List of filenames
-            threshold: Similarity threshold
-        
-        Returns:
-            Cache filename
-        """
-        file_hash = self._content_signature(files, contents, language)
-        
-        return f"analysis_{file_hash}_{threshold:.2f}.pkl"
+        sig = self._content_signature(files, contents, language)
+        if expire_ts is None:
+            expire_ts = int(time.time()) + int(config.CACHE_EXPIRY_HOURS * 3600)
+        return f"analysis_{sig}_{threshold:.2f}_{expire_ts}.json"
 
-    def _get_cache_path(
+    def _find_cache_file(
         self,
         files: List[str],
         threshold: float,
         contents: Optional[List[str]] = None,
-        language: Optional[str] = None
-    ) -> Path:
-        """Get full path to cache file."""
-        return self.cache_dir / self._get_cache_key(files, threshold, contents=contents, language=language)
-    
+        language: Optional[str] = None,
+    ) -> Optional[Path]:
+        """Locate a non-expired cache file matching the content signature."""
+        sig = self._content_signature(files, contents, language)
+        pattern = f"analysis_{sig}_{threshold:.2f}_*.json"
+        now = int(time.time())
+        for candidate in self.cache_dir.glob(pattern):
+            # Filename: analysis_{sig}_{threshold}_{expire_ts}.json
+            parts = candidate.stem.split("_")
+            try:
+                expire_ts = int(parts[-1])
+            except (ValueError, IndexError):
+                continue
+            if expire_ts > now:
+                return candidate
+            # Expired — delete opportunistically
+            try:
+                candidate.unlink()
+            except OSError:
+                pass
+        return None
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
     def save(
         self,
         files: List[str],
         threshold: float,
         analysis_data: Dict,
         contents: Optional[List[str]] = None,
-        language: str = None
+        language: str = None,
     ) -> Path:
-        """
-        Save analysis results to cache.
-        
-        Args:
-            files: List of filenames analyzed
-            threshold: Similarity threshold used
-            analysis_data: Analysis results dictionary
-            language: Programming language (optional)
-        
-        Returns:
-            Path to cache file
-        
+        """Save analysis results to a JSON cache file.
+
         Raises:
-            CacheError: If save fails
+            CacheError: if the write fails.
         """
+        cache_file = None
         try:
-            cache_file = self._get_cache_path(files, threshold, contents=contents, language=language)
-            
+            expire_ts = int(time.time()) + int(config.CACHE_EXPIRY_HOURS * 3600)
+            filename = self._cache_filename(
+                files, threshold, contents=contents,
+                language=language, expire_ts=expire_ts,
+            )
+            cache_file = self.cache_dir / filename
+
             cache_data = {
-                'timestamp': datetime.now().isoformat(),
-                'files': files,
-                'threshold': threshold,
-                'language': language,
-                'data': analysis_data,
-                'version': '1.0'
+                "timestamp": datetime.now().isoformat(),
+                "expire_ts": expire_ts,
+                "files": files,
+                "threshold": threshold,
+                "language": language,
+                "data": analysis_data,
+                "version": "2.0",
             }
-            
-            with open(cache_file, 'wb') as f:
-                pickle.dump(cache_data, f, protocol=pickle.HIGHEST_PROTOCOL)
-            
+
+            with open(cache_file, "w", encoding="utf-8") as f:
+                f.write(_json_dumps(cache_data))
+
             logger.info(f"Analysis cached to {cache_file.name}")
             return cache_file
-            
+
         except Exception as e:
             logger.error(f"Failed to save cache: {e}")
             raise CacheError(
                 f"Failed to save analysis cache: {str(e)}",
-                cache_file=str(cache_file) if 'cache_file' in locals() else None
+                cache_file=str(cache_file) if cache_file else None,
             )
-    
+
     def load(
         self,
         files: List[str],
         threshold: float,
         contents: Optional[List[str]] = None,
         language: Optional[str] = None,
-        max_age_hours: int = None
+        max_age_hours: int = None,
     ) -> Optional[Dict]:
-        """
-        Load analysis results from cache if valid.
-        
-        Args:
-            files: List of filenames
-            threshold: Similarity threshold
-            max_age_hours: Maximum cache age in hours
-        
-        Returns:
-            Cached analysis data or None if not found/expired
+        """Load analysis results from cache if valid and not expired.
+
+        When *max_age_hours* is 0, cache is always considered expired (bypass).
         """
         if max_age_hours is None:
             max_age_hours = config.CACHE_EXPIRY_HOURS
-        cache_file = self._get_cache_path(files, threshold, contents=contents, language=language)
-        
-        if not cache_file.exists():
-            logger.debug(f"Cache not found: {cache_file.name}")
+
+        # Explicit bypass
+        if max_age_hours == 0:
             return None
-        
+
+        cache_file = self._find_cache_file(files, threshold, contents=contents, language=language)
+        if cache_file is None:
+            return None
+
         try:
-            with open(cache_file, 'rb') as f:
-                cache_data = pickle.load(f)
-            
-            # Check age
-            timestamp = datetime.fromisoformat(cache_data['timestamp'])
+            with open(cache_file, "r", encoding="utf-8") as f:
+                cache_data = _json_loads(f.read())
+
+            # Secondary age check using timestamp string (belt + suspenders)
+            timestamp = datetime.fromisoformat(cache_data["timestamp"])
             age = datetime.now() - timestamp
-            
             if age > timedelta(hours=max_age_hours):
-                logger.info(f"Cache expired (age: {age})")
-                cache_file.unlink()
+                logger.info(f"Cache expired by age check (age: {age})")
+                try:
+                    cache_file.unlink()
+                except OSError:
+                    pass
                 return None
-            
-            # Verify files match
-            if cache_data['files'] != files:
-                logger.warning("Cache files mismatch")
-                return None
-            
+
             logger.info(f"Analysis loaded from cache (age: {age})")
-            return cache_data['data']
-            
+            return cache_data["data"]
+
         except Exception as e:
             logger.error(f"Failed to load cache: {e}")
             return None
-    
+
     def clear_old_cache(self, max_age_days: int = 7) -> int:
-        """
-        Remove cache files older than max_age_days.
-        
-        Args:
-            max_age_days: Maximum age in days
-        
-        Returns:
-            Number of files removed
+        """Remove expired/old cache files by inspecting filenames only (no I/O).
+
+        Files whose expire_ts (encoded in the filename) is in the past OR
+        whose filesystem mtime is older than *max_age_days* are deleted.
         """
         removed = 0
-        
-        for cache_file in self.cache_dir.glob("analysis_*.pkl"):
+        cutoff_ts = int(time.time()) - max_age_days * 86400
+
+        for cache_file in self.cache_dir.glob(self._FILE_GLOB):
+            parts = cache_file.stem.split("_")
             try:
-                with open(cache_file, 'rb') as f:
-                    data = pickle.load(f)
-                
-                timestamp = datetime.fromisoformat(data['timestamp'])
-                age = datetime.now() - timestamp
-                
-                if age > timedelta(days=max_age_days):
+                expire_ts = int(parts[-1])
+            except (ValueError, IndexError):
+                expire_ts = None
+
+            should_remove = False
+            if expire_ts is not None and expire_ts < int(time.time()):
+                should_remove = True
+            elif cache_file.stat().st_mtime < cutoff_ts:
+                should_remove = True
+
+            if should_remove:
+                try:
                     cache_file.unlink()
                     removed += 1
                     logger.debug(f"Removed old cache: {cache_file.name}")
-                    
-            except Exception as e:
-                logger.warning(f"Failed to process {cache_file.name}: {e}")
-        
+                except OSError as e:
+                    logger.warning(f"Failed to remove {cache_file.name}: {e}")
+
         if removed > 0:
             logger.info(f"Removed {removed} old cache files")
-        
         return removed
-    
+
     def clear_all_cache(self) -> int:
-        """
-        Remove all cache files.
-        
-        Returns:
-            Number of files removed
-        """
+        """Remove all JSON cache files."""
         removed = 0
-        
-        for cache_file in self.cache_dir.glob("*.pkl"):
+        for cache_file in self.cache_dir.glob(self._FILE_GLOB):
             try:
                 cache_file.unlink()
                 removed += 1
-            except Exception as e:
+            except OSError as e:
                 logger.warning(f"Failed to remove {cache_file}: {e}")
-        
         logger.info(f"Cleared {removed} cache files")
         return removed
-    
+
     def get_cache_stats(self) -> Dict[str, Any]:
-        """
-        Get cache statistics.
-        
-        Returns:
-            Dictionary with cache stats
-        """
-        cache_files = list(self.cache_dir.glob("analysis_*.pkl"))
-        
+        """Return cache statistics without reading file contents."""
+        cache_files = list(self.cache_dir.glob(self._FILE_GLOB))
         total_size = sum(f.stat().st_size for f in cache_files)
-        
-        oldest = None
-        newest = None
-        
-        for cache_file in cache_files:
-            try:
-                with open(cache_file, 'rb') as f:
-                    data = pickle.load(f)
-                
-                timestamp = datetime.fromisoformat(data['timestamp'])
-                
-                if oldest is None or timestamp < oldest:
-                    oldest = timestamp
-                if newest is None or timestamp > newest:
-                    newest = timestamp
-                    
-            except Exception:
-                pass
-        
+        now = int(time.time())
+        active = sum(
+            1 for f in cache_files
+            if self._expire_ts_from_path(f) > now
+        )
         return {
-            'file_count': len(cache_files),
-            'total_size_bytes': total_size,
-            'total_size_mb': total_size / (1024 * 1024),
-            'oldest_cache': oldest.isoformat() if oldest else None,
-            'newest_cache': newest.isoformat() if newest else None,
+            "file_count": len(cache_files),
+            "active_count": active,
+            "expired_count": len(cache_files) - active,
+            "total_size_bytes": total_size,
+            "total_size_mb": total_size / (1024 * 1024),
         }
 
-
-class SessionManager:
-    """Manages session state with disk persistence."""
-    
-    def __init__(self, session_file: str = ".niklaus_session.json"):
-        """
-        Initialize session manager.
-        
-        Args:
-            session_file: Path to session file
-        """
-        self.session_file = Path(session_file)
-    
-    def save_session(self, session_data: Dict[str, Any]) -> None:
-        """
-        Save session state to disk.
-        
-        Args:
-            session_data: Session data dictionary
-        """
+    @staticmethod
+    def _expire_ts_from_path(path: Path) -> int:
+        parts = path.stem.split("_")
         try:
-            # Convert non-serializable objects
-            serializable_data = self._make_serializable(session_data)
-            
-            with open(self.session_file, 'w', encoding='utf-8') as f:
-                json.dump(serializable_data, f, indent=2, default=str)
-            
+            return int(parts[-1])
+        except (ValueError, IndexError):
+            return 0
+
+
+# ---------------------------------------------------------------------------
+# DiskSessionManager  (was SessionManager — renamed to avoid collision with
+# auth.session.SessionManager)
+# ---------------------------------------------------------------------------
+
+class DiskSessionManager:
+    """Manages session state with disk persistence (JSON)."""
+
+    def __init__(self, session_file: str = ".niklaus_session.json"):
+        self.session_file = Path(session_file)
+
+    def save_session(self, session_data: Dict[str, Any]) -> None:
+        try:
+            with open(self.session_file, "w", encoding="utf-8") as f:
+                f.write(_json_dumps(session_data))
             logger.debug(f"Session saved to {self.session_file}")
-            
         except Exception as e:
             logger.warning(f"Failed to save session: {e}")
-    
+
     def load_session(self) -> Dict[str, Any]:
-        """
-        Load session state from disk.
-        
-        Returns:
-            Session data dictionary
-        """
         if not self.session_file.exists():
             return {}
-        
         try:
-            with open(self.session_file, 'r', encoding='utf-8') as f:
-                return json.load(f)
+            with open(self.session_file, "r", encoding="utf-8") as f:
+                return _json_loads(f.read())
         except Exception as e:
             logger.warning(f"Failed to load session: {e}")
             return {}
-    
+
     def clear_session(self) -> None:
-        """Clear session state."""
         if self.session_file.exists():
             self.session_file.unlink()
             logger.debug("Session cleared")
-    
-    def _make_serializable(self, data: Any) -> Any:
-        """
-        Convert non-serializable objects to serializable format.
-        
-        Args:
-            data: Data to convert
-        
-        Returns:
-            Serializable data
-        """
-        if isinstance(data, dict):
-            return {
-                k: self._make_serializable(v)
-                for k, v in data.items()
-                if not k.startswith('_')  # Skip private attributes
-            }
-        elif isinstance(data, (list, tuple)):
-            return [self._make_serializable(item) for item in data]
-        elif isinstance(data, (str, int, float, bool, type(None))):
-            return data
-        elif isinstance(data, datetime):
-            return data.isoformat()
-        elif hasattr(data, '__dict__'):
-            # Convert objects to dictionaries
-            return self._make_serializable(data.__dict__)
-        else:
-            # Return string representation for other types
-            return str(data)
 
+
+# ---------------------------------------------------------------------------
+# Backward-compatibility alias (old name kept to avoid breaking imports)
+# ---------------------------------------------------------------------------
+
+#: Deprecated alias — use DiskSessionManager instead.
+SessionManager = DiskSessionManager
+
+
+# ---------------------------------------------------------------------------
+# AnalysisResult
+# ---------------------------------------------------------------------------
 
 class AnalysisResult:
     """Container for analysis results."""
-    
+
     def __init__(self, **kwargs):
-        """Initialize result with any keyword arguments."""
         for key, value in kwargs.items():
             setattr(self, key, value)
-    
+
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary."""
-        return {
-            key: value for key, value in self.__dict__.items()
-            if not key.startswith('_')
-        }
-    
+        return {k: v for k, v in self.__dict__.items() if not k.startswith("_")}
+
     def to_json(self) -> str:
-        """Convert to JSON string."""
-        return json.dumps(self.to_dict(), indent=2, default=str)
-    
+        return _json_dumps(self.to_dict())
+
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'AnalysisResult':
-        """Create instance from dictionary."""
+    def from_dict(cls, data: Dict[str, Any]) -> "AnalysisResult":
         return cls(**data)
