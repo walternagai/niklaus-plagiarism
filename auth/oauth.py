@@ -51,13 +51,16 @@ class OAuthHandler:
             raise ValueError(f"Unsupported provider: {provider}")
     
     def get_authorization_url(self, state: str = None) -> str:
+        """Build the OAuth provider authorization URL.
+
+        If *state* is not provided a random one is generated.  The caller is
+        responsible for persisting the state value (e.g. in st.session_state)
+        before redirecting — this method no longer writes to session state as
+        a side effect.
+        """
         if not state:
             state = secrets.token_urlsafe(32)
-        
-        # Store state in session for validation
-        import streamlit as st
-        st.session_state['oauth_state'] = state
-        
+
         client_id = self.providers[self.provider]['client_id']
         redirect_uri = self.providers[self.provider]['redirect_uri']
         

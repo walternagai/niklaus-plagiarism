@@ -84,8 +84,24 @@ class ConfigurationError(NiklausError):
 
 class ParallelProcessingError(NiklausError):
     """Raised when parallel processing fails."""
-    
+
     def __init__(self, message: str, task_id: Optional[int] = None, original_error: Optional[Exception] = None):
         self.task_id = task_id
         self.original_error = original_error
         super().__init__(message)
+
+
+# ---------------------------------------------------------------------------
+# Shared cancellation helper
+# ---------------------------------------------------------------------------
+
+def raise_if_cancelled(cancel_check) -> None:
+    """Raise AnalysisCancelledError if *cancel_check* is set and returns True.
+
+    Centralised so that pipeline.py and analyzer.py don't duplicate this logic.
+
+    Args:
+        cancel_check: Callable[[], bool] or None.  If None, this is a no-op.
+    """
+    if cancel_check is not None and cancel_check():
+        raise AnalysisCancelledError("Analysis cancelled by user")

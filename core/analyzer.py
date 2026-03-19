@@ -10,7 +10,7 @@ from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
 from analyzer import ASTParser, CodeMetrics, ClusterDetector, PlagiarismPatternDetector
 from core.comparison import compare_files
 from utils.parallel import ParallelComparator
-from utils.exceptions import AnalysisError, AnalysisCancelledError
+from utils.exceptions import AnalysisError, AnalysisCancelledError, raise_if_cancelled
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -155,9 +155,30 @@ class PlagiarismAnalyzer:
 
     @staticmethod
     def _raise_if_cancelled(cancel_check: Optional[Callable[[], bool]]) -> None:
-        if cancel_check and cancel_check():
-            raise AnalysisCancelledError("Analysis cancelled by user")
-    
+        raise_if_cancelled(cancel_check)
+
+    # ------------------------------------------------------------------
+    # Public aliases for methods previously accessed via name-mangling
+    # ------------------------------------------------------------------
+
+    def calculate_textual_similarities(
+        self,
+        files: List[str],
+        contents: List[str],
+        progress_callback: Optional[Callable[[int, int, str], None]] = None,
+        cancel_check: Optional[Callable[[], bool]] = None,
+    ) -> List[Tuple[str, str, float]]:
+        """Public entry point for textual similarity calculation."""
+        return self._calculate_textual_similarities(files, contents, progress_callback, cancel_check)
+
+    def build_matrix(
+        self,
+        files: List[str],
+        similarities: List[Tuple[str, str, float]],
+    ):
+        """Public entry point for similarity matrix construction."""
+        return self._build_matrix(files, similarities)
+
     def _calculate_textual_similarities(
         self,
         files: List[str],

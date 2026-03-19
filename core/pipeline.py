@@ -11,7 +11,7 @@ from utils.lazy_loader import LazyModule
 from utils.performance import track_performance, PerformanceContext, get_performance_metrics
 from utils.config import config
 from utils.logger import get_logger
-from utils.exceptions import NiklausError, FileValidationError, AnalysisCancelledError
+from utils.exceptions import NiklausError, FileValidationError, AnalysisCancelledError, raise_if_cancelled
 
 logger = get_logger(__name__)
 
@@ -235,12 +235,11 @@ class AnalysisPipeline:
             raise
         except Exception as e:
             logger.error(f"Analysis failed: {e}")
-            raise NiklausError(f"Analysis pipeline failed: {str(e)}")
+            raise NiklausError(f"Analysis pipeline failed: {str(e)}") from e
 
     @staticmethod
     def _raise_if_cancelled(cancel_check: Optional[Callable[[], bool]]) -> None:
-        if cancel_check and cancel_check():
-            raise AnalysisCancelledError("Analysis cancelled by user")
+        raise_if_cancelled(cancel_check)
     
     def _run_ai_analysis(
         self,
@@ -344,12 +343,12 @@ class AnalysisPipeline:
         logger.info(f"Running textual-only analysis for {len(files)} files")
         
         # Calculate textual similarities in parallel
-        textual_sims = self.analyzer._calculate_textual_similarities(
+        textual_sims = self.analyzer.calculate_textual_similarities(
             files, contents, progress_callback
         )
-        
+
         # Build matrix
-        similarity_matrix = self.analyzer._build_matrix(files, textual_sims)
+        similarity_matrix = self.analyzer.build_matrix(files, textual_sims)
         
         # Get suspicious pairs
         suspicious_pairs = self.analyzer.get_suspicious_pairs(textual_sims, threshold)

@@ -3,13 +3,11 @@ Database setup and session management for Niklaus.
 """
 
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session, declarative_base
+from sqlalchemy.orm import sessionmaker, Session
 from contextlib import contextmanager
 from typing import Generator, Optional
 import os
 from pathlib import Path
-
-Base = declarative_base()
 
 
 class DatabaseManager:
