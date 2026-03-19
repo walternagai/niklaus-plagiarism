@@ -99,20 +99,15 @@ def _show_clear_all_confirmation(user_id: int, submission_repo: SubmissionReposi
 
 
 def _clear_all_submissions(user_id: int, submission_repo: SubmissionRepository):
-    """Clear all submissions for a user."""
+    """Clear all submissions for a user (single bulk SQL DELETE)."""
     try:
         # Ensure dialogs are closed even if we rerun
         st.session_state['show_clear_all_dialog'] = False
         st.session_state['show_history_stats'] = False
 
-        # Get all submissions
-        submissions = submission_repo.find_by_user(user_id, limit=10000, offset=0)
-        count = len(submissions)
-        
-        # Delete each submission
-        for sub in submissions:
-            submission_repo.delete(sub.id)
-        
+        # Bulk delete — single SQL query, no N+1 round-trips
+        count = submission_repo.delete_all_by_user(user_id)
+
         st.success(f"✓ {count} submissões excluídas com sucesso!")
         st.toast(f"✓ {count} submissões removidas")
         
@@ -127,11 +122,6 @@ def _clear_all_submissions(user_id: int, submission_repo: SubmissionRepository):
                 del st.session_state[k]
             except Exception:
                 pass
-        
-        # Clear caches
-        from utils.db_cache import get_submission_cache
-        cache = get_submission_cache()
-        cache.invalidate_user(user_id)
         
         logger.info(f"User {user_id} cleared {count} submissions")
         st.rerun()
@@ -295,63 +285,67 @@ def _render_filters_section():
 
 
 def _render_submissions_list(user_id: int, submission_repo: SubmissionRepository):
-    """Render list of submissions with actions."""
+    """Render list of submissions with server-side filtering and SQL pagination."""
     try:
-        # Get all submissions (we'll filter in Python for now)
-        all_submissions = submission_repo.find_by_user(user_id, limit=1000, offset=0)
-        
-        # Apply filters
-        filtered_submissions = []
-        
-        for sub in all_submissions:
-            # Date filter
-            if st.session_state['history_filter_date_start']:
-                start_date = dt.combine(st.session_state['history_filter_date_start'], dt.min.time())
-                if sub.created_at < start_date:
-                    continue
-            
-            if st.session_state['history_filter_date_end']:
-                end_date = dt.combine(st.session_state['history_filter_date_end'], dt.max.time())
-                if sub.created_at > end_date:
-                    continue
-            
-            # Status filter
-            status_filter = st.session_state['history_filter_status']
-            sub_status = getattr(sub, 'status', 'unknown')
-            if status_filter != "Todos":
-                if status_filter == "Concluída" and sub_status != 'completed':
-                    continue
-                elif status_filter == "Processando" and sub_status != 'processing':
-                    continue
-                elif status_filter == "Erro" and sub_status != 'error':
-                    continue
-            
-            # Similarity filter
-            avg_sim = getattr(sub, 'average_similarity', 0.0) or 0.0
-            min_sim_filter = st.session_state['history_filter_min_similarity']
-            max_sim_filter = st.session_state['history_filter_max_similarity']
-            
-            if avg_sim < min_sim_filter or avg_sim > max_sim_filter:
-                continue
-            
-            filtered_submissions.append(sub)
-        
-        total_submissions = len(filtered_submissions)
-        
-        if not filtered_submissions:
+        # Build SQL-side filters from session state
+        status_filter = st.session_state.get('history_filter_status', 'Todos')
+        status_map = {
+            'Concluída': 'completed',
+            'Processando': 'processing',
+            'Erro': 'error',
+        }
+        sql_status = status_map.get(status_filter)
+
+        raw_date_start = st.session_state.get('history_filter_date_start')
+        raw_date_end = st.session_state.get('history_filter_date_end')
+        date_start = dt.combine(raw_date_start, dt.min.time()) if raw_date_start else None
+        date_end = dt.combine(raw_date_end, dt.max.time()) if raw_date_end else None
+
+        min_sim = st.session_state.get('history_filter_min_similarity', 0.0) or None
+        max_sim = st.session_state.get('history_filter_max_similarity', 1.0)
+        # Only pass max_sim if it's actually restricting (< 1.0)
+        sql_max_sim = max_sim if max_sim < 1.0 else None
+        # Only pass min_sim if > 0
+        sql_min_sim = min_sim if min_sim and min_sim > 0.0 else None
+
+        current_page = st.session_state.get('history_page', 1)
+        page_size = 50
+
+        # Count matching rows for pagination (without LIMIT/OFFSET)
+        # Use a lightweight query: get all IDs only up to a reasonable cap
+        count_results = submission_repo.find_by_user(
+            user_id,
+            limit=10000,
+            offset=0,
+            status=sql_status,
+            date_start=date_start,
+            date_end=date_end,
+            min_similarity=sql_min_sim,
+            max_similarity=sql_max_sim,
+            use_cache=False,
+        )
+        total_submissions = len(count_results)
+
+        if total_submissions == 0:
             st.info("Nenhuma submissão encontrada com os filtros aplicados.")
             st.markdown("Ajuste os filtros ou faça uma nova análise.")
             return
-        
-        # Pagination
-        current_page = st.session_state['history_page']
-        page_size = 50
+
+        # Fetch only the current page
+        sql_offset = (current_page - 1) * page_size
+        page_submissions = submission_repo.find_by_user(
+            user_id,
+            limit=page_size,
+            offset=sql_offset,
+            status=sql_status,
+            date_start=date_start,
+            date_end=date_end,
+            min_similarity=sql_min_sim,
+            max_similarity=sql_max_sim,
+            use_cache=not any([sql_status, date_start, date_end, sql_min_sim, sql_max_sim]),
+        )
+
         total_pages = (total_submissions + page_size - 1) // page_size
-        
-        # Calculate page boundaries
-        start_idx = (current_page - 1) * page_size
-        end_idx = start_idx + page_size
-        page_submissions = filtered_submissions[start_idx:end_idx]
         
         # Show count
         filters_applied = (

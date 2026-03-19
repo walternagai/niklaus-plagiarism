@@ -121,9 +121,11 @@ class PlagiarismAnalyzer:
             self._raise_if_cancelled(cancel_check)
             
             # 6. Pattern detection for pairs above threshold
+            # Pass pre-computed metrics to avoid redundant recalculation
             logger.info("Detecting plagiarism patterns...")
             patterns = self._detect_patterns(
-                files, contents, textual_sims, ast_sims, threshold, cancel_check
+                files, contents, textual_sims, ast_sims, threshold, cancel_check,
+                precomputed_metrics=metrics,
             )
             
             result = {
@@ -401,67 +403,92 @@ class PlagiarismAnalyzer:
         textual_sims: List[Tuple[str, str, float]],
         ast_sims: List[Tuple[str, str, float]],
         threshold: float,
-        cancel_check: Optional[Callable[[], bool]] = None
+        cancel_check: Optional[Callable[[], bool]] = None,
+        precomputed_metrics: Optional[List[Dict[str, Any]]] = None,
     ) -> Dict[str, Dict[str, Any]]:
-        """
-        Detect plagiarism patterns for pairs above threshold.
-        
+        """Detect plagiarism patterns for pairs above threshold.
+
         Args:
             files: List of filenames
             contents: List of file contents
             textual_sims: Textual similarities
             ast_sims: AST similarities
             threshold: Similarity threshold
-        
+            precomputed_metrics: Optional per-file metrics from _calculate_metrics().
+                When provided, metrics are reused instead of being recalculated,
+                avoiding redundant O(n²) work.
+
         Returns:
             Dictionary mapping "file1_file2" to pattern analysis
         """
-        patterns = {}
+        patterns: Dict[str, Dict[str, Any]] = {}
 
         file_to_idx = {f: i for i, f in enumerate(files)}
-        
+
         # Create lookup for AST similarities
         ast_sim_map = {
             (f1, f2): sim for f1, f2, sim in ast_sims
         }
-        
+
         for file1, file2, textual_sim in textual_sims:
             self._raise_if_cancelled(cancel_check)
             if textual_sim < threshold:
                 continue
-            
+
             try:
                 # Get file indices
                 idx1 = file_to_idx[file1]
                 idx2 = file_to_idx[file2]
-                
+
                 # Get AST similarity
-                ast_sim = ast_sim_map.get((file1, file2), 
-                                          ast_sim_map.get((file2, file1), 0.0))
-                
-                # Calculate metrics comparison
-                metrics1 = self.metrics.calculate_all_metrics(
-                    contents[idx1], self.language.lower()
+                ast_sim = ast_sim_map.get(
+                    (file1, file2),
+                    ast_sim_map.get((file2, file1), 0.0),
                 )
-                metrics2 = self.metrics.calculate_all_metrics(
-                    contents[idx2], self.language.lower()
-                )
+
+                # Reuse pre-computed metrics when available; fall back to recalculating
+                if precomputed_metrics and idx1 < len(precomputed_metrics) and idx2 < len(precomputed_metrics):
+                    raw1 = precomputed_metrics[idx1]
+                    raw2 = precomputed_metrics[idx2]
+                    # Reconstruct the shape that compare_metrics expects
+                    metrics1 = {
+                        'loc': {'code': raw1.get('loc', 0)},
+                        'cyclomatic_complexity': raw1.get('cyclomatic', 1),
+                        'function_count': raw1.get('functions', 0),
+                        'max_nesting_depth': raw1.get('nesting', 0),
+                        'maintainability_index': raw1.get('maintainability', 100),
+                    }
+                    metrics2 = {
+                        'loc': {'code': raw2.get('loc', 0)},
+                        'cyclomatic_complexity': raw2.get('cyclomatic', 1),
+                        'function_count': raw2.get('functions', 0),
+                        'max_nesting_depth': raw2.get('nesting', 0),
+                        'maintainability_index': raw2.get('maintainability', 100),
+                    }
+                else:
+                    metrics1 = self.metrics.calculate_all_metrics(
+                        contents[idx1], self.language.lower()
+                    )
+                    metrics2 = self.metrics.calculate_all_metrics(
+                        contents[idx2], self.language.lower()
+                    )
+
                 metrics_comp = self.metrics.compare_metrics(metrics1, metrics2)
-                
+
                 # Pattern detection
                 pattern = self.pattern_detector.comprehensive_analysis(
                     contents[idx1],
                     contents[idx2],
                     textual_sim,
                     ast_sim,
-                    metrics_comp
+                    metrics_comp,
                 )
-                
+
                 patterns[f"{file1}_{file2}"] = pattern
-                
+
             except Exception as e:
                 logger.error(f"Pattern detection failed for {file1} vs {file2}: {e}")
-        
+
         return patterns
     
     def get_suspicious_pairs(

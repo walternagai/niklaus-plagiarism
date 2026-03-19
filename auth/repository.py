@@ -4,7 +4,7 @@ Repository pattern for database operations.
 
 from typing import Optional, List
 from sqlalchemy.orm import Session
-from sqlalchemy import desc
+from sqlalchemy import desc, and_
 from datetime import datetime, timedelta, UTC
 import json
 
@@ -117,23 +117,68 @@ class SubmissionRepository:
         return result
     
     @track_performance('submission.find_by_user')
-    def find_by_user(self, user_id: int, limit: int = 50, offset: int = 0, status: str = None, use_cache: bool = True) -> List[Submission]:
+    def find_by_user(
+        self,
+        user_id: int,
+        limit: int = 50,
+        offset: int = 0,
+        status: str = None,
+        date_start: datetime = None,
+        date_end: datetime = None,
+        min_similarity: float = None,
+        max_similarity: float = None,
+        use_cache: bool = True,
+    ) -> List[Submission]:
+        """Fetch submissions for *user_id* with optional server-side filtering.
+
+        Filters are applied in SQL so that large datasets are not loaded into
+        Python memory just to be discarded.
+        """
+        has_extra_filters = any([
+            date_start, date_end,
+            min_similarity is not None,
+            max_similarity is not None,
+        ])
         filters = {'status': status} if status else None
-        
-        if use_cache:
+
+        if use_cache and not has_extra_filters:
             cached = self._cache.get_user_submissions(user_id, offset, limit, filters)
             if cached:
                 return cached
-        
+
         query = self.db.query(Submission).filter(Submission.user_id == user_id)
+
         if status:
             query = query.filter(Submission.status == status)
+        if date_start:
+            query = query.filter(Submission.created_at >= date_start)
+        if date_end:
+            query = query.filter(Submission.created_at <= date_end)
+        if min_similarity is not None:
+            query = query.filter(Submission.average_similarity >= min_similarity)
+        if max_similarity is not None:
+            query = query.filter(Submission.average_similarity <= max_similarity)
+
         results = query.order_by(desc(Submission.created_at)).offset(offset).limit(limit).all()
-        
-        if use_cache and results:
+
+        if use_cache and not has_extra_filters and results:
             self._cache.set_user_submissions(user_id, results, offset, limit, filters, ttl=30)
-        
+
         return results
+
+    def delete_all_by_user(self, user_id: int) -> int:
+        """Bulk-delete ALL submissions for *user_id* in a single SQL query.
+
+        Returns the number of deleted rows.
+        """
+        count = (
+            self.db.query(Submission)
+            .filter(Submission.user_id == user_id)
+            .delete(synchronize_session="fetch")
+        )
+        self.db.commit()
+        self._cache.invalidate_user(user_id)
+        return count
     
     def update_status(self, submission_id: int, status: str, error_message: str = None) -> None:
         submission = self.find_by_id(submission_id)
