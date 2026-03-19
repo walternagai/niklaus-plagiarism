@@ -1,85 +1,49 @@
 """
 Test OAuth implementation.
+
+Functions that previously relied on Streamlit secrets being configured (live
+test_oauth_config / test_authorization_urls) have been moved to
+scripts/test_oauth_callback_manual.py.  Only pure-logic tests are here.
 """
 
 import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import pytest
 from auth.oauth import OAuthHandler
-from auth.config import OAuthConfig
 
 
-def test_oauth_config():
-    """Test OAuth configuration loading."""
-    print("Testing OAuth configuration...")
-    config = OAuthConfig()
-    
-    providers = config.get_available_providers()
-    print(f"  Available providers: {providers}")
-    
-    for provider in providers:
-        assert provider in ['google', 'github', 'microsoft']
-        assert config.is_oauth_configured(provider)
-    
-    print("✓ OAuth configuration loaded successfully")
+# ---------------------------------------------------------------------------
+# Pure-logic tests (no secrets / live providers needed)
+# ---------------------------------------------------------------------------
 
-
-def test_authorization_urls():
-    """Test authorization URL generation."""
-    print("\nTesting authorization URL generation...")
-    config = OAuthConfig()
-    
-    for provider in config.get_available_providers():
-        handler = OAuthHandler(provider)
-        
-        state = "test_state_123"
-        auth_url = handler.get_authorization_url(state=state)
-        
-        assert auth_url, f"No auth URL for {provider}"
-        assert state in auth_url, f"State not in URL for {provider}"
-        assert handler.providers[provider]['client_id'] in auth_url
-        
-        print(f"  {provider}: {auth_url[:80]}...")
-    
-    print("✓ Authorization URLs generated successfully")
-
-
-def test_handler_creation():
-    """Test OAuth handler creation."""
-    print("\nTesting OAuth handler creation...")
-    config = OAuthConfig()
-    
-    for provider in config.get_available_providers():
-        handler = OAuthHandler(provider)
-        assert handler.provider == provider
-        assert handler.config is not None
-        print(f"  {provider}: ✓")
-    
-    print("✓ OAuth handlers created successfully")
-
-
-def test_invalid_provider():
-    """Test error handling for invalid provider."""
-    print("\nTesting invalid provider handling...")
-    
-    try:
-        handler = OAuthHandler('invalid_provider')
-        print("✗ Should have raised ValueError")
-    except ValueError as e:
-        print(f"✓ Correctly raised ValueError: {e}")
-
-
-def test_validate_state():
-    """Test OAuth state validation helper."""
+def test_validate_state_matching():
+    """validate_state returns True when both strings are identical."""
     assert OAuthHandler.validate_state("abc", "abc") is True
+
+
+def test_validate_state_mismatch():
+    """validate_state returns False on mismatch."""
     assert OAuthHandler.validate_state("abc", "xyz") is False
+
+
+def test_validate_state_empty_received():
     assert OAuthHandler.validate_state("", "xyz") is False
+
+
+def test_validate_state_empty_expected():
     assert OAuthHandler.validate_state("abc", "") is False
 
 
+def test_invalid_provider_raises():
+    """OAuthHandler raises ValueError for unknown providers."""
+    with pytest.raises(ValueError):
+        OAuthHandler("invalid_provider")
+
+
 def test_signed_state_roundtrip():
-    """Signed state should preserve provider and validate signature."""
+    """Signed state should preserve provider and pass signature verification."""
     state = OAuthHandler.create_state("google")
 
     assert OAuthHandler.extract_provider_from_state(state) == "google"
@@ -95,26 +59,27 @@ def test_signed_state_rejects_tampering():
     assert OAuthHandler.verify_state_signature(tampered) is False
 
 
-if __name__ == "__main__":
-    print("=" * 60)
-    print("OAuth Implementation Tests")
-    print("=" * 60)
-    
-    try:
-        test_oauth_config()
-        test_authorization_urls()
-        test_handler_creation()
-        test_invalid_provider()
-        
-        print("\n" + "=" * 60)
-        print("All tests passed! ✓")
-        print("=" * 60)
-        
-    except AssertionError as e:
-        print(f"\n✗ Test failed: {e}")
-        sys.exit(1)
-    except Exception as e:
-        print(f"\n✗ Unexpected error: {e}")
-        import traceback
-        traceback.print_exc()
-        sys.exit(1)
+def test_extract_provider_from_valid_state():
+    state = OAuthHandler.create_state("microsoft")
+    assert OAuthHandler.extract_provider_from_state(state) == "microsoft"
+
+
+def test_extract_provider_returns_none_for_garbage():
+    assert OAuthHandler.extract_provider_from_state("not-a-valid-state") is None
+
+
+def test_extract_provider_returns_none_for_unknown_provider():
+    # State looks structurally valid but uses unknown provider
+    state = "unknown:nonce:sig"
+    assert OAuthHandler.extract_provider_from_state(state) is None
+
+
+def test_state_format():
+    """State must have exactly provider:nonce:signature (3 colon-separated parts)."""
+    state = OAuthHandler.create_state("google")
+    parts = state.split(":")
+    assert len(parts) == 3
+    provider, nonce, sig = parts
+    assert provider == "google"
+    assert len(nonce) > 0
+    assert len(sig) == 24  # signature is truncated to 24 hex chars

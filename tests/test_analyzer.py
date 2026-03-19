@@ -219,9 +219,17 @@ def foo():
     b()
 '''
         result = detector.detect_code_reordering(code1, code2)
-        
-        # Should detect reordering (if lines are similar)
-        # This depends on the specific implementation
+
+        # The reordering detector should return a well-formed dict
+        assert isinstance(result, dict)
+        assert 'detected' in result
+        assert 'confidence' in result
+        assert isinstance(result['detected'], bool)
+        assert 0.0 <= result['confidence'] <= 1.0
+
+        # Both snippets share the same lines — reordering should be detected
+        assert result['detected'] is True
+        assert result['confidence'] >= 0.7
     
     def test_classify_direct_copy(self, detector):
         """Test classification of direct copy."""

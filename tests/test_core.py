@@ -117,9 +117,10 @@ class TestMaritacaClient:
 
 class TestRateLimiter:
     """Test rate limiter."""
-    
+
+    @pytest.mark.slow
     def test_rate_limiter_basic(self):
-        """Test basic rate limiting."""
+        """Test basic rate limiting (slow: sleeps ~1s)."""
         from core.llm_client import RateLimiter
         
         limiter = RateLimiter(calls_per_minute=60)  # 1 call per second
