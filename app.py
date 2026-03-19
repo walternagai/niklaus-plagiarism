@@ -538,9 +538,9 @@ def _run_analysis(files: List[str], contents: List[str], settings: Dict[str, Any
         return None
         
     except Exception as e:
-        logger.error(f"Analysis failed: {e}")
+        logger.error(f"Analysis failed: {e}", exc_info=True)
         st.error(f"Erro na análise: {str(e)}")
-        st.stop()
+        return None
 
 
 def _save_submission(results: Dict[str, Any], user_id: int, total_files: int, settings: Dict[str, Any]):

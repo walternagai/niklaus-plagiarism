@@ -90,6 +90,16 @@ class SubmissionRepository:
             **kwargs
         )
         self.db.add(submission)
+
+        # Increment denormalized counters on User
+        user = self.db.query(User).filter(User.id == user_id).first()
+        if user is not None:
+            suspicious = int(kwargs.get('suspicious_pairs_count', 0) or 0)
+            user.submissions_count = (user.submissions_count or 0) + 1
+            user.total_analyses = (user.total_analyses or 0) + 1
+            user.total_suspicious_pairs = (user.total_suspicious_pairs or 0) + suspicious
+            user.last_submission_at = utcnow()
+
         self.db.commit()
         self.db.refresh(submission)
         self._cache.invalidate_user(user_id)

@@ -3,6 +3,7 @@ Session management utilities for Streamlit.
 """
 
 import streamlit as st
+from contextlib import closing
 from typing import Optional, Union, Dict, Any
 from datetime import datetime, timedelta, UTC
 
@@ -45,11 +46,10 @@ class SessionManager:
             utcnow() + timedelta(hours=24)
         )
         
-        db = get_session()
-        user_repo = UserRepository(db)
-        user_repo.update_last_login(user_dict['id'])
-        db.close()
-        
+        with closing(get_session()) as db:
+            user_repo = UserRepository(db)
+            user_repo.update_last_login(user_dict['id'])
+
         logger.info(f"User {user_dict['email']} logged in")
     
     @staticmethod
@@ -59,9 +59,6 @@ class SessionManager:
             user = st.session_state[SessionManager.SESSION_KEY]
             email = user.get('email', 'unknown') if isinstance(user, dict) else 'unknown'
             logger.info(f"User {email} logging out")
-        
-        for key in list(st.session_state.keys()):
-            del st.session_state[key]
         
         st.session_state.clear()
     
@@ -114,10 +111,9 @@ class SessionManager:
         if not current_user:
             return None
         
-        db = get_session()
-        user_repo = UserRepository(db)
-        user = user_repo.find_by_id(current_user['id'])
-        db.close()
+        with closing(get_session()) as db:
+            user_repo = UserRepository(db)
+            user = user_repo.find_by_id(current_user['id'])
         
         if user:
             user_dict = {

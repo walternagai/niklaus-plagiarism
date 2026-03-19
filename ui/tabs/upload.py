@@ -93,43 +93,43 @@ def render_upload_tab(settings: Dict[str, Any]) -> Tuple[List[str], List[str], s
         except FileValidationError as e:
             st.error(f"❌ Erro de validação: {str(e)}")
             st.warning("💡 **Solução:** Verifique se o arquivo ZIP contém apenas código-fonte válido.")
-            
+
             # File-specific suggestions
             if "tamanho" in str(e).lower():
                 st.info(f"📚 Limite máximo: {config.MAX_ZIP_SIZE_MB}MB por arquivo ZIP")
             elif "formato" in str(e).lower():
                 st.info("📚 Formatos aceitos: .py, .java, .cpp, .c, .js, .ts, .go, .rs, .kt")
-            
-            st.stop()
-            
+
+            return None, None, None, False
+
         except Exception as e:
             error_msg = str(e)
-            
-            st.error(f"❌ Erro ao extrair arquivo")
-            
+
+            st.error("❌ Erro ao extrair arquivo")
+
             # Specific error messages
             if "corrompido" in error_msg.lower() or "corrupted" in error_msg.lower():
                 st.warning("💡 **Solução:** O arquivo ZIP está corrompido. Tente:")
                 st.markdown("- Baixar o arquivo novamente")
                 st.markdown("- Usar outro navegador")
                 st.markdown("- Verificar a integridade do arquivo")
-            
+
             elif "espaço" in error_msg.lower() or "space" in error_msg.lower():
                 st.warning("💡 **Solução:** Espaço em disco insuficiente.")
                 st.markdown("- Libere espaço em disco")
                 st.markdown("- Limpe arquivos temporários")
-            
+
             elif "permissão" in error_msg.lower() or "permission" in error_msg.lower():
                 st.warning("💡 **Solução:** Sem permissão para escrever no diretório temporário.")
                 st.markdown("- Execute o aplicativo com permissões adequadas")
-            
+
             else:
                 st.warning("💡 **Solução:** Tente novamente ou use outro arquivo ZIP.")
-            
+
             with st.expander("🔍 Ver detalhes técnicos"):
                 st.code(error_msg, language="text")
-            
-            st.stop()
+
+            return None, None, None, False
     
     return None, None, None, False
 
