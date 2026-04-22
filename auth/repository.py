@@ -2,9 +2,9 @@
 Repository pattern for database operations.
 """
 
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
-from sqlalchemy import desc, and_
+from sqlalchemy import desc, and_, func, case
 from datetime import datetime, timedelta, UTC
 import json
 
@@ -210,9 +210,53 @@ class SubmissionRepository:
             return True
         return False
     
-    def count_by_user(self, user_id: int) -> int:
-        return self.db.query(Submission).filter(Submission.user_id == user_id).count()
-    
+    def count_by_user(
+        self,
+        user_id: int,
+        status: str = None,
+        date_start: datetime = None,
+        date_end: datetime = None,
+        min_similarity: float = None,
+        max_similarity: float = None,
+    ) -> int:
+        """COUNT(*) with the same optional filters as find_by_user — no ORM objects loaded."""
+        query = self.db.query(func.count(Submission.id)).filter(Submission.user_id == user_id)
+        if status:
+            query = query.filter(Submission.status == status)
+        if date_start:
+            query = query.filter(Submission.created_at >= date_start)
+        if date_end:
+            query = query.filter(Submission.created_at <= date_end)
+        if min_similarity is not None:
+            query = query.filter(Submission.average_similarity >= min_similarity)
+        if max_similarity is not None:
+            query = query.filter(Submission.average_similarity <= max_similarity)
+        return query.scalar() or 0
+
+    def get_stats_by_user(self, user_id: int) -> Dict[str, Any]:
+        """Aggregate statistics for a user via a single SQL query — no Python loops."""
+        row = self.db.query(
+            func.count(Submission.id),
+            func.sum(case((Submission.status == 'completed', 1), else_=0)),
+            func.sum(case((Submission.status == 'processing', 1), else_=0)),
+            func.sum(case((Submission.status == 'error', 1), else_=0)),
+            func.coalesce(func.sum(Submission.files_count), 0),
+            func.coalesce(func.sum(Submission.suspicious_pairs_count), 0),
+            func.avg(Submission.average_similarity),
+            func.max(Submission.max_similarity),
+        ).filter(Submission.user_id == user_id).one()
+
+        return {
+            'total': row[0] or 0,
+            'completed': row[1] or 0,
+            'processing': row[2] or 0,
+            'errors': row[3] or 0,
+            'total_files': row[4] or 0,
+            'total_pairs': row[5] or 0,
+            'avg_similarity': float(row[6]) if row[6] is not None else 0.0,
+            'max_similarity': float(row[7]) if row[7] is not None else 0.0,
+        }
+
     def count_by_status(self, status: str) -> int:
         return self.db.query(Submission).filter(Submission.status == status).count()
 

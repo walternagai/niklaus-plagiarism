@@ -28,7 +28,7 @@ def render_sidebar() -> Dict[str, Any]:
         language = _render_language_selector()
         
         # Analysis configuration
-        threshold, preset = _render_analysis_config()
+        threshold = _render_analysis_config()
         
         # Performance configuration
         max_workers, use_cache, enable_ai = _render_performance_config()
@@ -47,7 +47,6 @@ def render_sidebar() -> Dict[str, Any]:
         'max_workers': max_workers,
         'use_cache': use_cache,
         'enable_ai': enable_ai,
-        'preset': preset
     }
 
 
@@ -151,48 +150,35 @@ def _render_language_selector() -> str:
     return language
 
 
-def _render_analysis_config() -> tuple:
+def _render_analysis_config() -> float:
     """Render analysis configuration section."""
     st.markdown("### 📊 Análise")
-    
-    # Get preset values if available
+
     default_threshold = st.session_state.get('threshold', config.DEFAULT_THRESHOLD)
-    
-    # Preset selection
-    preset = st.selectbox(
-        "Nível de sensibilidade",
-        options=["🔴 Agressivo (50%)", "🟡 Moderado (70%)", "🟢 Conservador (80%)", "⚙️ Personalizado"],
-        index=1,
-        help="Agressivo detecta mais plágio, Conservador menos"
-    )
-    
-    # Map presets to threshold values
-    presets = {
-        "🔴 Agressivo (50%)": 0.5,
-        "🟡 Moderado (70%)": 0.7,
-        "🟢 Conservador (80%)": 0.8,
-    }
-    
-    # Use preset value or saved threshold
-    if preset in presets:
-        threshold = presets[preset]
-    else:
-        threshold = default_threshold
-    
-    # Threshold slider
+
+    # Threshold preset shortcut buttons
+    st.caption("Atalhos de sensibilidade:")
+    col_a, col_b, col_c = st.columns(3)
+    with col_a:
+        if st.button("🔴 50%", use_container_width=True, help="Agressivo — detecta mais"):
+            st.session_state['threshold'] = 0.5
+    with col_b:
+        if st.button("🟡 70%", use_container_width=True, help="Moderado — equilibrado"):
+            st.session_state['threshold'] = 0.7
+    with col_c:
+        if st.button("🟢 80%", use_container_width=True, help="Conservador — alta confiança"):
+            st.session_state['threshold'] = 0.8
+
     threshold = st.slider(
         "Similaridade mínima",
         min_value=0.0,
         max_value=1.0,
-        value=threshold,
+        value=default_threshold,
         step=0.01,
-        help="Pares com similaridade ≥ este valor serão marcados"
+        key='threshold',
+        help="Pares com similaridade ≥ este valor serão marcados",
     )
-    
-    # Show threshold value above slider
-    st.caption(f"**Valor selecionado: {threshold:.0%}**")
-    
-    # Show threshold interpretation
+
     if threshold < 0.4:
         st.warning("⚠️ Muito sensível - pode gerar muitos falsos positivos")
     elif threshold < 0.6:
@@ -201,8 +187,8 @@ def _render_analysis_config() -> tuple:
         st.success("✅ Sensibilidade moderada - equilibrado")
     else:
         st.success("✅ Conservador - alta confiança")
-    
-    return threshold, preset
+
+    return threshold
 
 
 def _render_performance_config() -> tuple:

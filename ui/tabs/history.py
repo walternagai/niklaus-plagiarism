@@ -134,28 +134,23 @@ def _clear_all_submissions(user_id: int, submission_repo: SubmissionRepository):
 def _show_history_stats(user_id: int, submission_repo: SubmissionRepository):
     """Show statistics about submission history."""
     try:
-        submissions = submission_repo.find_by_user(user_id, limit=10000, offset=0)
-        
-        if not submissions:
+        stats = submission_repo.get_stats_by_user(user_id)
+
+        if not stats['total']:
             st.info("Nenhuma submissão encontrada")
             if st.button("Fechar", key="close_stats_empty"):
                 st.session_state['show_history_stats'] = False
                 st.rerun()
             return
-        
-        total = len(submissions)
-        completed = len([s for s in submissions if getattr(s, 'status', '') == 'completed'])
-        processing = len([s for s in submissions if getattr(s, 'status', '') == 'processing'])
-        errors = len([s for s in submissions if getattr(s, 'status', '') == 'error'])
-        
-        total_files = sum(getattr(s, 'files_count', 0) or 0 for s in submissions)
-        total_pairs = sum(getattr(s, 'suspicious_pairs_count', 0) or 0 for s in submissions)
-        
-        avg_sims = [getattr(s, 'average_similarity', 0) or 0 for s in submissions if getattr(s, 'average_similarity', None)]
-        overall_avg_sim = sum(avg_sims) / len(avg_sims) if avg_sims else 0
-        
-        max_sims = [getattr(s, 'max_similarity', 0) or 0 for s in submissions if getattr(s, 'max_similarity', None)]
-        overall_max_sim = max(max_sims) if max_sims else 0
+
+        total = stats['total']
+        completed = stats['completed']
+        processing = stats['processing']
+        errors = stats['errors']
+        total_files = stats['total_files']
+        total_pairs = stats['total_pairs']
+        overall_avg_sim = stats['avg_similarity']
+        overall_max_sim = stats['max_similarity']
         
         st.markdown("#### 📊 Estatísticas do Histórico")
         
@@ -311,20 +306,15 @@ def _render_submissions_list(user_id: int, submission_repo: SubmissionRepository
         current_page = st.session_state.get('history_page', 1)
         page_size = 50
 
-        # Count matching rows for pagination (without LIMIT/OFFSET)
-        # Use a lightweight query: get all IDs only up to a reasonable cap
-        count_results = submission_repo.find_by_user(
+        # COUNT(*) with filters — no ORM objects loaded
+        total_submissions = submission_repo.count_by_user(
             user_id,
-            limit=10000,
-            offset=0,
             status=sql_status,
             date_start=date_start,
             date_end=date_end,
             min_similarity=sql_min_sim,
             max_similarity=sql_max_sim,
-            use_cache=False,
         )
-        total_submissions = len(count_results)
 
         if total_submissions == 0:
             st.info("Nenhuma submissão encontrada com os filtros aplicados.")
@@ -350,6 +340,7 @@ def _render_submissions_list(user_id: int, submission_repo: SubmissionRepository
         # Show count
         filters_applied = (
             st.session_state['history_filter_date_start'] is not None or
+            st.session_state['history_filter_date_end'] is not None or
             st.session_state['history_filter_status'] != 'Todos' or
             st.session_state['history_filter_min_similarity'] > 0.0 or
             st.session_state['history_filter_max_similarity'] < 1.0

@@ -299,56 +299,6 @@ def _clear_oauth_session_state() -> None:
 def _render_authenticated_app(session_manager: SessionManager, current_user):
     """Render the main app for authenticated users."""
     
-    # Breadcrumb navigation
-    st.markdown("""
-    <style>
-    .breadcrumb {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 8px 0;
-        font-size: 14px;
-        color: #666;
-    }
-    .breadcrumb-separator {
-        color: #999;
-    }
-    .breadcrumb-item {
-        text-decoration: none;
-        color: #1f77b4;
-    }
-    .breadcrumb-item:hover {
-        text-decoration: underline;
-    }
-    .breadcrumb-current {
-        color: #333;
-        font-weight: 500;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-    
-    # Build breadcrumb based on current state
-    breadcrumb_items = ["🏠 Niklaus"]
-    
-    if st.session_state.get('last_analysis'):
-        breadcrumb_items.append("📊 Resultados")
-    
-    # Render breadcrumb
-    breadcrumb_html = '<div class="breadcrumb">'
-    for i, item in enumerate(breadcrumb_items):
-        if i > 0:
-            breadcrumb_html += '<span class="breadcrumb-separator">›</span>'
-        
-        if i == len(breadcrumb_items) - 1:
-            breadcrumb_html += f'<span class="breadcrumb-current">{item}</span>'
-        else:
-            breadcrumb_html += f'<span class="breadcrumb-item">{item}</span>'
-    
-    breadcrumb_html += '</div>'
-    st.markdown(breadcrumb_html, unsafe_allow_html=True)
-    
-    st.markdown("---")
-    
     with st.sidebar:
         st.markdown(f"### 👤 {current_user.name}")
         st.markdown(f"*{current_user.email}*")
@@ -555,10 +505,7 @@ def _save_submission(results: Dict[str, Any], user_id: int, total_files: int, se
                 filename += f' and {len(files_list) - 3} more'
 
             threshold = float(settings.get('threshold', results.get('threshold', 0.7)) or 0.7)
-            suspicious_pairs = [
-                pair for pair in results.get('pairwise_results', [])
-                if float(pair.get('similarity', 0) or 0) >= threshold
-            ]
+            suspicious_pairs = results.get('suspicious_pairs', [])
 
             analysis_payload = _to_json_safe({
                 # Schema v2: store enough to render Results/Stats/Advanced/Graph

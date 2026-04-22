@@ -91,9 +91,13 @@ def _export_json(results: Dict[str, Any], suspicious_pairs: List[tuple], setting
 
 
 def _export_pdf_button(results: Dict[str, Any], settings: Dict[str, Any]) -> None:
-    """Display PDF export button."""
-    if st.button("📥 Baixar PDF", use_container_width=True):
-        st.info("Exportação para PDF será implementada em breve. Use CSV ou JSON por enquanto.")
+    """Display PDF export button (not yet implemented)."""
+    st.button(
+        "📥 Baixar PDF",
+        use_container_width=True,
+        disabled=True,
+        help="Exportação PDF em desenvolvimento. Use CSV ou JSON por enquanto.",
+    )
 
 
 def generate_summary_report(results: Dict[str, Any], settings: Dict[str, Any]) -> str:

@@ -134,9 +134,10 @@ class OAuthConfig:
             value = os.getenv("NIKLAUS_SECRET_KEY", "")
 
         if not value:
-            logger.warning(
+            logger.error(
                 "NIKLAUS_SECRET_KEY is not configured. OAuth state signing will "
-                "use a weak fallback key. Set NIKLAUS_SECRET_KEY for security."
+                "use a weak fallback key derived from OAuth client secrets. "
+                "Set NIKLAUS_SECRET_KEY in .streamlit/secrets.toml or environment variables."
             )
             # Derive a semi-stable fallback from available OAuth secrets so
             # existing deployments don't break, but it is weaker than an
