@@ -176,3 +176,9 @@ niklaus.db
 
 # Niklaus disk session files
 .niklaus_session.json
+
+# Kata (task state local)
+.kata/
+
+# Virtualenv local do projeto
+.venv/

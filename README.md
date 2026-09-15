@@ -217,6 +217,8 @@ niklaus-plagiarism/
 
 ## Testes
 
+> **Nota:** pytest e ruff são dependências de desenvolvimento — instale-as com `pip install -r requirements-dev.txt` antes de rodar a suite.
+
 ```bash
 # Suite completa (exceto testes lentos)
 pytest tests/ -k "not slow"
