@@ -19,9 +19,8 @@ def render_upload_tab(settings: Dict[str, Any]) -> Tuple[List[str], List[str], s
     Returns:
         Tuple of (files, contents, extract_path, should_analyze)
     """
-    st.title(":computer: Niklaus")
-    st.markdown("### Assistente de Detecção de Plágio em Código")
-    st.markdown("Niklaus compara arquivos de código-fonte e identifica similaridades usando análise estática e processamento paralelo.")
+    st.title(":computer: Upload & Análise")
+    st.markdown("Envie um ZIP com os códigos dos alunos e execute a detecção de plágio.")
     
     st.markdown("---")
     
