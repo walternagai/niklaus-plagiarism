@@ -47,7 +47,7 @@ class UserRepository:
         ).first()
     
     def get_all_active(self, limit: int = 100) -> List[User]:
-        return self.db.query(User).filter(User.is_active == True).limit(limit).all()
+        return self.db.query(User).filter(User.is_active.is_(True)).limit(limit).all()
     
     def update_last_login(self, user_id: int) -> None:
         user = self.find_by_id(user_id)

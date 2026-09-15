@@ -117,7 +117,6 @@ def _render_overview_tab(dashboard_data: Dict[str, Any]):
                     st.caption(f"Avg: {stats['avg_time']*1000:.2f}ms")
                 
                 with col4:
-                    success_rate_color = "green" if stats['success_rate'] >= 95 else "orange" if stats['success_rate'] >= 80 else "red"
                     st.caption(f"✓ {stats['success_rate']:.1f}%")
 
 

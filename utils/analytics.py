@@ -151,8 +151,6 @@ class AnalyticsEngine:
             success: Whether operation succeeded
             metadata: Additional metadata
         """
-        metric_type = 'performance'
-        
         date_key = datetime.now().strftime('%Y-%m-%d')
         self._daily_stats[date_key][f'perf_{operation}_count'] += 1
         self._daily_stats[date_key][f'perf_{operation}_time'] += duration

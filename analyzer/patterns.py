@@ -165,12 +165,12 @@ class PlagiarismPatternDetector:
         - confidence: float
         """
         # Simple approach: compare lines/sections
-        lines1 = [l.strip() for l in code1.split('\n') if l.strip()]
-        lines2 = [l.strip() for l in code2.split('\n') if l.strip()]
+        lines1 = [line.strip() for line in code1.split('\n') if line.strip()]
+        lines2 = [line.strip() for line in code2.split('\n') if line.strip()]
         
         # Use line hashing to find matching lines
-        hash1 = [hashlib.md5(l.encode()).hexdigest() for l in lines1]
-        hash2 = [hashlib.md5(l.encode()).hexdigest() for l in lines2]
+        hash1 = [hashlib.md5(line.encode()).hexdigest() for line in lines1]
+        hash2 = [hashlib.md5(line.encode()).hexdigest() for line in lines2]
         
         set1 = set(hash1)
         set2 = set(hash2)
@@ -209,8 +209,8 @@ class PlagiarismPatternDetector:
         lines2_without_comments = self._remove_comments(code2)
         
         # Count non-comment, non-blank lines
-        code_lines1 = [l for l in lines1_without_comments.split('\n') if l.strip()]
-        code_lines2 = [l for l in lines2_without_comments.split('\n') if l.strip()]
+        code_lines1 = [line for line in lines1_without_comments.split('\n') if line.strip()]
+        code_lines2 = [line for line in lines2_without_comments.split('\n') if line.strip()]
         
         # If significantly more lines in code2 but similar functionality
         if len(code_lines2) > len(code_lines1) * 1.5:

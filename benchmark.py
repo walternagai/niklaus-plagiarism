@@ -90,7 +90,7 @@ def benchmark_sequential_vs_parallel():
         pipeline_par = AnalysisPipeline('python', max_workers=4, use_cache=False)
         
         start = time.time()
-        results_par = pipeline_par.run_textual_only(files, contents)
+        pipeline_par.run_textual_only(files, contents)
         time_par = time.time() - start
         
         # Results

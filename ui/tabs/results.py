@@ -91,5 +91,5 @@ def _show_code_comparison(results: Dict[str, Any], file1: str, file2: str) -> No
             st.markdown(f"**{file2}**")
             st.code(results['files_content'][idx2], language=results['language'].lower())
     
-    except (ValueError, KeyError) as e:
+    except (ValueError, KeyError):
         st.warning("Código não disponível para comparação.")

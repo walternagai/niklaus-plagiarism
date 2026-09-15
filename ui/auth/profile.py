@@ -19,8 +19,6 @@ def render_profile_page():
     user = st.session_state.user
     user_id = user.get('id') if isinstance(user, dict) else user.id
     user_email = user.get('email') if isinstance(user, dict) else user.email
-    user_name = user.get('name') if isinstance(user, dict) else user.name
-    is_admin = user.get('is_admin', False) if isinstance(user, dict) else getattr(user, 'is_admin', False)
     
     st.title("👤 Perfil")
     st.markdown(f"**{user_email}**")
