@@ -30,8 +30,9 @@ def render_sidebar() -> Dict[str, Any]:
         # Analysis configuration
         threshold = _render_analysis_config()
         
-        # Performance configuration
-        max_workers, use_cache, enable_ai = _render_performance_config()
+        # Performance configuration (advanced — collapsed by default)
+        with st.expander("⚡ Performance (avançado)", expanded=False):
+            max_workers, use_cache, enable_ai = _render_performance_config()
         
         # Instructions
         _render_instructions()
