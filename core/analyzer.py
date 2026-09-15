@@ -2,7 +2,7 @@
 Main analysis orchestrator for Niklaus plagiarism detector.
 """
 
-from typing import List, Dict, Any, Tuple, Optional, Callable, Iterator
+from typing import Any, Optional, Callable, Iterator
 import os
 import numpy as np
 from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
@@ -16,7 +16,7 @@ from utils.logger import get_logger
 logger = get_logger(__name__)
 
 
-def _pair_indices(n: int) -> Iterator[Tuple[int, int]]:
+def _pair_indices(n: int) -> Iterator[tuple[int, int]]:
     for i in range(n):
         for j in range(i + 1, n):
             yield i, j
@@ -53,12 +53,12 @@ class PlagiarismAnalyzer:
     
     def analyze_files(
         self,
-        files: List[str],
-        contents: List[str],
+        files: list[str],
+        contents: list[str],
         threshold: float = 0.7,
         progress_callback: Optional[Callable[[int, int, str], None]] = None,
         cancel_check: Optional[Callable[[], bool]] = None
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Perform complete analysis on file set.
         
@@ -163,29 +163,29 @@ class PlagiarismAnalyzer:
 
     def calculate_textual_similarities(
         self,
-        files: List[str],
-        contents: List[str],
+        files: list[str],
+        contents: list[str],
         progress_callback: Optional[Callable[[int, int, str], None]] = None,
         cancel_check: Optional[Callable[[], bool]] = None,
-    ) -> List[Tuple[str, str, float]]:
+    ) -> list[tuple[str, str, float]]:
         """Public entry point for textual similarity calculation."""
         return self._calculate_textual_similarities(files, contents, progress_callback, cancel_check)
 
     def build_matrix(
         self,
-        files: List[str],
-        similarities: List[Tuple[str, str, float]],
+        files: list[str],
+        similarities: list[tuple[str, str, float]],
     ):
         """Public entry point for similarity matrix construction."""
         return self._build_matrix(files, similarities)
 
     def _calculate_textual_similarities(
         self,
-        files: List[str],
-        contents: List[str],
+        files: list[str],
+        contents: list[str],
         progress_callback: Optional[Callable[[int, int, str], None]] = None,
         cancel_check: Optional[Callable[[], bool]] = None
-    ) -> List[Tuple[str, str, float]]:
+    ) -> list[tuple[str, str, float]]:
         """
         Calculate textual similarities in parallel.
         
@@ -201,7 +201,7 @@ class PlagiarismAnalyzer:
         total_pairs = n * (n - 1) // 2
         completed = 0
         
-        results: List[Tuple[str, str, float]] = []
+        results: list[tuple[str, str, float]] = []
 
         # Avoid submitting all O(n^2) futures at once (memory blow-up).
         max_in_flight_factor = int(os.getenv('NIKLAUS_MAX_IN_FLIGHT_FACTOR', '4'))
@@ -210,7 +210,7 @@ class PlagiarismAnalyzer:
         pair_iter = iter(_pair_indices(n))
 
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            in_flight: Dict[Any, Tuple[int, int]] = {}
+            in_flight: dict[Any, tuple[int, int]] = {}
 
             def submit_next() -> bool:
                 try:
@@ -248,11 +248,11 @@ class PlagiarismAnalyzer:
     
     def _calculate_ast_similarities(
         self,
-        files: List[str],
-        contents: List[str],
+        files: list[str],
+        contents: list[str],
         progress_callback: Optional[Callable[[int, int, str], None]] = None,
         cancel_check: Optional[Callable[[], bool]] = None
-    ) -> List[Tuple[str, str, float]]:
+    ) -> list[tuple[str, str, float]]:
         """
         Calculate AST similarities in parallel.
         
@@ -268,7 +268,7 @@ class PlagiarismAnalyzer:
         total_pairs = n * (n - 1) // 2
         completed = 0
         
-        results: List[Tuple[str, str, float]] = []
+        results: list[tuple[str, str, float]] = []
 
         max_in_flight_factor = int(os.getenv('NIKLAUS_MAX_IN_FLIGHT_FACTOR', '4'))
         max_in_flight = max(1, self.max_workers * max_in_flight_factor)
@@ -276,7 +276,7 @@ class PlagiarismAnalyzer:
         language = self.language.lower()
 
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            in_flight: Dict[Any, Tuple[int, int]] = {}
+            in_flight: dict[Any, tuple[int, int]] = {}
 
             def submit_next() -> bool:
                 try:
@@ -314,10 +314,10 @@ class PlagiarismAnalyzer:
     
     def _calculate_metrics(
         self,
-        contents: List[str],
+        contents: list[str],
         progress_callback: Optional[Callable[[int, int, str], None]] = None,
         cancel_check: Optional[Callable[[], bool]] = None
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Calculate code metrics for each file in parallel.
         
@@ -331,7 +331,7 @@ class PlagiarismAnalyzer:
         total = len(contents)
         completed = 0
         
-        def calculate_single_metrics(content: str) -> Dict[str, Any]:
+        def calculate_single_metrics(content: str) -> dict[str, Any]:
             metrics = self.metrics.calculate_all_metrics(content, self.language.lower())
             return {
                 'loc': metrics['loc']['code'],
@@ -347,7 +347,7 @@ class PlagiarismAnalyzer:
         max_in_flight = max(1, self.max_workers * max_in_flight_factor)
 
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            in_flight: Dict[Any, int] = {}
+            in_flight: dict[Any, int] = {}
             idx_iter = iter(range(total))
 
             def submit_next() -> bool:
@@ -388,8 +388,8 @@ class PlagiarismAnalyzer:
     
     def _build_matrix(
         self,
-        files: List[str],
-        similarities: List[Tuple[str, str, float]]
+        files: list[str],
+        similarities: list[tuple[str, str, float]]
     ) -> np.ndarray:
         """
         Build similarity matrix from similarity list.
@@ -419,14 +419,14 @@ class PlagiarismAnalyzer:
     
     def _detect_patterns(
         self,
-        files: List[str],
-        contents: List[str],
-        textual_sims: List[Tuple[str, str, float]],
-        ast_sims: List[Tuple[str, str, float]],
+        files: list[str],
+        contents: list[str],
+        textual_sims: list[tuple[str, str, float]],
+        ast_sims: list[tuple[str, str, float]],
         threshold: float,
         cancel_check: Optional[Callable[[], bool]] = None,
-        precomputed_metrics: Optional[List[Dict[str, Any]]] = None,
-    ) -> Dict[str, Dict[str, Any]]:
+        precomputed_metrics: Optional[list[dict[str, Any]]] = None,
+    ) -> dict[str, dict[str, Any]]:
         """Detect plagiarism patterns for pairs above threshold.
 
         Args:
@@ -442,7 +442,7 @@ class PlagiarismAnalyzer:
         Returns:
             Dictionary mapping "file1_file2" to pattern analysis
         """
-        patterns: Dict[str, Dict[str, Any]] = {}
+        patterns: dict[str, dict[str, Any]] = {}
 
         file_to_idx = {f: i for i, f in enumerate(files)}
 
@@ -514,9 +514,9 @@ class PlagiarismAnalyzer:
     
     def get_suspicious_pairs(
         self,
-        textual_sims: List[Tuple[str, str, float]],
+        textual_sims: list[tuple[str, str, float]],
         threshold: float
-    ) -> List[Tuple[str, str, float]]:
+    ) -> list[tuple[str, str, float]]:
         """
         Get pairs with similarity above threshold.
         

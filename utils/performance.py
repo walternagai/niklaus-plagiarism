@@ -5,7 +5,7 @@ Tracks execution times, memory usage, and performance bottlenecks.
 
 import time
 import functools
-from typing import Callable, Dict, Any, Optional, List
+from typing import Callable, Any, Optional
 from datetime import datetime, UTC
 from collections import defaultdict
 import statistics
@@ -23,10 +23,10 @@ class PerformanceMetrics:
     """
     
     def __init__(self):
-        self._metrics: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
-        self._call_counts: Dict[str, int] = defaultdict(int)
-        self._error_counts: Dict[str, int] = defaultdict(int)
-        self._total_times: Dict[str, float] = defaultdict(float)
+        self._metrics: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        self._call_counts: dict[str, int] = defaultdict(int)
+        self._error_counts: dict[str, int] = defaultdict(int)
+        self._total_times: dict[str, float] = defaultdict(float)
     
     def record(self, name: str, execution_time: float, success: bool = True, **metadata):
         """
@@ -52,7 +52,7 @@ class PerformanceMetrics:
         if not success:
             self._error_counts[name] += 1
     
-    def get_stats(self, name: str) -> Dict[str, Any]:
+    def get_stats(self, name: str) -> dict[str, Any]:
         """
         Get statistics for a metric.
         
@@ -89,11 +89,11 @@ class PerformanceMetrics:
             'success_rate': ((total - errors) / total * 100) if total > 0 else 100.0
         }
     
-    def get_all_stats(self) -> Dict[str, Dict[str, Any]]:
+    def get_all_stats(self) -> dict[str, dict[str, Any]]:
         """Get statistics for all metrics."""
         return {name: self.get_stats(name) for name in self._metrics.keys()}
     
-    def get_top_slow(self, n: int = 10) -> List[Dict[str, Any]]:
+    def get_top_slow(self, n: int = 10) -> list[dict[str, Any]]:
         """Get top N slowest operations."""
         avg_times = {
             name: stats['avg_time']
@@ -115,7 +115,7 @@ class PerformanceMetrics:
             for name, avg_time in sorted_ops
         ]
     
-    def get_top_frequent(self, n: int = 10) -> List[Dict[str, Any]]:
+    def get_top_frequent(self, n: int = 10) -> list[dict[str, Any]]:
         """Get top N most frequent operations."""
         sorted_ops = sorted(
             self._call_counts.items(),
@@ -259,7 +259,7 @@ def measure_time(func: Callable) -> Callable:
     return wrapper
 
 
-def get_performance_dashboard() -> Dict[str, Any]:
+def get_performance_dashboard() -> dict[str, Any]:
     """
     Get comprehensive performance dashboard data.
     Returns metrics suitable for display in UI.
@@ -347,7 +347,7 @@ def display_performance_report():
             st.info("No operations recorded")
 
 
-def get_metrics_for_export() -> Dict[str, Any]:
+def get_metrics_for_export() -> dict[str, Any]:
     """Get metrics in format suitable for export (JSON/CSV)."""
     metrics = get_performance_metrics()
     

@@ -3,7 +3,7 @@ Parallel processing utilities for Niklaus plagiarism detector.
 """
 
 from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED, as_completed
-from typing import List, Callable, Any, Tuple
+from typing import Callable, Any
 import time
 
 from utils.exceptions import ParallelProcessingError
@@ -26,10 +26,10 @@ class ParallelComparator:
     
     def compare_all_pairs(
         self,
-        contents: List[str],
+        contents: list[str],
         compare_func: Callable[[str, str], float],
         progress_callback: Callable[[int, int], None] | None = None
-    ) -> List[Tuple[int, int, float]]:
+    ) -> list[tuple[int, int, float]]:
         """
         Compare all pairs of files in parallel.
         
@@ -100,9 +100,9 @@ class ParallelComparator:
     
     def analyze_parallel(
         self,
-        tasks: List[Tuple[Callable, tuple]],
+        tasks: list[tuple[Callable, tuple]],
         progress_callback: Callable[[int, int], None] | None = None
-    ) -> List[Any]:
+    ) -> list[Any]:
         """
         Execute arbitrary tasks in parallel.
         
@@ -151,9 +151,9 @@ class ParallelComparator:
     def map_parallel(
         self,
         func: Callable,
-        items: List[Any],
+        items: list[Any],
         progress_callback: Callable[[int, int], None] | None = None
-    ) -> List[Any]:
+    ) -> list[Any]:
         """
         Apply function to each item in parallel.
         
@@ -215,10 +215,10 @@ class BatchProcessor:
     
     def process_in_batches(
         self,
-        items: List[Any],
-        process_func: Callable[[List[Any]], List[Any]],
+        items: list[Any],
+        process_func: Callable[[list[Any]], list[Any]],
         progress_callback: Callable[[int, int], None] | None = None
-    ) -> List[Any]:
+    ) -> list[Any]:
         """
         Process items in batches.
         

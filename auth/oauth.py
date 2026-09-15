@@ -5,7 +5,7 @@ OAuth handlers for Google, GitHub, and Microsoft authentication.
 import hmac
 import hashlib
 import secrets
-from typing import Optional, Dict, Any
+from typing import Optional, Any
 from datetime import datetime, UTC
 
 from auth.models import User
@@ -50,7 +50,7 @@ class OAuthHandler:
         if self.provider not in self.providers:
             raise ValueError(f"Unsupported provider: {provider}")
     
-    def get_authorization_url(self, state: str = None) -> str:
+    def get_authorization_url(self, state: Optional[str] = None) -> str:
         """Build the OAuth provider authorization URL.
 
         If *state* is not provided a random one is generated.  The caller is
@@ -89,7 +89,7 @@ class OAuthHandler:
         return ""
     
     
-    def _exchange_code_for_token(self, code: str) -> Dict[str, Any]:
+    def _exchange_code_for_token(self, code: str) -> dict[str, Any]:
         """Exchange authorization code for access token."""
         import requests
         
@@ -134,7 +134,7 @@ class OAuthHandler:
         
         return response.json()
     
-    def _get_user_profile(self, access_token: str) -> Dict[str, Any]:
+    def _get_user_profile(self, access_token: str) -> dict[str, Any]:
         """Get user profile from OAuth provider."""
         import requests
         
@@ -170,7 +170,7 @@ class OAuthHandler:
         
         return profile
     
-    def _normalize_profile(self, profile: Dict[str, Any], access_token: str = None) -> Dict[str, Any]:
+    def _normalize_profile(self, profile: dict[str, Any], access_token: Optional[str] = None) -> dict[str, Any]:
         """Normalize profile data across providers."""
         if self.provider == 'google':
             return {
@@ -297,10 +297,10 @@ class OAuthHandler:
         email: str,
         name: str,
         provider: str,
-        oauth_id: str = None,
-        avatar_url: str = None,
-        access_token: str = None,
-        refresh_token: str = None,
+        oauth_id: Optional[str] = None,
+        avatar_url: Optional[str] = None,
+        access_token: Optional[str] = None,
+        refresh_token: Optional[str] = None,
     ) -> User:
         """Create or update a user from OAuth profile data.
 

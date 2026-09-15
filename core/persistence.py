@@ -17,7 +17,7 @@ import math
 import hashlib
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 from datetime import datetime, timedelta, UTC
 
 import numpy as np
@@ -98,7 +98,7 @@ class AnalysisCache:
 
     _FILE_GLOB = "analysis_*.json"
 
-    def __init__(self, cache_dir: str = None):
+    def __init__(self, cache_dir: Optional[str] = None):
         self.cache_dir = Path(cache_dir or config.CACHE_DIR)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         logger.info(f"Cache directory: {self.cache_dir}")
@@ -109,8 +109,8 @@ class AnalysisCache:
 
     def _content_signature(
         self,
-        files: List[str],
-        contents: Optional[List[str]],
+        files: list[str],
+        contents: Optional[list[str]],
         language: Optional[str],
     ) -> str:
         """Build deterministic 16-char hex signature from files, contents, language."""
@@ -132,9 +132,9 @@ class AnalysisCache:
 
     def _cache_filename(
         self,
-        files: List[str],
+        files: list[str],
         threshold: float,
-        contents: Optional[List[str]] = None,
+        contents: Optional[list[str]] = None,
         language: Optional[str] = None,
         expire_ts: Optional[int] = None,
     ) -> str:
@@ -145,9 +145,9 @@ class AnalysisCache:
 
     def _find_cache_file(
         self,
-        files: List[str],
+        files: list[str],
         threshold: float,
-        contents: Optional[List[str]] = None,
+        contents: Optional[list[str]] = None,
         language: Optional[str] = None,
     ) -> Optional[Path]:
         """Locate a non-expired cache file matching the content signature."""
@@ -176,11 +176,11 @@ class AnalysisCache:
 
     def save(
         self,
-        files: List[str],
+        files: list[str],
         threshold: float,
-        analysis_data: Dict,
-        contents: Optional[List[str]] = None,
-        language: str = None,
+        analysis_data: dict,
+        contents: Optional[list[str]] = None,
+        language: Optional[str] = None,
     ) -> Path:
         """Save analysis results to a JSON cache file.
 
@@ -221,12 +221,12 @@ class AnalysisCache:
 
     def load(
         self,
-        files: List[str],
+        files: list[str],
         threshold: float,
-        contents: Optional[List[str]] = None,
+        contents: Optional[list[str]] = None,
         language: Optional[str] = None,
-        max_age_hours: int = None,
-    ) -> Optional[Dict]:
+        max_age_hours: Optional[int] = None,
+    ) -> Optional[dict]:
         """Load analysis results from cache if valid and not expired.
 
         When *max_age_hours* is 0, cache is always considered expired (bypass).
@@ -310,7 +310,7 @@ class AnalysisCache:
         logger.info(f"Cleared {removed} cache files")
         return removed
 
-    def get_cache_stats(self) -> Dict[str, Any]:
+    def get_cache_stats(self) -> dict[str, Any]:
         """Return cache statistics without reading file contents."""
         cache_files = list(self.cache_dir.glob(self._FILE_GLOB))
         total_size = sum(f.stat().st_size for f in cache_files)
@@ -347,7 +347,7 @@ class DiskSessionManager:
     def __init__(self, session_file: str = ".niklaus_session.json"):
         self.session_file = Path(session_file)
 
-    def save_session(self, session_data: Dict[str, Any]) -> None:
+    def save_session(self, session_data: dict[str, Any]) -> None:
         try:
             with open(self.session_file, "w", encoding="utf-8") as f:
                 f.write(_json_dumps(session_data))
@@ -355,7 +355,7 @@ class DiskSessionManager:
         except Exception as e:
             logger.warning(f"Failed to save session: {e}")
 
-    def load_session(self) -> Dict[str, Any]:
+    def load_session(self) -> dict[str, Any]:
         if not self.session_file.exists():
             return {}
         try:
@@ -390,12 +390,12 @@ class AnalysisResult:
         for key, value in kwargs.items():
             setattr(self, key, value)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {k: v for k, v in self.__dict__.items() if not k.startswith("_")}
 
     def to_json(self) -> str:
         return _json_dumps(self.to_dict())
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "AnalysisResult":
+    def from_dict(cls, data: dict[str, Any]) -> "AnalysisResult":
         return cls(**data)

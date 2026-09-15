@@ -4,7 +4,7 @@ Displays performance metrics and system statistics.
 """
 
 import streamlit as st
-from typing import Dict, Any
+from typing import Any
 
 from utils.performance import get_performance_dashboard, get_metrics_for_export
 from utils.db_cache import get_cache_stats
@@ -42,7 +42,7 @@ def render_performance_dashboard():
         _render_cache_tab(cache_stats)
 
 
-def _render_summary_metrics(summary: Dict[str, Any]):
+def _render_summary_metrics(summary: dict[str, Any]):
     """Render summary metrics."""
     col1, col2, col3, col4, col5 = st.columns(5)
     
@@ -82,7 +82,7 @@ def _render_summary_metrics(summary: Dict[str, Any]):
         )
 
 
-def _render_overview_tab(dashboard_data: Dict[str, Any]):
+def _render_overview_tab(dashboard_data: dict[str, Any]):
     """Render overview tab."""
     st.markdown("#### Métricas por Categoria")
     
@@ -182,7 +182,7 @@ def _render_frequent_operations_tab(freq_ops: list):
             st.markdown("---")
 
 
-def _render_cache_tab(cache_stats: Dict[str, Any]):
+def _render_cache_tab(cache_stats: dict[str, Any]):
     """Render cache statistics tab."""
     st.markdown("#### 💾 Estatísticas do Cache")
     

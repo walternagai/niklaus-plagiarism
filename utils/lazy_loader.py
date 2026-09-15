@@ -5,7 +5,7 @@ Implements lazy imports and module-level caching.
 
 import importlib
 import time
-from typing import Any, Callable, Optional, Dict
+from typing import Any, Callable, Optional
 from functools import wraps
 import streamlit as st
 
@@ -45,8 +45,8 @@ class LazyTabLoader:
     """
     
     def __init__(self):
-        self._loaded_tabs: Dict[str, float] = {}
-        self._tab_data: Dict[str, Any] = {}
+        self._loaded_tabs: dict[str, float] = {}
+        self._tab_data: dict[str, Any] = {}
     
     def is_tab_loaded(self, tab_name: str) -> bool:
         """Check if tab has been loaded in this session."""
@@ -135,8 +135,8 @@ class ComponentCache:
     """
     
     def __init__(self, maxsize: int = 128):
-        self._cache: Dict[str, Any] = {}
-        self._access_times: Dict[str, float] = {}
+        self._cache: dict[str, Any] = {}
+        self._access_times: dict[str, float] = {}
         self._maxsize = maxsize
     
     def get(self, key: str) -> Optional[Any]:
@@ -172,7 +172,7 @@ class ComponentCache:
         self._cache.clear()
         self._access_times.clear()
     
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get cache statistics."""
         return {
             'size': len(self._cache),

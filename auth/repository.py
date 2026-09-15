@@ -2,7 +2,7 @@
 Repository pattern for database operations.
 """
 
-from typing import Optional, List, Dict, Any
+from typing import Optional, Any
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, func, case
 from datetime import datetime, timedelta, UTC
@@ -46,7 +46,7 @@ class UserRepository:
             User.oauth_id == oauth_id
         ).first()
     
-    def get_all_active(self, limit: int = 100) -> List[User]:
+    def get_all_active(self, limit: int = 100) -> list[User]:
         return self.db.query(User).filter(User.is_active.is_(True)).limit(limit).all()
     
     def update_last_login(self, user_id: int) -> None:
@@ -122,13 +122,13 @@ class SubmissionRepository:
         user_id: int,
         limit: int = 50,
         offset: int = 0,
-        status: str = None,
-        date_start: datetime = None,
-        date_end: datetime = None,
-        min_similarity: float = None,
-        max_similarity: float = None,
+        status: Optional[str] = None,
+        date_start: Optional[datetime] = None,
+        date_end: Optional[datetime] = None,
+        min_similarity: Optional[float] = None,
+        max_similarity: Optional[float] = None,
         use_cache: bool = True,
-    ) -> List[Submission]:
+    ) -> list[Submission]:
         """Fetch submissions for *user_id* with optional server-side filtering.
 
         Filters are applied in SQL so that large datasets are not loaded into
@@ -180,7 +180,7 @@ class SubmissionRepository:
         self._cache.invalidate_user(user_id)
         return count
     
-    def update_status(self, submission_id: int, status: str, error_message: str = None) -> None:
+    def update_status(self, submission_id: int, status: str, error_message: Optional[str] = None) -> None:
         submission = self.find_by_id(submission_id)
         if submission:
             submission.status = status
@@ -213,11 +213,11 @@ class SubmissionRepository:
     def count_by_user(
         self,
         user_id: int,
-        status: str = None,
-        date_start: datetime = None,
-        date_end: datetime = None,
-        min_similarity: float = None,
-        max_similarity: float = None,
+        status: Optional[str] = None,
+        date_start: Optional[datetime] = None,
+        date_end: Optional[datetime] = None,
+        min_similarity: Optional[float] = None,
+        max_similarity: Optional[float] = None,
     ) -> int:
         """COUNT(*) with the same optional filters as find_by_user — no ORM objects loaded."""
         query = self.db.query(func.count(Submission.id)).filter(Submission.user_id == user_id)
@@ -233,7 +233,7 @@ class SubmissionRepository:
             query = query.filter(Submission.average_similarity <= max_similarity)
         return query.scalar() or 0
 
-    def get_stats_by_user(self, user_id: int) -> Dict[str, Any]:
+    def get_stats_by_user(self, user_id: int) -> dict[str, Any]:
         """Aggregate statistics for a user via a single SQL query — no Python loops."""
         row = self.db.query(
             func.count(Submission.id),
@@ -281,7 +281,7 @@ class CacheRepository:
         return cache
     
     def set(self, cache_key: str, cache_data: dict, file_hashes: list,
-            language: str, threshold: float, user_id: int = None,
+            language: str, threshold: float, user_id: Optional[int] = None,
             expires_hours: int = 24) -> AnalysisCache:
         self.db.query(AnalysisCache).filter(
             AnalysisCache.cache_key == cache_key
@@ -325,9 +325,9 @@ class AuditRepository:
     def __init__(self, db: Session):
         self.db = db
     
-    def log(self, action: str, entity_type: str, entity_id: int = None,
-            user_id: int = None, details: dict = None,
-            ip_address: str = None, user_agent: str = None) -> AuditLog:
+    def log(self, action: str, entity_type: str, entity_id: Optional[int] = None,
+            user_id: Optional[int] = None, details: Optional[dict] = None,
+            ip_address: Optional[str] = None, user_agent: Optional[str] = None) -> AuditLog:
         log = AuditLog(
             user_id=user_id,
             action=action,
@@ -342,12 +342,12 @@ class AuditRepository:
         self.db.refresh(log)
         return log
     
-    def get_user_logs(self, user_id: int, limit: int = 100) -> List[AuditLog]:
+    def get_user_logs(self, user_id: int, limit: int = 100) -> list[AuditLog]:
         return self.db.query(AuditLog).filter(
             AuditLog.user_id == user_id
         ).order_by(desc(AuditLog.created_at)).limit(limit).all()
     
-    def get_recent_logs(self, limit: int = 100) -> List[AuditLog]:
+    def get_recent_logs(self, limit: int = 100) -> list[AuditLog]:
         return self.db.query(AuditLog).order_by(
             desc(AuditLog.created_at)
         ).limit(limit).all()

@@ -5,7 +5,7 @@ Provides asynchronous execution for improved performance.
 
 import asyncio
 import concurrent.futures
-from typing import List, Any, Callable, Optional
+from typing import Any, Callable, Optional
 from functools import wraps
 from concurrent.futures import ThreadPoolExecutor
 
@@ -41,8 +41,8 @@ class AsyncProcessor:
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(self._executor, func, *args, **kwargs)
     
-    async def run_batch_async(self, func: Callable, items: List[Any], 
-                               max_concurrent: int = 10) -> List[Any]:
+    async def run_batch_async(self, func: Callable, items: list[Any], 
+                               max_concurrent: int = 10) -> list[Any]:
         """
         Run function on multiple items concurrently.
         
@@ -90,8 +90,8 @@ class BatchProcessor:
         self._executor = ThreadPoolExecutor(max_workers=max_workers)
     
     @track_performance('batch.process')
-    def process_batch(self, func: Callable, items: List[Any],
-                      progress_callback: Callable = None) -> List[Any]:
+    def process_batch(self, func: Callable, items: list[Any],
+                      progress_callback: Optional[Callable] = None) -> list[Any]:
         """
         Process items in batches.
         
@@ -116,7 +116,7 @@ class BatchProcessor:
         
         return results
     
-    def _process_batch(self, func: Callable, batch: List[Any]) -> List[Any]:
+    def _process_batch(self, func: Callable, batch: list[Any]) -> list[Any]:
         """Process a single batch."""
         futures = []
         
@@ -135,8 +135,8 @@ class BatchProcessor:
         
         return results
     
-    async def process_batch_async(self, func: Callable, items: List[Any],
-                                   progress_callback: Callable = None) -> List[Any]:
+    async def process_batch_async(self, func: Callable, items: list[Any],
+                                   progress_callback: Optional[Callable] = None) -> list[Any]:
         """
         Process items in batches asynchronously.
         
@@ -177,7 +177,7 @@ class ChunkedProcessor:
     def __init__(self, chunk_size: int = 1024 * 1024):  # 1MB default
         self._chunk_size = chunk_size
     
-    def process_file_chunks(self, file_obj: Any, process_func: Callable) -> List[Any]:
+    def process_file_chunks(self, file_obj: Any, process_func: Callable) -> list[Any]:
         """
         Process file in chunks.
         
@@ -206,7 +206,7 @@ class ChunkedProcessor:
         
         return results
     
-    async def process_file_async(self, file_obj: Any, process_func: Callable) -> List[Any]:
+    async def process_file_async(self, file_obj: Any, process_func: Callable) -> list[Any]:
         """Process file chunks asynchronously."""
         processor = AsyncProcessor()
         
@@ -261,7 +261,7 @@ def batch_process(batch_size: int = 100) -> Callable:
         processor = BatchProcessor(batch_size=batch_size)
         
         @wraps(func)
-        def wrapper(items: List[Any], *args, **kwargs) -> List[Any]:
+        def wrapper(items: list[Any], *args, **kwargs) -> list[Any]:
             return processor.process_batch(
                 lambda item: func(item, *args, **kwargs),
                 items

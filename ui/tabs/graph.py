@@ -4,12 +4,12 @@ Graph tab for Niklaus UI.
 
 import streamlit as st
 import numpy as np
-from typing import Dict, Any
+from typing import Any
 from ui.components.charts import create_similarity_graph
 from ui.components.tables import display_cluster_table
 
 
-def render_graph_tab(results: Dict[str, Any]) -> None:
+def render_graph_tab(results: dict[str, Any]) -> None:
     """
     Display similarity graph tab.
     

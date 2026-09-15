@@ -3,12 +3,12 @@ Advanced analysis tab for Niklaus UI.
 """
 
 import streamlit as st
-from typing import Dict, Any
+from typing import Any
 from ui.components.tables import display_metrics_table, display_ast_table, display_comparison_table
 from ui.components.charts import create_metrics_radar_chart
 
 
-def render_advanced_tab(results: Dict[str, Any]) -> None:
+def render_advanced_tab(results: dict[str, Any]) -> None:
     """
     Display advanced analysis tab.
     

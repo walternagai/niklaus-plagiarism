@@ -21,7 +21,7 @@ import csv
 import io
 import json
 import math
-from typing import Any, Dict, List
+from typing import Any
 
 
 class ExportService:
@@ -32,7 +32,7 @@ class ExportService:
     # ------------------------------------------------------------------
 
     @classmethod
-    def to_json(cls, results: Dict[str, Any], indent: int = 2) -> bytes:
+    def to_json(cls, results: dict[str, Any], indent: int = 2) -> bytes:
         """Serialise *results* to JSON bytes (UTF-8).
 
         NaN / Inf floats are replaced with ``null`` so the output is valid JSON.
@@ -46,7 +46,7 @@ class ExportService:
     # ------------------------------------------------------------------
 
     @classmethod
-    def to_csv(cls, results: Dict[str, Any]) -> bytes:
+    def to_csv(cls, results: dict[str, Any]) -> bytes:
         """Serialise pairwise comparison results to CSV bytes (UTF-8 BOM).
 
         The CSV contains one row per compared pair with columns:
@@ -71,9 +71,9 @@ class ExportService:
         )
         writer.writeheader()
 
-        pairwise: List[Dict[str, Any]] = results.get("pairwise_results", [])
+        pairwise: list[dict[str, Any]] = results.get("pairwise_results", [])
         threshold: float = float(results.get("threshold", 0.7) or 0.7)
-        patterns: Dict[str, Any] = results.get("patterns", {}) or {}
+        patterns: dict[str, Any] = results.get("patterns", {}) or {}
 
         for pair in pairwise:
             file1 = pair.get("file1", "")
@@ -106,11 +106,11 @@ class ExportService:
     # ------------------------------------------------------------------
 
     @classmethod
-    def to_summary_csv(cls, results: Dict[str, Any]) -> bytes:
+    def to_summary_csv(cls, results: dict[str, Any]) -> bytes:
         """One-row-per-file summary CSV with per-file metrics."""
         buf = io.StringIO()
-        files: List[str] = results.get("files", [])
-        metrics_list: List[Dict[str, Any]] = results.get("metrics") or []
+        files: list[str] = results.get("files", [])
+        metrics_list: list[dict[str, Any]] = results.get("metrics") or []
 
         fieldnames = [
             "filename",

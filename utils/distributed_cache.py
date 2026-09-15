@@ -6,7 +6,7 @@ Can fallback to in-memory cache if Redis is not available.
 
 import json
 import zlib
-from typing import Any, Optional, Dict
+from typing import Any, Optional
 from datetime import datetime, timedelta, UTC
 
 try:
@@ -43,7 +43,7 @@ class InMemoryCache(CacheBackend):
     """In-memory cache for single-process usage."""
     
     def __init__(self, maxsize: int = 1000):
-        self._cache: Dict[str, Dict[str, Any]] = {}
+        self._cache: dict[str, dict[str, Any]] = {}
         self._maxsize = maxsize
     
     def get(self, key: str) -> Optional[Any]:
@@ -175,8 +175,8 @@ class DistributedCache:
     Uses Redis if available, otherwise falls back to in-memory cache.
     """
     
-    def __init__(self, redis_host: str = None, redis_port: int = 6379,
-                 redis_password: str = None, fallback_to_memory: bool = True):
+    def __init__(self, redis_host: Optional[str] = None, redis_port: int = 6379,
+                 redis_password: Optional[str] = None, fallback_to_memory: bool = True):
         
         self._backend: CacheBackend = None
         self._is_redis = False
@@ -241,7 +241,7 @@ class DistributedCache:
             logger.error(f"Cache clear error: {e}")
             return False
     
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get cache statistics."""
         stats = {
             'backend': 'redis' if self._is_redis else 'memory',
@@ -275,7 +275,7 @@ class CacheWarming:
     
     def __init__(self, cache: DistributedCache):
         self._cache = cache
-        self._warming_functions: Dict[str, callable] = {}
+        self._warming_functions: dict[str, callable] = {}
     
     def register_warming_function(self, key_pattern: str, func: callable, ttl: int = 300):
         """
@@ -291,7 +291,7 @@ class CacheWarming:
             'ttl': ttl
         }
     
-    def warm_cache(self, keys: list = None):
+    def warm_cache(self, keys: Optional[list] = None):
         """
         Warm cache for specified keys or all registered patterns.
         
@@ -342,7 +342,7 @@ class SmartCacheInvalidation:
     
     def __init__(self, cache: DistributedCache):
         self._cache = cache
-        self._dependencies: Dict[str, list] = {}
+        self._dependencies: dict[str, list] = {}
     
     def add_dependency(self, key: str, depends_on: list):
         """
@@ -388,8 +388,8 @@ class SmartCacheInvalidation:
 _global_cache: Optional[DistributedCache] = None
 
 
-def get_distributed_cache(redis_host: str = None, redis_port: int = 6379,
-                          redis_password: str = None) -> DistributedCache:
+def get_distributed_cache(redis_host: Optional[str] = None, redis_port: int = 6379,
+                          redis_password: Optional[str] = None) -> DistributedCache:
     """Get global distributed cache instance."""
     global _global_cache
     if _global_cache is None:
@@ -402,7 +402,7 @@ def get_distributed_cache(redis_host: str = None, redis_port: int = 6379,
 
 
 def init_redis_cache(host: str = 'localhost', port: int = 6379, 
-                     password: str = None) -> DistributedCache:
+                     password: Optional[str] = None) -> DistributedCache:
     """
     Initialize Redis cache.
     

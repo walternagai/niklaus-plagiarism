@@ -6,7 +6,6 @@ Detect specific plagiarism patterns and classify types of plagiarism.
 
 import re
 import hashlib
-from typing import Dict, Set
 import ast
 
 
@@ -24,7 +23,7 @@ class PlagiarismPatternDetector:
         'REUSO_LEGITIMO': 'Reutilização legítima (bibliotecas, código comum)'
     }
     
-    def detect_variable_renaming(self, code1: str, code2: str, language: str = 'python') -> Dict:
+    def detect_variable_renaming(self, code1: str, code2: str, language: str = 'python') -> dict:
         """
         Detect if code2 is code1 with variables renamed.
         
@@ -109,7 +108,7 @@ class PlagiarismPatternDetector:
 
         return {'detected': False, 'variables_renamed': [], 'confidence': 0.0}
     
-    def _detect_variable_renaming_generic(self, code1: str, code2: str) -> Dict:
+    def _detect_variable_renaming_generic(self, code1: str, code2: str) -> dict:
         """Generic variable renaming detection for non-Python code."""
         # Extract identifiers (simplified)
         idents1 = set(re.findall(r'\b[a-zA-Z_]\w*\b', code1))
@@ -133,7 +132,7 @@ class PlagiarismPatternDetector:
         
         return {'detected': False, 'variables_renamed': [], 'confidence': 0.0}
     
-    def _extract_all_names(self, tree: ast.AST, name_type: str) -> Set[str]:
+    def _extract_all_names(self, tree: ast.AST, name_type: str) -> set[str]:
         """Extract all names of a specific type from AST.
 
         For 'variable', collects:
@@ -156,7 +155,7 @@ class PlagiarismPatternDetector:
 
         return names
     
-    def detect_code_reordering(self, code1: str, code2: str, language: str = 'python') -> Dict:
+    def detect_code_reordering(self, code1: str, code2: str, language: str = 'python') -> dict:
         """
         Detect if code contains reordered functions/statements.
         
@@ -197,7 +196,7 @@ class PlagiarismPatternDetector:
         
         return {'detected': False, 'reordered_blocks': [], 'confidence': 0.0}
     
-    def detect_dead_code_insertion(self, code1: str, code2: str) -> Dict:
+    def detect_dead_code_insertion(self, code1: str, code2: str) -> dict:
         """
         Detect if code2 has dead code or excessive comments inserted.
         
@@ -247,8 +246,8 @@ class PlagiarismPatternDetector:
     def classify_plagiarism_type(self, 
                                  textual_similarity: float,
                                  ast_similarity: float,
-                                 metrics_comparison: Dict,
-                                 pattern_analysis: Dict) -> str:
+                                 metrics_comparison: dict,
+                                 pattern_analysis: dict) -> str:
         """
         Classify the type of plagiarism based on multiple signals.
         
@@ -299,7 +298,7 @@ class PlagiarismPatternDetector:
                               code2: str, 
                               textual_sim: float,
                               ast_sim: float,
-                              metrics_comp: Dict) -> Dict:
+                              metrics_comp: dict) -> dict:
         """
         Perform comprehensive plagiarism pattern analysis.
         
@@ -356,7 +355,7 @@ class PlagiarismPatternDetector:
                             plagiarism_type: str,
                             textual_sim: float,
                             ast_sim: float,
-                            pattern_analysis: Dict) -> str:
+                            pattern_analysis: dict) -> str:
         """Generate human-readable explanation of the analysis."""
         explanations = {
             'COPIA_DIRETA': f'O código apresenta alta similaridade textual ({textual_sim:.1%}) ' +
@@ -394,7 +393,7 @@ class PlagiarismPatternDetector:
                             plagiarism_type: str,
                             textual_sim: float,
                             ast_sim: float,
-                            pattern_analysis: Dict) -> float:
+                            pattern_analysis: dict) -> float:
         """Calculate confidence score for plagiarism classification."""
         if plagiarism_type == 'COPIA_DIRETA':
             return min(textual_sim, ast_sim)

@@ -3,13 +3,13 @@ Upload tab for Niklaus UI.
 """
 
 import streamlit as st
-from typing import Dict, Any, Tuple, List
+from typing import Any
 from core.file_handler import FileHandler
 from utils.config import config
 from utils.exceptions import FileValidationError
 
 
-def render_upload_tab(settings: Dict[str, Any]) -> Tuple[List[str], List[str], str, bool]:
+def render_upload_tab(settings: dict[str, Any]) -> tuple[list[str], list[str], str, bool]:
     """
     Render upload tab.
     
@@ -135,7 +135,7 @@ def render_upload_tab(settings: Dict[str, Any]) -> Tuple[List[str], List[str], s
     return None, None, None, False
 
 
-def _display_performance_estimate(settings: Dict[str, Any]) -> None:
+def _display_performance_estimate(settings: dict[str, Any]) -> None:
     """Display performance estimate based on ZIP size."""
     with st.expander(":chart_with_upwards_trend: Estimativa de Performance"):
         from core.pipeline import AnalysisPipeline

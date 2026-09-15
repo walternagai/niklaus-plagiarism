@@ -8,6 +8,7 @@ import openai
 from utils.config import config
 from utils.exceptions import MaritacaAPIError, RateLimitError
 from utils.logger import get_logger
+from typing import Optional
 
 logger = get_logger(__name__)
 
@@ -45,10 +46,10 @@ class MaritacaClient:
     def __init__(
         self,
         api_key: str,
-        model: str = None,
-        timeout: int = None,
-        max_retries: int = None,
-        rate_limit: int = None
+        model: Optional[str] = None,
+        timeout: Optional[int] = None,
+        max_retries: Optional[int] = None,
+        rate_limit: Optional[int] = None
     ):
         """
         Initialize Maritaca client.

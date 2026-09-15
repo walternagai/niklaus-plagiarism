@@ -7,7 +7,7 @@ import json
 import zlib
 import gzip
 import base64
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 from pathlib import Path
 
 from utils.logger import get_logger
@@ -30,7 +30,7 @@ class ResultCompressor:
         """
         self.compression_level = compression_level
     
-    def compress(self, data: Dict[str, Any]) -> bytes:
+    def compress(self, data: dict[str, Any]) -> bytes:
         """
         Compress analysis results.
         
@@ -61,7 +61,7 @@ class ResultCompressor:
             logger.error(f"Compression error: {e}")
             raise
     
-    def decompress(self, data: bytes) -> Dict[str, Any]:
+    def decompress(self, data: bytes) -> dict[str, Any]:
         """
         Decompress analysis results.
         
@@ -78,7 +78,7 @@ class ResultCompressor:
             logger.error(f"Decompression error: {e}")
             raise
     
-    def compress_to_base64(self, data: Dict[str, Any]) -> str:
+    def compress_to_base64(self, data: dict[str, Any]) -> str:
         """
         Compress and encode to base64 string.
         
@@ -91,7 +91,7 @@ class ResultCompressor:
         compressed = self.compress(data)
         return base64.b64encode(compressed).decode('utf-8')
     
-    def decompress_from_base64(self, data: str) -> Dict[str, Any]:
+    def decompress_from_base64(self, data: str) -> dict[str, Any]:
         """
         Decompress from base64 string.
         
@@ -162,7 +162,7 @@ class ChunkedCompressor:
         self._compressor = ResultCompressor()
         self._chunk_size = chunk_size
     
-    def compress_chunks(self, data: Dict[str, Any]) -> list:
+    def compress_chunks(self, data: dict[str, Any]) -> list:
         """
         Compress data in chunks.
         
@@ -182,7 +182,7 @@ class ChunkedCompressor:
         
         return chunks
     
-    def decompress_chunks(self, chunks: list) -> Dict[str, Any]:
+    def decompress_chunks(self, chunks: list) -> dict[str, Any]:
         """
         Decompress data from chunks.
         
@@ -208,7 +208,7 @@ class CompressionStats:
     """
     
     def __init__(self):
-        self._stats: Dict[str, Dict[str, int]] = {}
+        self._stats: dict[str, dict[str, int]] = {}
     
     def record(self, operation: str, original_size: int, compressed_size: int):
         """Record compression statistics."""
@@ -223,7 +223,7 @@ class CompressionStats:
         self._stats[operation]['total_compressed'] += compressed_size
         self._stats[operation]['count'] += 1
     
-    def get_stats(self, operation: str = None) -> Dict[str, Any]:
+    def get_stats(self, operation: Optional[str] = None) -> dict[str, Any]:
         """Get compression statistics."""
         if operation:
             return self._stats.get(operation, {})
@@ -237,7 +237,7 @@ class CompressionStats:
             for op, stats in self._stats.items()
         }
     
-    def get_total_savings(self) -> Dict[str, int]:
+    def get_total_savings(self) -> dict[str, int]:
         """Calculate total space saved."""
         total_original = sum(s['total_original'] for s in self._stats.values())
         total_compressed = sum(s['total_compressed'] for s in self._stats.values())
@@ -262,7 +262,7 @@ def get_compression_stats() -> CompressionStats:
     return _global_compression_stats
 
 
-def compress_result(data: Dict[str, Any], level: int = 6) -> bytes:
+def compress_result(data: dict[str, Any], level: int = 6) -> bytes:
     """Quick function to compress analysis result."""
     compressor = ResultCompressor(compression_level=level)
     compressed = compressor.compress(data)
@@ -274,7 +274,7 @@ def compress_result(data: Dict[str, Any], level: int = 6) -> bytes:
     return compressed
 
 
-def decompress_result(data: bytes) -> Dict[str, Any]:
+def decompress_result(data: bytes) -> dict[str, Any]:
     """Quick function to decompress analysis result."""
     compressor = ResultCompressor()
     return compressor.decompress(data)

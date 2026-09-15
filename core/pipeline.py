@@ -3,7 +3,7 @@ Integration layer to connect new modular architecture with legacy app.py.
 This provides a smooth transition path while maintaining backward compatibility.
 """
 
-from typing import List, Dict, Any, Callable, Optional, Tuple
+from typing import Any, Callable, Optional
 import time
 
 from utils.lazy_loader import LazyModule
@@ -31,8 +31,8 @@ class AnalysisPipeline:
         self,
         language: str,
         api_key: Optional[str] = None,
-        model: str = None,
-        max_workers: int = None,
+        model: Optional[str] = None,
+        max_workers: Optional[int] = None,
         use_cache: bool = True
     ):
         """
@@ -96,13 +96,13 @@ class AnalysisPipeline:
     @track_performance('pipeline.run_full_analysis')
     def run_full_analysis(
         self,
-        files: List[str],
-        contents: List[str],
+        files: list[str],
+        contents: list[str],
         threshold: float = 0.7,
         enable_ai: bool = True,
-        progress_callback: Callable[[str, int, int], None] = None,
+        progress_callback: Optional[Callable[[str, int, int], None]] = None,
         cancel_check: Optional[Callable[[], bool]] = None
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Run complete plagiarism analysis pipeline.
         
@@ -242,13 +242,13 @@ class AnalysisPipeline:
     
     def _run_ai_analysis(
         self,
-        files: List[str],
-        contents: List[str],
-        suspicious_pairs: List[Tuple[str, str, float]],
-        analysis_results: Dict,
-        progress_callback: Callable = None,
+        files: list[str],
+        contents: list[str],
+        suspicious_pairs: list[tuple[str, str, float]],
+        analysis_results: dict,
+        progress_callback: Optional[Callable] = None,
         cancel_check: Optional[Callable[[], bool]] = None
-    ) -> Dict[str, str]:
+    ) -> dict[str, str]:
         """
         Run AI analysis for suspicious pairs in parallel.
         
@@ -321,11 +321,11 @@ class AnalysisPipeline:
     
     def run_textual_only(
         self,
-        files: List[str],
-        contents: List[str],
+        files: list[str],
+        contents: list[str],
         threshold: float = 0.7,
-        progress_callback: Callable = None
-    ) -> Dict[str, Any]:
+        progress_callback: Optional[Callable] = None
+    ) -> dict[str, Any]:
         """
         Run textual analysis only (no AST, metrics, or AI).
         Fastest option for basic similarity detection.
@@ -360,7 +360,7 @@ class AnalysisPipeline:
             'threshold': threshold
         }
     
-    def get_performance_stats(self, file_count: int) -> Dict[str, Any]:
+    def get_performance_stats(self, file_count: int) -> dict[str, Any]:
         """
         Estimate performance metrics for given file count.
         
@@ -439,9 +439,9 @@ class LegacyAdapter:
     
     @staticmethod
     def create_similarity_matrix(
-        files: List[str],
-        textual_sims: List[Tuple[str, str, float]]
-    ) -> List[List[float]]:
+        files: list[str],
+        textual_sims: list[tuple[str, str, float]]
+    ) -> list[list[float]]:
         """
         Convert textual similarities to matrix format.
         
@@ -457,7 +457,7 @@ class LegacyAdapter:
         return analyzer._build_matrix(files, textual_sims).tolist()
 
 
-def compare_performance(file_counts: List[int] = [10, 20, 50, 100]) -> Dict[str, Any]:
+def compare_performance(file_counts: list[int] = [10, 20, 50, 100]) -> dict[str, Any]:
     """
     Compare sequential vs parallel performance estimates.
     

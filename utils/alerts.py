@@ -3,7 +3,7 @@ Performance alerts and monitoring system.
 Automatically detects performance issues and triggers alerts.
 """
 
-from typing import Dict, List, Any, Optional, Callable
+from typing import Any, Optional, Callable
 from datetime import datetime, timedelta, UTC
 from collections import defaultdict
 from dataclasses import dataclass
@@ -30,7 +30,7 @@ class Alert:
     threshold: float
     current_value: float
     timestamp: datetime
-    details: Dict[str, Any]
+    details: dict[str, Any]
     acknowledged: bool = False
     resolved_at: Optional[datetime] = None
 
@@ -42,11 +42,11 @@ class AlertManager:
     """
     
     def __init__(self):
-        self._alerts: List[Alert] = []
-        self._thresholds: Dict[str, Dict[str, Any]] = self._initialize_thresholds()
-        self._callbacks: List[Callable] = []
+        self._alerts: list[Alert] = []
+        self._thresholds: dict[str, dict[str, Any]] = self._initialize_thresholds()
+        self._callbacks: list[Callable] = []
     
-    def _initialize_thresholds(self) -> Dict[str, Dict[str, Any]]:
+    def _initialize_thresholds(self) -> dict[str, dict[str, Any]]:
         """Initialize default alert thresholds."""
         return {
             'response_time': {
@@ -105,7 +105,7 @@ class AlertManager:
             'metric_type': 'custom'
         }
     
-    def check_metric(self, metric_name: str, value: float, details: Dict[str, Any] = None) -> Optional[Alert]:
+    def check_metric(self, metric_name: str, value: float, details: Optional[dict[str, Any]] = None) -> Optional[Alert]:
         """
         Check if metric value triggers an alert.
         
@@ -214,7 +214,7 @@ class AlertManager:
     
     def get_active_alerts(self, severity: Optional[str] = None, 
                           category: Optional[str] = None,
-                          limit: int = 100) -> List[Alert]:
+                          limit: int = 100) -> list[Alert]:
         """Get active (non-resolved) alerts."""
         alerts = [a for a in self._alerts if not a.resolved_at]
         
@@ -242,7 +242,7 @@ class AlertManager:
                 return True
         return False
     
-    def get_alert_stats(self) -> Dict[str, Any]:
+    def get_alert_stats(self) -> dict[str, Any]:
         """Get alert statistics."""
         active_alerts = [a for a in self._alerts if not a.resolved_at]
         
@@ -295,10 +295,10 @@ class PerformanceMonitor:
     
     def __init__(self, alert_manager: AlertManager = None):
         self.alert_manager = alert_manager or AlertManager()
-        self._metrics_history: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+        self._metrics_history: dict[str, list[dict[str, Any]]] = defaultdict(list)
         self._max_history_size = 1000
     
-    def record_metric(self, metric_name: str, value: float, details: Dict[str, Any] = None):
+    def record_metric(self, metric_name: str, value: float, details: Optional[dict[str, Any]] = None):
         """Record a metric value and check for alerts."""
         metric_data = {
             'value': value,
@@ -313,7 +313,7 @@ class PerformanceMonitor:
         
         self.alert_manager.check_metric(metric_name, value, details)
     
-    def get_metric_trend(self, metric_name: str, hours: int = 1) -> Dict[str, Any]:
+    def get_metric_trend(self, metric_name: str, hours: int = 1) -> dict[str, Any]:
         """Get metric trend over time."""
         if metric_name not in self._metrics_history:
             return {'values': [], 'avg': 0, 'min': 0, 'max': 0, 'trend': 'stable'}
@@ -353,7 +353,7 @@ class PerformanceMonitor:
             'count': len(recent_values)
         }
     
-    def get_summary(self) -> Dict[str, Any]:
+    def get_summary(self) -> dict[str, Any]:
         """Get monitoring summary."""
         alerts_stats = self.alert_manager.get_alert_stats()
         
@@ -393,7 +393,7 @@ def get_performance_monitor() -> PerformanceMonitor:
     return _global_performance_monitor
 
 
-def check_performance_alerts(metrics: Dict[str, float]):
+def check_performance_alerts(metrics: dict[str, float]):
     """Check multiple performance metrics for alerts."""
     monitor = get_performance_monitor()
     

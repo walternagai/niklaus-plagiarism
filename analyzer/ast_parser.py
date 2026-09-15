@@ -6,7 +6,7 @@ Multi-language AST (Abstract Syntax Tree) parsing and comparison for plagiarism 
 
 import re
 import ast
-from typing import Dict, List, Optional
+from typing import Optional
 import hashlib
 
 
@@ -51,7 +51,7 @@ class ASTParser:
         
         return 'unknown'
     
-    def parse_python_ast(self, code: str) -> Dict:
+    def parse_python_ast(self, code: str) -> dict:
         """Parse Python code to AST structure."""
         try:
             tree = ast.parse(code)
@@ -59,7 +59,7 @@ class ASTParser:
         except SyntaxError:
             return {'error': 'Syntax error in Python code'}
     
-    def _extract_ast_features(self, tree: ast.AST) -> Dict:
+    def _extract_ast_features(self, tree: ast.AST) -> dict:
         """Extract features from Python AST."""
         features = {
             'functions': [],
@@ -138,7 +138,7 @@ class ASTParser:
 
         return fingerprints
     
-    def compare_ast_structures(self, ast1: Dict, ast2: Dict) -> float:
+    def compare_ast_structures(self, ast1: dict, ast2: dict) -> float:
         """
         Compare two AST structures and return similarity score (0.0 to 1.0).
         """
@@ -226,7 +226,7 @@ class ASTParser:
         
         return self.compare_ast_structures(ast1, ast2)
     
-    def detect_refactoring_patterns(self, code1: str, code2: str) -> List[Dict]:
+    def detect_refactoring_patterns(self, code1: str, code2: str) -> list[dict]:
         """Detect specific refactoring patterns between two code snippets."""
         patterns = []
         
@@ -264,7 +264,7 @@ class ASTParser:
         
         return patterns
     
-    def _extract_variables(self, tree: ast.AST) -> List[str]:
+    def _extract_variables(self, tree: ast.AST) -> list[str]:
         """Extract variable names from AST."""
         variables = []
         for node in ast.walk(tree):
@@ -274,7 +274,7 @@ class ASTParser:
                 variables.append(node.arg)
         return list(set(variables))
     
-    def _extract_function_names(self, tree: ast.AST) -> List[str]:
+    def _extract_function_names(self, tree: ast.AST) -> list[str]:
         """Extract function names from AST."""
         functions = []
         for node in ast.walk(tree):

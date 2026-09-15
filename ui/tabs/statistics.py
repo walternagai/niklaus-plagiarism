@@ -4,7 +4,7 @@ Statistics tab for Niklaus UI.
 
 import streamlit as st
 import numpy as np
-from typing import Dict, Any
+from typing import Any
 from ui.components.charts import (
     create_similarity_heatmap,
     create_distribution_histogram
@@ -12,7 +12,7 @@ from ui.components.charts import (
 from ui.tooltips import get_metric_tooltip
 
 
-def render_statistics_tab(results: Dict[str, Any]) -> None:
+def render_statistics_tab(results: dict[str, Any]) -> None:
     """
     Display statistics tab.
     

@@ -4,7 +4,7 @@ This version uses the modular UI architecture with authentication.
 """
 
 import streamlit as st
-from typing import Dict, Any, List
+from typing import Any
 import shutil
 import math
 
@@ -29,7 +29,7 @@ logger = get_logger(__name__)
 def _to_json_safe(value: Any) -> Any:
     """Convert nested objects to JSON-safe primitives for DB storage."""
     if isinstance(value, dict):
-        safe_dict: Dict[str, Any] = {}
+        safe_dict: dict[str, Any] = {}
         for k, v in value.items():
             safe_dict[str(k)] = _to_json_safe(v)
         return safe_dict
@@ -435,11 +435,11 @@ def _init_session_state():
 
 
 def _run_analysis(
-    files: List[str],
-    contents: List[str],
-    settings: Dict[str, Any],
+    files: list[str],
+    contents: list[str],
+    settings: dict[str, Any],
     user_id: int
-) -> Dict[str, Any] | None:
+) -> dict[str, Any] | None:
     """
     Run analysis using AnalysisPipeline and save to database.
     
@@ -502,7 +502,7 @@ def _run_analysis(
         return None
 
 
-def _save_submission(results: Dict[str, Any], user_id: int, total_files: int, settings: Dict[str, Any]):
+def _save_submission(results: dict[str, Any], user_id: int, total_files: int, settings: dict[str, Any]):
     """Save submission to database."""
     try:
         with session_scope() as db:

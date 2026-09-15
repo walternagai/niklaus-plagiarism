@@ -5,7 +5,6 @@ Detect clusters of similar files using hierarchical and graph-based methods.
 """
 
 import numpy as np
-from typing import Dict, List, Tuple
 from scipy.cluster.hierarchy import linkage, fcluster
 from scipy.spatial.distance import squareform
 import networkx as nx
@@ -16,8 +15,8 @@ class ClusterDetector:
     
     def hierarchical_clustering(self, 
                               similarity_matrix: np.ndarray, 
-                              files: List[str],
-                              threshold: float = 0.3) -> Dict[int, List[str]]:
+                              files: list[str],
+                              threshold: float = 0.3) -> dict[int, list[str]]:
         """
         Perform hierarchical clustering on similarity matrix.
         
@@ -55,7 +54,7 @@ class ClusterDetector:
     
     def build_similarity_graph(self, 
                                similarity_matrix: np.ndarray, 
-                               files: List[str],
+                               files: list[str],
                                min_similarity: float = 0.5) -> nx.Graph:
         """
         Build a graph where nodes are files and edges represent similarity above threshold.
@@ -85,7 +84,7 @@ class ClusterDetector:
         
         return G
     
-    def detect_communities(self, G: nx.Graph) -> List[set]:
+    def detect_communities(self, G: nx.Graph) -> list[set]:
         """
         Detect communities in similarity graph using modularity optimization.
         
@@ -102,9 +101,9 @@ class ClusterDetector:
             return [set(G.nodes())]
     
     def get_cluster_stats(self, 
-                         cluster: List[str], 
+                         cluster: list[str], 
                          similarity_matrix: np.ndarray,
-                         files: List[str]) -> Dict[str, float]:
+                         files: list[str]) -> dict[str, float]:
         """
         Calculate statistics for a cluster.
         
@@ -141,9 +140,9 @@ class ClusterDetector:
         }
     
     def identify_central_files(self, 
-                             cluster: List[str], 
+                             cluster: list[str], 
                              similarity_matrix: np.ndarray,
-                             files: List[str]) -> List[Tuple[str, float]]:
+                             files: list[str]) -> list[tuple[str, float]]:
         """
         Identify central files in a cluster (files most similar to others).
         
@@ -174,8 +173,8 @@ class ClusterDetector:
     
     def analyze_clusters(self, 
                        similarity_matrix: np.ndarray,
-                       files: List[str],
-                       min_similarity: float = 0.5) -> Dict[str, any]:
+                       files: list[str],
+                       min_similarity: float = 0.5) -> dict[str, any]:
         """
         Perform complete cluster analysis.
         

@@ -3,13 +3,13 @@ Results tab for Niklaus UI.
 """
 
 import streamlit as st
-from typing import Dict, Any
+from typing import Any
 from ui.components.tables import display_similarity_table
 from ui.components.exporter import export_results
 from ui.tooltips import get_help_message
 
 
-def render_results_tab(results: Dict[str, Any], settings: Dict[str, Any]) -> None:
+def render_results_tab(results: dict[str, Any], settings: dict[str, Any]) -> None:
     """
     Display results tab.
     
@@ -75,7 +75,7 @@ def _stream_ai_response(analysis: str) -> None:
     placeholder.markdown(analysis)
 
 
-def _show_code_comparison(results: Dict[str, Any], file1: str, file2: str) -> None:
+def _show_code_comparison(results: dict[str, Any], file1: str, file2: str) -> None:
     """Show side-by-side code comparison."""
     try:
         idx1 = results['files'].index(file1)

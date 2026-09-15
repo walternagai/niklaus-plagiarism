@@ -6,7 +6,6 @@ Calculate various code complexity and quality metrics.
 
 import re
 import math
-from typing import Dict, List
 import ast
 
 
@@ -55,7 +54,7 @@ class CodeMetrics:
         
         return complexity
     
-    def count_loc(self, code: str) -> Dict[str, int]:
+    def count_loc(self, code: str) -> dict[str, int]:
         """
         Count lines of code (total, comments, blank).
         """
@@ -142,7 +141,7 @@ class CodeMetrics:
         
         return round(mi, 2)
     
-    def calculate_halstead_metrics(self, code: str, language: str = 'python') -> Dict[str, float]:
+    def calculate_halstead_metrics(self, code: str, language: str = 'python') -> dict[str, float]:
         """
         Calculate Halstead complexity metrics.
         
@@ -189,7 +188,7 @@ class CodeMetrics:
             'effort': 0
         }
     
-    def calculate_all_metrics(self, code: str, language: str = 'python') -> Dict[str, any]:
+    def calculate_all_metrics(self, code: str, language: str = 'python') -> dict[str, any]:
         """Calculate all available metrics for a code snippet."""
         return {
             'loc': self.count_loc(code),
@@ -200,7 +199,7 @@ class CodeMetrics:
             'halstead': self.calculate_halstead_metrics(code, language)
         }
     
-    def compare_metrics(self, metrics1: Dict, metrics2: Dict) -> Dict[str, float]:
+    def compare_metrics(self, metrics1: dict, metrics2: dict) -> dict[str, float]:
         """
         Compare metrics between two code snippets.
         Returns comparison scores (0.0 to 1.0 for similarity).
@@ -237,7 +236,7 @@ class CodeMetrics:
         
         return comparisons
     
-    def detect_anomalies(self, textual_similarity: float, metrics_comparison: Dict) -> List[Dict]:
+    def detect_anomalies(self, textual_similarity: float, metrics_comparison: dict) -> list[dict]:
         """
         Detect anomalies that may indicate plagiarism with refactoring.
         """

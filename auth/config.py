@@ -5,7 +5,7 @@ OAuth configuration manager for Niklaus.
 import base64
 import hashlib
 import os
-from typing import Optional, Set
+from typing import Optional
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -153,7 +153,7 @@ class OAuthConfig:
 
         return value
 
-    def _load_admin_emails(self) -> Set[str]:
+    def _load_admin_emails(self) -> set[str]:
         """Load admin emails from config."""
         try:
             import streamlit as st

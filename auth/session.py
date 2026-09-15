@@ -4,7 +4,7 @@ Session management utilities for Streamlit.
 
 import streamlit as st
 from contextlib import closing
-from typing import Optional, Union, Dict, Any
+from typing import Optional, Union, Any
 from datetime import datetime, timedelta, UTC
 
 from auth.models import User
@@ -28,7 +28,7 @@ class SessionManager:
     REDIRECT_KEY = 'redirect_after_login'
     
     @staticmethod
-    def login(user: Union[User, Dict[str, Any]]) -> None:
+    def login(user: Union[User, dict[str, Any]]) -> None:
         """Create user session."""
         if isinstance(user, dict):
             user_dict = user
@@ -63,7 +63,7 @@ class SessionManager:
         st.session_state.clear()
     
     @staticmethod
-    def get_current_user() -> Optional[Dict[str, Any]]:
+    def get_current_user() -> Optional[dict[str, Any]]:
         """Get currently logged in user."""
         user = st.session_state.get(SessionManager.SESSION_KEY)
         
@@ -105,7 +105,7 @@ class SessionManager:
             del st.session_state[SessionManager.REDIRECT_KEY]
     
     @staticmethod
-    def refresh_user() -> Optional[Dict[str, Any]]:
+    def refresh_user() -> Optional[dict[str, Any]]:
         """Refresh user data from database."""
         current_user = SessionManager.get_current_user()
         if not current_user:

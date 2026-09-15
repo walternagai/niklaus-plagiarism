@@ -4,11 +4,11 @@ Table components for Niklaus UI.
 
 import streamlit as st
 import pandas as pd
-from typing import List, Dict, Any, Tuple
+from typing import Any
 
 
 def display_similarity_table(
-    suspicious_pairs: List[Tuple[str, str, float]],
+    suspicious_pairs: list[tuple[str, str, float]],
     threshold: float
 ) -> pd.DataFrame:
     """
@@ -65,7 +65,7 @@ def display_similarity_table(
     return filtered_df
 
 
-def display_metrics_table(metrics: List[Dict[str, Any]]) -> None:
+def display_metrics_table(metrics: list[dict[str, Any]]) -> None:
     """
     Display code metrics in a formatted table.
     
@@ -85,7 +85,7 @@ def display_metrics_table(metrics: List[Dict[str, Any]]) -> None:
     st.dataframe(df, use_container_width=True)
 
 
-def display_ast_table(ast_similarities: List[Tuple]) -> None:
+def display_ast_table(ast_similarities: list[tuple]) -> None:
     """
     Display AST similarities in a formatted table.
     
@@ -116,7 +116,7 @@ def display_ast_table(ast_similarities: List[Tuple]) -> None:
     )
 
 
-def display_cluster_table(cluster_data: Dict[str, Any]) -> None:
+def display_cluster_table(cluster_data: dict[str, Any]) -> None:
     """
     Display cluster information in a formatted table.
     
@@ -174,8 +174,8 @@ def display_cluster_table(cluster_data: Dict[str, Any]) -> None:
 
 
 def display_comparison_table(
-    metrics1: Dict[str, Any],
-    metrics2: Dict[str, Any],
+    metrics1: dict[str, Any],
+    metrics2: dict[str, Any],
     file1: str,
     file2: str
 ) -> None:

@@ -4,7 +4,7 @@ Guides users through application features step by step.
 """
 
 import streamlit as st
-from typing import List, Dict, Optional
+from typing import Optional
 
 
 class TutorialStep:
@@ -33,7 +33,7 @@ class TutorialManager:
     """Manages interactive tutorials with progress tracking."""
     
     def __init__(self):
-        self.tutorials: Dict[str, List[TutorialStep]] = {}
+        self.tutorials: dict[str, list[TutorialStep]] = {}
         self._initialize_tutorials()
     
     def _initialize_tutorials(self):
@@ -258,11 +258,11 @@ class TutorialManager:
             )
         ]
     
-    def get_tutorial(self, tutorial_id: str) -> Optional[List[TutorialStep]]:
+    def get_tutorial(self, tutorial_id: str) -> Optional[list[TutorialStep]]:
         """Get tutorial by ID."""
         return self.tutorials.get(tutorial_id)
     
-    def get_tutorial_ids(self) -> List[str]:
+    def get_tutorial_ids(self) -> list[str]:
         """Get all tutorial IDs."""
         return list(self.tutorials.keys())
     

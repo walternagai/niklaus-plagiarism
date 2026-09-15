@@ -3,7 +3,6 @@ Configuration management for Niklaus plagiarism detector.
 """
 
 from dataclasses import dataclass
-from typing import Tuple
 import os
 
 
@@ -20,7 +19,7 @@ class Config:
     
     # File Settings
     MAX_ZIP_SIZE_MB: int = 50
-    ALLOWED_EXTENSIONS: Tuple[str, ...] = ('.py', '.c', '.cpp', '.java', '.js', 
+    ALLOWED_EXTENSIONS: tuple[str, ...] = ('.py', '.c', '.cpp', '.java', '.js', 
                                              '.ts', '.go', '.rs', '.kt')
     
     # Processing Settings

@@ -3,7 +3,7 @@ Business analytics and metrics tracking system.
 Tracks user behavior, usage patterns, and business metrics.
 """
 
-from typing import Dict, List, Any, Optional
+from typing import Any, Optional
 from datetime import datetime, timedelta, UTC
 from collections import defaultdict
 from dataclasses import dataclass
@@ -23,7 +23,7 @@ class UserMetric:
     metric_name: str
     value: Any
     timestamp: datetime
-    metadata: Dict[str, Any]
+    metadata: dict[str, Any]
 
 
 @dataclass
@@ -48,12 +48,12 @@ class AnalyticsEngine:
     """
     
     def __init__(self):
-        self._user_metrics: List[UserMetric] = []
-        self._analysis_metrics: List[AnalysisMetric] = []
-        self._daily_stats: Dict[str, Dict[str, Any]] = defaultdict(lambda: defaultdict(int))
+        self._user_metrics: list[UserMetric] = []
+        self._analysis_metrics: list[AnalysisMetric] = []
+        self._daily_stats: dict[str, dict[str, Any]] = defaultdict(lambda: defaultdict(int))
         self._max_metrics_size = 10000
     
-    def track_user_action(self, user_id: int, action: str, metadata: Dict[str, Any] = None):
+    def track_user_action(self, user_id: int, action: str, metadata: Optional[dict[str, Any]] = None):
         """
         Track user action for analytics.
         
@@ -117,7 +117,7 @@ class AnalyticsEngine:
         self._daily_stats[date_key]['total_pairs'] += suspicious_pairs_count
         self._daily_stats[date_key]['total_time'] += processing_time
     
-    def track_feature_usage(self, user_id: int, feature: str, details: Dict[str, Any] = None):
+    def track_feature_usage(self, user_id: int, feature: str, details: Optional[dict[str, Any]] = None):
         """
         Track feature usage.
         
@@ -141,7 +141,10 @@ class AnalyticsEngine:
         date_key = datetime.now(UTC).strftime('%Y-%m-%d')
         self._daily_stats[date_key][f'feature_{feature}'] += 1
     
-    def track_performance(self, operation: str, duration: float, success: bool, metadata: Dict[str, Any] = None):
+    def track_performance(
+        self, operation: str, duration: float, success: bool,
+        metadata: Optional[dict[str, Any]] = None
+    ):
         """
         Track operation performance.
         
@@ -167,7 +170,7 @@ class AnalyticsEngine:
             if len(self._analysis_metrics) > self._max_metrics_size:
                 self._analysis_metrics = self._analysis_metrics[-self._max_metrics_size:]
     
-    def get_user_stats(self, user_id: int, days: int = 30) -> Dict[str, Any]:
+    def get_user_stats(self, user_id: int, days: int = 30) -> dict[str, Any]:
         """
         Get statistics for a specific user.
         
@@ -214,7 +217,7 @@ class AnalyticsEngine:
             'max_similarity': max(m.max_similarity for m in user_analyses) if user_analyses else 0
         }
     
-    def get_global_stats(self, days: int = 30) -> Dict[str, Any]:
+    def get_global_stats(self, days: int = 30) -> dict[str, Any]:
         """
         Get global statistics.
         
@@ -280,7 +283,7 @@ class AnalyticsEngine:
         
         return stats
     
-    def get_usage_patterns(self, days: int = 7) -> Dict[str, Any]:
+    def get_usage_patterns(self, days: int = 7) -> dict[str, Any]:
         """
         Get usage patterns.
         
@@ -321,7 +324,7 @@ class AnalyticsEngine:
             'average_daily_usage': sum(daily_usage.values()) / len(daily_usage) if daily_usage else 0
         }
     
-    def get_trending_metrics(self, hours: int = 24) -> Dict[str, Any]:
+    def get_trending_metrics(self, hours: int = 24) -> dict[str, Any]:
         """
         Get trending metrics for dashboard.
         
@@ -450,7 +453,7 @@ def get_analytics() -> AnalyticsEngine:
     return _global_analytics
 
 
-def track_user_action(user_id: int, action: str, metadata: Dict[str, Any] = None):
+def track_user_action(user_id: int, action: str, metadata: Optional[dict[str, Any]] = None):
     """Quick function to track user action."""
     analytics = get_analytics()
     analytics.track_user_action(user_id, action, metadata)
@@ -525,7 +528,7 @@ def display_analytics_dashboard():
         _render_trending(trending)
 
 
-def _render_global_overview(global_stats: Dict[str, Any]):
+def _render_global_overview(global_stats: dict[str, Any]):
     """Render global statistics."""
     st.markdown("#### 📈 Estatísticas Globais")
     
@@ -552,7 +555,7 @@ def _render_global_overview(global_stats: Dict[str, Any]):
             st.write(f"**{day['date']}**: {day['analyses']} análises, {day['files']} arquivos")
 
 
-def _render_usage_patterns(usage_patterns: Dict[str, Any]):
+def _render_usage_patterns(usage_patterns: dict[str, Any]):
     """Render usage patterns."""
     st.markdown("#### 📊 Padrões de Uso")
     
@@ -578,7 +581,7 @@ def _render_usage_patterns(usage_patterns: Dict[str, Any]):
         st.write(f"**Média diária**: {usage_patterns['average_daily_usage']:.1f} análises/dia")
 
 
-def _render_trending(trending: Dict[str, Any]):
+def _render_trending(trending: dict[str, Any]):
     """Render trending metrics."""
     st.markdown("#### 🎯 Tendências (24h)")
     

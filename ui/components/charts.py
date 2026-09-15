@@ -5,11 +5,11 @@ Charts components for Niklaus UI.
 import plotly.express as px
 import plotly.graph_objects as go
 import numpy as np
-from typing import List, Dict, Any, Optional
+from typing import Any, Optional
 import os
 
 
-def create_similarity_heatmap(files: List[str], similarity_matrix: np.ndarray) -> go.Figure:
+def create_similarity_heatmap(files: list[str], similarity_matrix: np.ndarray) -> go.Figure:
     """
     Create interactive similarity heatmap.
     
@@ -45,9 +45,9 @@ def create_similarity_heatmap(files: List[str], similarity_matrix: np.ndarray) -
 
 def create_similarity_graph(
     similarity_matrix: np.ndarray,
-    files: List[str],
+    files: list[str],
     min_similarity: float = 0.5,
-    cluster_data: Dict = None
+    cluster_data: Optional[dict] = None
 ) -> Optional[go.Figure]:
     """
     Create interactive similarity network graph.
@@ -155,7 +155,7 @@ def create_similarity_graph(
     return fig
 
 
-def _get_node_colors(n: int, cluster_data: Dict, files: List[str]) -> List[str]:
+def _get_node_colors(n: int, cluster_data: dict, files: list[str]) -> list[str]:
     """Get node colors based on clusters."""
     node_colors = ['#636EFA'] * n
     
@@ -175,7 +175,7 @@ def _get_node_colors(n: int, cluster_data: Dict, files: List[str]) -> List[str]:
     return node_colors
 
 
-def _build_hover_texts(G, mat, files: List[str], n: int) -> List[str]:
+def _build_hover_texts(G, mat, files: list[str], n: int) -> list[str]:
     """Build hover texts for nodes."""
     hover_texts = []
     
@@ -196,8 +196,8 @@ def _build_hover_texts(G, mat, files: List[str], n: int) -> List[str]:
 
 
 def create_metrics_radar_chart(
-    metrics1: Dict[str, Any],
-    metrics2: Dict[str, Any],
+    metrics1: dict[str, Any],
+    metrics2: dict[str, Any],
     file1: str,
     file2: str
 ) -> go.Figure:
@@ -264,7 +264,7 @@ def create_metrics_radar_chart(
     return fig
 
 
-def create_distribution_histogram(similarities: List[float]) -> go.Figure:
+def create_distribution_histogram(similarities: list[float]) -> go.Figure:
     """
     Create histogram of similarity distribution.
     

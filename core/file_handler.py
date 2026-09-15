@@ -7,7 +7,7 @@ import io
 import zipfile
 import tempfile
 import shutil
-from typing import List, Tuple
+from typing import Optional
 import chardet
 
 from utils.config import config
@@ -20,7 +20,7 @@ logger = get_logger(__name__)
 class FileHandler:
     """Handles file upload, validation, and extraction."""
     
-    def __init__(self, max_size_mb: int = None):
+    def __init__(self, max_size_mb: Optional[int] = None):
         """
         Initialize FileHandler.
         
@@ -78,8 +78,8 @@ class FileHandler:
         self,
         zip_file,
         language: str,
-        extract_dir: str = None
-    ) -> Tuple[List[str], List[str], str]:
+        extract_dir: Optional[str] = None
+    ) -> tuple[list[str], list[str], str]:
         """
         Extract and validate ZIP file contents.
         
@@ -252,7 +252,7 @@ class FileHandler:
         except Exception as e:
             logger.warning(f"Failed to cleanup {extract_dir}: {e}")
     
-    def get_file_stats(self, files: List[str], contents: List[str]) -> dict:
+    def get_file_stats(self, files: list[str], contents: list[str]) -> dict:
         """
         Get statistics about extracted files.
         

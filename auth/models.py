@@ -5,7 +5,7 @@ SQLAlchemy Models for Niklaus Authentication System.
 from sqlalchemy import Column, Integer, String, Float, Boolean, JSON, DateTime, ForeignKey, Text
 from sqlalchemy.orm import relationship, declarative_base
 from datetime import datetime, UTC
-from typing import Dict, Any
+from typing import Any
 
 Base = declarative_base()
 
@@ -54,7 +54,7 @@ class User(Base):
     def __repr__(self):
         return f"<User(id={self.id}, email='{self.email}', role='{self.role}')>"
     
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             'id': self.id,
             'email': self.email,
@@ -113,7 +113,7 @@ class Submission(Base):
     def __repr__(self):
         return f"<Submission(id={self.id}, user_id={self.user_id}, filename='{self.filename}')>"
     
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             'id': self.id,
             'user_id': self.user_id,
@@ -184,7 +184,7 @@ class AuditLog(Base):
     def __repr__(self):
         return f"<AuditLog(id={self.id}, action='{self.action}')>"
     
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             'id': self.id,
             'user_id': self.user_id,

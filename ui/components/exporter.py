@@ -4,15 +4,15 @@ Export components for Niklaus UI.
 
 import json
 from datetime import datetime, UTC
-from typing import Dict, List, Any
+from typing import Any
 import streamlit as st
 import pandas as pd
 
 
 def export_results(
-    results: Dict[str, Any],
-    suspicious_pairs: List[tuple],
-    settings: Dict[str, Any]
+    results: dict[str, Any],
+    suspicious_pairs: list[tuple],
+    settings: dict[str, Any]
 ) -> None:
     """
     Display export buttons for results.
@@ -40,7 +40,7 @@ def export_results(
         _export_pdf_button(results, settings)
 
 
-def _export_csv(suspicious_pairs: List[tuple]) -> None:
+def _export_csv(suspicious_pairs: list[tuple]) -> None:
     """Export results to CSV."""
     if not suspicious_pairs:
         st.button("📥 Baixar CSV", use_container_width=True, disabled=True)
@@ -62,7 +62,7 @@ def _export_csv(suspicious_pairs: List[tuple]) -> None:
     )
 
 
-def _export_json(results: Dict[str, Any], suspicious_pairs: List[tuple], settings: Dict[str, Any]) -> None:
+def _export_json(results: dict[str, Any], suspicious_pairs: list[tuple], settings: dict[str, Any]) -> None:
     """Export results to JSON."""
     report = {
         "timestamp": datetime.now(UTC).isoformat(),
@@ -90,7 +90,7 @@ def _export_json(results: Dict[str, Any], suspicious_pairs: List[tuple], setting
     )
 
 
-def _export_pdf_button(results: Dict[str, Any], settings: Dict[str, Any]) -> None:
+def _export_pdf_button(results: dict[str, Any], settings: dict[str, Any]) -> None:
     """Display PDF export button (not yet implemented)."""
     st.button(
         "📥 Baixar PDF",
@@ -100,7 +100,7 @@ def _export_pdf_button(results: Dict[str, Any], settings: Dict[str, Any]) -> Non
     )
 
 
-def generate_summary_report(results: Dict[str, Any], settings: Dict[str, Any]) -> str:
+def generate_summary_report(results: dict[str, Any], settings: dict[str, Any]) -> str:
     """
     Generate a text summary report.
     
@@ -149,7 +149,7 @@ Tempo de Análise: {results['analysis_time']:.2f}s
     return summary
 
 
-def display_summary_stats(results: Dict[str, Any]) -> None:
+def display_summary_stats(results: dict[str, Any]) -> None:
     """
     Display summary statistics.
     

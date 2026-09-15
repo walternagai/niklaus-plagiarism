@@ -4,7 +4,7 @@ Implements intelligent caching for frequent database queries.
 """
 
 import time
-from typing import Any, Optional, Dict, List, Callable, Set
+from typing import Any, Optional, Callable
 from functools import wraps
 import hashlib
 import json
@@ -29,8 +29,8 @@ class QueryCache:
             maxsize: Maximum number of queries to cache
             default_ttl: Default time-to-live in seconds (5 min)
         """
-        self._cache: Dict[str, Dict[str, Any]] = {}
-        self._access_times: Dict[str, float] = {}
+        self._cache: dict[str, dict[str, Any]] = {}
+        self._access_times: dict[str, float] = {}
         self._maxsize = maxsize
         self._default_ttl = default_ttl
         self._hit_count = 0
@@ -125,7 +125,7 @@ class QueryCache:
         self._hit_count = 0
         self._miss_count = 0
     
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get cache statistics."""
         total = self._hit_count + self._miss_count
         hit_rate = (self._hit_count / total * 100) if total > 0 else 0
@@ -148,15 +148,15 @@ class SubmissionCache:
     
     def __init__(self, query_cache: QueryCache):
         self._cache = query_cache
-        self._submissions_by_user: Dict[int, Set[str]] = {}
+        self._submissions_by_user: dict[int, set[str]] = {}
     
     def get_user_submissions(
         self,
         user_id: int,
         offset: int = 0,
         limit: int = 50,
-        filters: Optional[Dict] = None
-    ) -> Optional[List]:
+        filters: Optional[dict] = None
+    ) -> Optional[list]:
         """
         Get cached submissions for user.
         
@@ -179,10 +179,10 @@ class SubmissionCache:
     def set_user_submissions(
         self,
         user_id: int,
-        submissions: List,
+        submissions: list,
         offset: int = 0,
         limit: int = 50,
-        filters: Optional[Dict] = None,
+        filters: Optional[dict] = None,
         ttl: float = 60
     ):
         """
@@ -342,7 +342,7 @@ def clear_all_caches():
         st.cache_data.clear()
 
 
-def get_cache_stats() -> Dict[str, Any]:
+def get_cache_stats() -> dict[str, Any]:
     """Get statistics for all caches."""
     query_stats = _global_query_cache.get_stats() if _global_query_cache else {}
     

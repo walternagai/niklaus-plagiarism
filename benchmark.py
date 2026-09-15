@@ -4,14 +4,13 @@ Performance benchmarks and example usage for FASE 2.
 
 import time
 import random
-from typing import List, Tuple
 from core.pipeline import AnalysisPipeline
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
 
 
-def generate_sample_code(num_files: int, similarity_factor: float = 0.3) -> Tuple[List[str], List[str]]:
+def generate_sample_code(num_files: int, similarity_factor: float = 0.3) -> tuple[list[str], list[str]]:
     """
     Generate sample Python code files for benchmarking.
     

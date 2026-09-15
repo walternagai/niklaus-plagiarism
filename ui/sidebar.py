@@ -3,11 +3,11 @@ Sidebar UI component for Niklaus plagiarism detector.
 """
 
 import streamlit as st
-from typing import Dict, Any
+from typing import Any
 from utils.config import config
 
 
-def render_sidebar() -> Dict[str, Any]:
+def render_sidebar() -> dict[str, Any]:
     """
     Render sidebar with configuration options.
     
