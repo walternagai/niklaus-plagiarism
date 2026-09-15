@@ -2,8 +2,10 @@
 Test pipeline module.
 """
 
-import pytest
 import time
+
+import pytest
+
 from core.pipeline import AnalysisPipeline, LegacyAdapter, compare_performance
 from utils.exceptions import AnalysisCancelledError
 

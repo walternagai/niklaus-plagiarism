@@ -9,9 +9,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from auth.oauth import OAuthHandler
-from auth.database import init_db
 from auth.config import OAuthConfig
+from auth.database import init_db
+from auth.oauth import OAuthHandler
+
 
 def run_callback_test(code: str, state: str):
     print("=" * 60)

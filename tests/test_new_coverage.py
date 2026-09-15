@@ -7,10 +7,10 @@ New test coverage for areas previously untested:
   - auth/config.py  (encrypt_token / decrypt_token)
 """
 
-import pytest
-from unittest.mock import MagicMock, patch
 from datetime import datetime, timedelta
+from unittest.mock import MagicMock, patch
 
+import pytest
 
 # ---------------------------------------------------------------------------
 # auth/config.py — token encryption helpers
@@ -20,7 +20,7 @@ class TestTokenEncryption:
     """Test Fernet token encryption/decryption roundtrip."""
 
     def test_encrypt_decrypt_roundtrip(self):
-        from auth.config import encrypt_token, decrypt_token
+        from auth.config import decrypt_token, encrypt_token
         plaintext = "ya29.test-access-token-value"
         ciphertext = encrypt_token(plaintext)
         assert ciphertext is not None
@@ -125,6 +125,7 @@ class TestSubmissionRepository:
         """Set up an in-memory SQLite DB with tables created."""
         from sqlalchemy import create_engine
         from sqlalchemy.orm import sessionmaker
+
         from auth.models import Base
 
         engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})

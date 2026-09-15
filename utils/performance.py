@@ -3,12 +3,12 @@ Performance monitoring and metrics collection.
 Tracks execution times, memory usage, and performance bottlenecks.
 """
 
-import time
 import functools
-from typing import Callable, Any, Optional
-from datetime import datetime, UTC
-from collections import defaultdict
 import statistics
+import time
+from collections import defaultdict
+from datetime import UTC, datetime
+from typing import Any, Callable, Optional
 
 try:
     import streamlit as st

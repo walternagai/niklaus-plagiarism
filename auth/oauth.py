@@ -2,15 +2,15 @@
 OAuth handlers for Google, GitHub, and Microsoft authentication.
 """
 
-import hmac
 import hashlib
+import hmac
 import secrets
-from typing import Optional, Any
-from datetime import datetime, UTC
+from datetime import UTC, datetime
+from typing import Any, Optional
 
-from auth.models import User
-from auth.database import get_session
 from auth.config import OAuthConfig, encrypt_token
+from auth.database import get_session
+from auth.models import User
 from auth.repository import UserRepository
 from utils.logger import get_logger
 

@@ -2,9 +2,10 @@
 Table components for Niklaus UI.
 """
 
-import streamlit as st
-import pandas as pd
 from typing import Any
+
+import pandas as pd
+import streamlit as st
 
 
 def display_similarity_table(

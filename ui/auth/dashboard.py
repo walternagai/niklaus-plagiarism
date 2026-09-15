@@ -2,10 +2,11 @@
 User dashboard for Niklaus.
 """
 
-import streamlit as st
 import pandas as pd
-from auth.decorators import require_auth
+import streamlit as st
+
 from auth.database import get_session
+from auth.decorators import require_auth
 from auth.repository import SubmissionRepository
 from utils.logger import get_logger
 

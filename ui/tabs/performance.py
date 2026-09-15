@@ -3,11 +3,12 @@ Performance dashboard tab component.
 Displays performance metrics and system statistics.
 """
 
-import streamlit as st
 from typing import Any
 
-from utils.performance import get_performance_dashboard, get_metrics_for_export
+import streamlit as st
+
 from utils.db_cache import get_cache_stats
+from utils.performance import get_metrics_for_export, get_performance_dashboard
 
 
 def render_performance_dashboard():

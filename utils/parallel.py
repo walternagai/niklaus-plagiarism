@@ -2,9 +2,9 @@
 Parallel processing utilities for Niklaus plagiarism detector.
 """
 
-from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED, as_completed
-from typing import Callable, Any
 import time
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, as_completed, wait
+from typing import Any, Callable
 
 from utils.exceptions import ParallelProcessingError
 from utils.logger import get_logger

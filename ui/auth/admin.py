@@ -2,11 +2,12 @@
 Admin panel for Niklaus.
 """
 
-import streamlit as st
 import pandas as pd
-from auth.decorators import require_admin
+import streamlit as st
+
 from auth.database import get_session
-from auth.repository import UserRepository, SubmissionRepository
+from auth.decorators import require_admin
+from auth.repository import SubmissionRepository, UserRepository
 from utils.logger import get_logger
 
 logger = get_logger(__name__)

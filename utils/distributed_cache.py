@@ -6,8 +6,8 @@ Can fallback to in-memory cache if Redis is not available.
 
 import json
 import zlib
+from datetime import UTC, datetime, timedelta
 from typing import Any, Optional
-from datetime import datetime, timedelta, UTC
 
 try:
     import redis

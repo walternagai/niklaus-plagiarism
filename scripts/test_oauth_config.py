@@ -10,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from auth.config import OAuthConfig
 
+
 def test_oauth_config():
     """Test if OAuth configuration is loaded correctly."""
     print("=" * 60)

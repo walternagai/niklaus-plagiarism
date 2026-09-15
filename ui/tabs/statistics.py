@@ -2,13 +2,12 @@
 Statistics tab for Niklaus UI.
 """
 
-import streamlit as st
-import numpy as np
 from typing import Any
-from ui.components.charts import (
-    create_similarity_heatmap,
-    create_distribution_histogram
-)
+
+import numpy as np
+import streamlit as st
+
+from ui.components.charts import create_distribution_histogram, create_similarity_heatmap
 from ui.tooltips import get_metric_tooltip
 
 

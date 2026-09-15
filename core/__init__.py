@@ -3,7 +3,7 @@ Core analysis module for Niklaus plagiarism detector.
 """
 
 from .analyzer import PlagiarismAnalyzer
-from .comparison import calculate_similarity, remove_blank_spaces_and_comments, compare_files
+from .comparison import calculate_similarity, compare_files, remove_blank_spaces_and_comments
 from .file_handler import FileHandler
 from .llm_client import MaritacaClient
 from .persistence import AnalysisCache, SessionManager

@@ -3,8 +3,9 @@ Interactive tutorial/tour system for user onboarding.
 Guides users through application features step by step.
 """
 
-import streamlit as st
 from typing import Optional
+
+import streamlit as st
 
 
 class TutorialStep:

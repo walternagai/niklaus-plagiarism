@@ -2,10 +2,12 @@
 Results tab for Niklaus UI.
 """
 
-import streamlit as st
 from typing import Any
-from ui.components.tables import display_similarity_table
+
+import streamlit as st
+
 from ui.components.exporter import export_results
+from ui.components.tables import display_similarity_table
 from ui.tooltips import get_help_message
 
 

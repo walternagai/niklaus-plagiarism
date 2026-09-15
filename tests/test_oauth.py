@@ -6,13 +6,14 @@ test_oauth_config / test_authorization_urls) have been moved to
 scripts/test_oauth_callback_manual.py.  Only pure-logic tests are here.
 """
 
-import sys
 import os
+import sys
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pytest
-from auth.oauth import OAuthHandler
 
+from auth.oauth import OAuthHandler
 
 # ---------------------------------------------------------------------------
 # Pure-logic tests (no secrets / live providers needed)

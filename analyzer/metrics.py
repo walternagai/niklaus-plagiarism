@@ -4,9 +4,9 @@ Code Metrics Module
 Calculate various code complexity and quality metrics.
 """
 
-import re
-import math
 import ast
+import math
+import re
 
 
 class CodeMetrics:

@@ -3,11 +3,11 @@ Business analytics and metrics tracking system.
 Tracks user behavior, usage patterns, and business metrics.
 """
 
-from typing import Any, Optional
-from datetime import datetime, timedelta, UTC
+import json
 from collections import defaultdict
 from dataclasses import dataclass
-import json
+from datetime import UTC, datetime, timedelta
+from typing import Any, Optional
 
 try:
     import streamlit as st

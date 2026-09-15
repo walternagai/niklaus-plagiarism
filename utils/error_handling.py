@@ -9,6 +9,7 @@ from utils.exceptions instead.
 """
 
 from typing import Optional
+
 import streamlit as st
 
 

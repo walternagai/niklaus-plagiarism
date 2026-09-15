@@ -3,9 +3,9 @@ Migration script to help transition from legacy app.py to new modular architectu
 This script provides utilities for testing and comparing both versions.
 """
 
+import argparse
 import sys
 import time
-import argparse
 
 # Import both versions
 sys.path.insert(0, '.')
@@ -59,8 +59,8 @@ def test_backward_compatibility():
     print("Testing Backward Compatibility")
     print(f"{'='*80}\n")
     
-    from core.pipeline import LegacyAdapter
     from core.comparison import compare_files
+    from core.pipeline import LegacyAdapter
     
     # Test 1: compare_files
     code1 = "def add(x, y): return x + y"

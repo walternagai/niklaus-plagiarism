@@ -2,14 +2,15 @@
 Session management utilities for Streamlit.
 """
 
-import streamlit as st
 from contextlib import closing
-from typing import Optional, Union, Any
-from datetime import datetime, timedelta, UTC
+from datetime import UTC, datetime, timedelta
+from typing import Any, Optional, Union
 
+import streamlit as st
+
+from auth.database import get_session
 from auth.models import User
 from auth.repository import UserRepository
-from auth.database import get_session
 from utils.logger import get_logger
 
 logger = get_logger(__name__)

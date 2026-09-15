@@ -2,9 +2,11 @@
 Graph tab for Niklaus UI.
 """
 
-import streamlit as st
-import numpy as np
 from typing import Any
+
+import numpy as np
+import streamlit as st
+
 from ui.components.charts import create_similarity_graph
 from ui.components.tables import display_cluster_table
 

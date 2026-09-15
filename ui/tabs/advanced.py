@@ -2,10 +2,12 @@
 Advanced analysis tab for Niklaus UI.
 """
 
-import streamlit as st
 from typing import Any
-from ui.components.tables import display_metrics_table, display_ast_table, display_comparison_table
+
+import streamlit as st
+
 from ui.components.charts import create_metrics_radar_chart
+from ui.components.tables import display_ast_table, display_comparison_table, display_metrics_table
 
 
 def render_advanced_tab(results: dict[str, Any]) -> None:

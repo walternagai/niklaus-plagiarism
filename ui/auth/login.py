@@ -3,9 +3,10 @@ Authentication UI components for Niklaus.
 """
 
 import streamlit as st
-from auth.oauth import OAuthHandler, OAuthConfig
-from auth.session import SessionManager
+
 from auth.decorators import guest_required
+from auth.oauth import OAuthConfig, OAuthHandler
+from auth.session import SessionManager
 from utils.logger import get_logger
 
 logger = get_logger(__name__)

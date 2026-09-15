@@ -3,13 +3,9 @@ Test utilities module.
 """
 
 import pytest
+
 from utils.config import Config, config
-from utils.exceptions import (
-    NiklausError,
-    FileValidationError,
-    MaritacaAPIError,
-    AnalysisError
-)
+from utils.exceptions import AnalysisError, FileValidationError, MaritacaAPIError, NiklausError
 from utils.logger import get_logger
 
 
@@ -187,8 +183,8 @@ class TestFileHandler:
         handler = FileHandler(max_size_mb=1)  # 1MB limit
         
         # Create a small valid ZIP
-        import zipfile
         import io
+        import zipfile
         
         zip_buffer = io.BytesIO()
         with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
@@ -216,9 +212,10 @@ class TestFileHandler:
 
     def test_extract_zip_preserves_relative_paths(self):
         """Extraction should preserve relative paths to avoid name collisions."""
-        from core.file_handler import FileHandler
         import io
         import zipfile
+
+        from core.file_handler import FileHandler
 
         class UploadedZip:
             def __init__(self, payload: bytes, name: str):

@@ -2,8 +2,8 @@
 Configuration management for Niklaus plagiarism detector.
 """
 
-from dataclasses import dataclass
 import os
+from dataclasses import dataclass
 
 
 @dataclass

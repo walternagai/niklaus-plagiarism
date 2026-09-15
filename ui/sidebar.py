@@ -2,8 +2,10 @@
 Sidebar UI component for Niklaus plagiarism detector.
 """
 
-import streamlit as st
 from typing import Any
+
+import streamlit as st
+
 from utils.config import config
 
 

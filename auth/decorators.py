@@ -3,8 +3,10 @@ Authentication decorators for Streamlit.
 """
 
 from functools import wraps
-import streamlit as st
 from typing import Callable
+
+import streamlit as st
+
 from utils.logger import get_logger
 
 logger = get_logger(__name__)

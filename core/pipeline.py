@@ -3,14 +3,14 @@ Integration layer to connect new modular architecture with legacy app.py.
 This provides a smooth transition path while maintaining backward compatibility.
 """
 
-from typing import Any, Callable, Optional
 import time
+from typing import Any, Callable, Optional
 
-from utils.lazy_loader import LazyModule
-from utils.performance import track_performance
 from utils.config import config
+from utils.exceptions import AnalysisCancelledError, NiklausError, raise_if_cancelled
+from utils.lazy_loader import LazyModule
 from utils.logger import get_logger
-from utils.exceptions import NiklausError, AnalysisCancelledError, raise_if_cancelled
+from utils.performance import track_performance
 
 logger = get_logger(__name__)
 

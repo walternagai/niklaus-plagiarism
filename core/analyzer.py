@@ -2,16 +2,17 @@
 Main analysis orchestrator for Niklaus plagiarism detector.
 """
 
-from typing import Any, Optional, Callable, Iterator
 import os
-import numpy as np
-from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
+from typing import Any, Callable, Iterator, Optional
 
-from analyzer import ASTParser, CodeMetrics, ClusterDetector, PlagiarismPatternDetector
+import numpy as np
+
+from analyzer import ASTParser, ClusterDetector, CodeMetrics, PlagiarismPatternDetector
 from core.comparison import compare_files
-from utils.parallel import ParallelComparator
-from utils.exceptions import AnalysisError, AnalysisCancelledError, raise_if_cancelled
+from utils.exceptions import AnalysisCancelledError, AnalysisError, raise_if_cancelled
 from utils.logger import get_logger
+from utils.parallel import ParallelComparator
 
 logger = get_logger(__name__)
 

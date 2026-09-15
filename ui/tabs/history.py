@@ -2,8 +2,9 @@
 History tab for managing and viewing submission history.
 """
 
-import streamlit as st
 from datetime import datetime as dt
+
+import streamlit as st
 
 from auth.database import get_session
 from auth.repository import SubmissionRepository

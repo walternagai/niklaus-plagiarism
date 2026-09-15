@@ -3,25 +3,25 @@ Main modular application for Niklaus plagiarism detector.
 This version uses the modular UI architecture with authentication.
 """
 
-import streamlit as st
-from typing import Any
-import shutil
 import math
+import shutil
+from typing import Any
 
+import streamlit as st
+
+from auth import OAuthConfig, OAuthHandler, SessionManager
+from auth.database import get_session, session_scope
+from auth.repository import SubmissionRepository, UserRepository
+from core.pipeline import AnalysisPipeline
 from ui.sidebar import render_sidebar
-from ui.tabs.upload import render_upload_tab
-from ui.tabs.results import render_results_tab
-from ui.tabs.statistics import render_statistics_tab
 from ui.tabs.advanced import render_advanced_tab
 from ui.tabs.graph import render_graph_tab
 from ui.tabs.history import render_history_tab
-
-from core.pipeline import AnalysisPipeline
-from utils.logger import get_logger
+from ui.tabs.results import render_results_tab
+from ui.tabs.statistics import render_statistics_tab
+from ui.tabs.upload import render_upload_tab
 from utils.exceptions import AnalysisCancelledError
-from auth import SessionManager, OAuthHandler, OAuthConfig
-from auth.database import get_session, session_scope
-from auth.repository import UserRepository, SubmissionRepository
+from utils.logger import get_logger
 
 logger = get_logger(__name__)
 

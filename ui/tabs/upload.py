@@ -2,8 +2,10 @@
 Upload tab for Niklaus UI.
 """
 
-import streamlit as st
 from typing import Any
+
+import streamlit as st
+
 from core.file_handler import FileHandler
 from utils.config import config
 from utils.exceptions import FileValidationError

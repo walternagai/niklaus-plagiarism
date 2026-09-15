@@ -4,9 +4,9 @@ Plagiarism Pattern Detection Module
 Detect specific plagiarism patterns and classify types of plagiarism.
 """
 
-import re
-import hashlib
 import ast
+import hashlib
+import re
 
 
 class PlagiarismPatternDetector:

@@ -2,15 +2,16 @@
 Repository pattern for database operations.
 """
 
-from typing import Optional, Any
-from sqlalchemy.orm import Session
-from sqlalchemy import desc, func, case
-from datetime import datetime, timedelta, UTC
 import json
+from datetime import UTC, datetime, timedelta
+from typing import Any, Optional
 
-from auth.models import User, Submission, AnalysisCache, AuditLog
-from utils.logger import get_logger
+from sqlalchemy import case, desc, func
+from sqlalchemy.orm import Session
+
+from auth.models import AnalysisCache, AuditLog, Submission, User
 from utils.db_cache import get_submission_cache
+from utils.logger import get_logger
 from utils.performance import track_performance
 
 logger = get_logger(__name__)

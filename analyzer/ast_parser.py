@@ -4,10 +4,10 @@ AST Parser Module
 Multi-language AST (Abstract Syntax Tree) parsing and comparison for plagiarism detection.
 """
 
-import re
 import ast
-from typing import Optional
 import hashlib
+import re
+from typing import Optional
 
 
 class ASTParser:

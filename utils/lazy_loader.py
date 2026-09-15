@@ -5,8 +5,9 @@ Implements lazy imports and module-level caching.
 
 import importlib
 import time
-from typing import Any, Callable, Optional
 from functools import wraps
+from typing import Any, Callable, Optional
+
 import streamlit as st
 
 

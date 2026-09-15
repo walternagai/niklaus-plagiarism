@@ -2,8 +2,9 @@
 Performance benchmarks and example usage for FASE 2.
 """
 
-import time
 import random
+import time
+
 from core.pipeline import AnalysisPipeline
 from utils.logger import get_logger
 

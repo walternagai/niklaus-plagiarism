@@ -2,11 +2,12 @@
 Charts components for Niklaus UI.
 """
 
+import os
+from typing import Any, Optional
+
+import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
-import numpy as np
-from typing import Any, Optional
-import os
 
 
 def create_similarity_heatmap(files: list[str], similarity_matrix: np.ndarray) -> go.Figure:

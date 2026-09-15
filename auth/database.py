@@ -2,12 +2,13 @@
 Database setup and session management for Niklaus.
 """
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
-from contextlib import contextmanager
-from typing import Generator, Optional
 import os
+from contextlib import contextmanager
 from pathlib import Path
+from typing import Generator, Optional
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
 
 
 class DatabaseManager:

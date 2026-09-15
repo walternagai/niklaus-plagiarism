@@ -3,10 +3,11 @@ User profile page for Niklaus.
 """
 
 import streamlit as st
-from auth.decorators import require_auth
-from auth.session import SessionManager
+
 from auth.database import get_session
+from auth.decorators import require_auth
 from auth.repository import UserRepository
+from auth.session import SessionManager
 from utils.logger import get_logger
 
 logger = get_logger(__name__)

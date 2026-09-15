@@ -4,10 +4,10 @@ Clustering Module
 Detect clusters of similar files using hierarchical and graph-based methods.
 """
 
-import numpy as np
-from scipy.cluster.hierarchy import linkage, fcluster
-from scipy.spatial.distance import squareform
 import networkx as nx
+import numpy as np
+from scipy.cluster.hierarchy import fcluster, linkage
+from scipy.spatial.distance import squareform
 
 
 class ClusterDetector:

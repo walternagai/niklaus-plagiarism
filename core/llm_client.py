@@ -3,12 +3,13 @@ Maritaca API client wrapper with rate limiting and retry logic.
 """
 
 import time
+from typing import Optional
+
 import openai
 
 from utils.config import config
 from utils.exceptions import MaritacaAPIError, RateLimitError
 from utils.logger import get_logger
-from typing import Optional
 
 logger = get_logger(__name__)
 

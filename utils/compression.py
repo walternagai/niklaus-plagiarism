@@ -3,12 +3,12 @@ Compressor for analysis results.
 Reduces memory usage and storage for large analysis datasets.
 """
 
+import base64
+import gzip
 import json
 import zlib
-import gzip
-import base64
-from typing import Any, Optional
 from pathlib import Path
+from typing import Any, Optional
 
 from utils.logger import get_logger
 

@@ -12,13 +12,13 @@ where expire_ts is a Unix timestamp (integer seconds) indicating when the
 entry is considered stale.
 """
 
+import hashlib
 import json
 import math
-import hashlib
 import time
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, Optional
-from datetime import datetime, timedelta, UTC
 
 import numpy as np
 
