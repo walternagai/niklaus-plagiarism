@@ -47,7 +47,8 @@ def render_upload_tab(settings: Dict[str, Any]) -> Tuple[List[str], List[str], s
         
         with col2:
             if st.button("📊 Ver Resultados", type="secondary", use_container_width=True):
-                st.info("Navegue para a aba 'Resultados' para ver os detalhes da análise carregada.")
+                st.session_state['show_last_analysis'] = True
+                st.rerun()
         
         st.markdown("---")
     
