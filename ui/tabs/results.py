@@ -70,7 +70,7 @@ def _stream_ai_response(analysis: str) -> None:
     for i, word in enumerate(words):
         partial = ' '.join(words[:i+1])
         placeholder.markdown(partial + "▌")
-        time.sleep(0.01)
+        time.sleep(0.002)
     
     placeholder.markdown(analysis)
 
