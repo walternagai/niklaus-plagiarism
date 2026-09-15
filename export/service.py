@@ -21,7 +21,7 @@ import csv
 import io
 import json
 import math
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 
 class ExportService:

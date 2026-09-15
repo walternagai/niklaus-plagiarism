@@ -3,7 +3,6 @@ Test core modules.
 """
 
 import pytest
-import numpy as np
 
 
 class TestPlagiarismAnalyzer:

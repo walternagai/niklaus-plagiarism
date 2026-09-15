@@ -5,8 +5,7 @@ Performance benchmarks and example usage for FASE 2.
 import time
 import random
 from typing import List, Tuple
-from core.pipeline import AnalysisPipeline, compare_performance
-from core.analyzer import PlagiarismAnalyzer
+from core.pipeline import AnalysisPipeline
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -78,7 +77,7 @@ def benchmark_sequential_vs_parallel():
         files, contents = generate_sample_code(file_count)
         
         # Sequential
-        print(f"  Sequential (1 worker)...")
+        print("  Sequential (1 worker)...")
         pipeline_seq = AnalysisPipeline('python', max_workers=1, use_cache=False)
         
         start = time.time()
@@ -86,7 +85,7 @@ def benchmark_sequential_vs_parallel():
         time_seq = time.time() - start
         
         # Parallel
-        print(f"  Parallel (4 workers)...")
+        print("  Parallel (4 workers)...")
         pipeline_par = AnalysisPipeline('python', max_workers=4, use_cache=False)
         
         start = time.time()
@@ -120,12 +119,12 @@ def benchmark_full_pipeline():
         
         # Get predictions
         stats = pipeline.get_performance_stats(file_count)
-        print(f"  Predictions:")
+        print("  Predictions:")
         print(f"    - Comparisons: {stats['comparisons']}")
         print(f"    - Est. time: {stats['estimated_total_time']:.2f}s")
         
         # Run actual
-        print(f"  Running analysis...")
+        print("  Running analysis...")
         start = time.time()
         
         def progress_callback(stage, current, total):
@@ -142,7 +141,7 @@ def benchmark_full_pipeline():
         
         elapsed = time.time() - start
         
-        print(f"\n  Results:")
+        print("\n  Results:")
         print(f"    - Actual time: {elapsed:.2f}s")
         print(f"    - Textual comparisons: {len(results['textual_similarities'])}")
         print(f"    - AST comparisons: {len(results['ast_similarities'])}")
@@ -158,7 +157,6 @@ def test_cache_functionality():
     print("TEST: Cache Functionality")
     print("="*80 + "\n")
     
-    from core.persistence import AnalysisCache
     
     files, contents = generate_sample_code(5)
     
@@ -180,7 +178,7 @@ def test_cache_functionality():
     
     # Verify results match
     assert results1['files'] == results2['files']
-    print(f"    ✓ Results match")
+    print("    ✓ Results match")
 
 
 def test_rate_limiting():
@@ -267,7 +265,7 @@ def get_max(items):
     print("  Running analysis...")
     results = pipeline.run_full_analysis(files, contents, enable_ai=False)
     
-    print(f"\n  Results:")
+    print("\n  Results:")
     print(f"    - Files: {results['files']}")
     print(f"    - Threshold: {results['threshold']}")
     print(f"    - Textual similarity: {results['textual_similarities'][0][2]:.2%}")
@@ -276,7 +274,7 @@ def get_max(items):
     print(f"    - Analysis time: {results['analysis_time']:.3f}s")
     
     # Show metrics
-    print(f"\n  Metrics:")
+    print("\n  Metrics:")
     for i, metrics in enumerate(results['metrics']):
         print(f"    File {i+1}:")
         print(f"      - LOC: {metrics['loc']}")
@@ -296,8 +294,8 @@ def demo_performance_estimates():
     
     pipeline = AnalysisPipeline('python', max_workers=4)
     
-    print(f"  Files | Comparisons | Est. Time | Speedup")
-    print(f"  ------|-------------|-----------|---------")
+    print("  Files | Comparisons | Est. Time | Speedup")
+    print("  ------|-------------|-----------|---------")
     
     for count in file_counts:
         stats = pipeline.get_performance_stats(count)

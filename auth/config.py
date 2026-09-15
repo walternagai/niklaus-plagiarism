@@ -61,7 +61,7 @@ def decrypt_token(ciphertext: Optional[str]) -> Optional[str]:
     if not ciphertext:
         return ciphertext
     try:
-        from cryptography.fernet import Fernet, InvalidToken
+        from cryptography.fernet import Fernet
         f = Fernet(_get_fernet_key())
         return f.decrypt(ciphertext.encode()).decode()
     except Exception:

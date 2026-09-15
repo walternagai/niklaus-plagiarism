@@ -4,7 +4,6 @@ Displays performance metrics and system statistics.
 """
 
 import streamlit as st
-from datetime import datetime
 from typing import Dict, Any
 
 from utils.performance import get_performance_dashboard, get_metrics_for_export

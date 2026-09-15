@@ -4,7 +4,6 @@ Text comparison utilities for Niklaus plagiarism detector.
 
 import re
 from difflib import SequenceMatcher
-from typing import Tuple
 
 
 def remove_blank_spaces_and_comments(code: str, language: str) -> str:

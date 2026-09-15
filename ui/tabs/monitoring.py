@@ -4,10 +4,9 @@ Consolidates all monitoring, alerts, and business metrics.
 """
 
 import streamlit as st
-from datetime import datetime, timedelta
-from typing import Dict, Any
+from datetime import datetime
 
-from utils.analytics import get_analytics, display_analytics_dashboard
+from utils.analytics import get_analytics
 from utils.alerts import get_alert_manager, display_alerts_ui
 from utils.performance import get_performance_dashboard, display_performance_report
 from utils.compression import get_compression_stats
@@ -218,7 +217,6 @@ def _render_performance_tab():
         
         if all_metrics:
             import pandas as pd
-            import plotly.graph_objects as go
             
             data = []
             for metric_name, stats in all_metrics.items():

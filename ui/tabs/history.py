@@ -3,7 +3,6 @@ History tab for managing and viewing submission history.
 """
 
 import streamlit as st
-from typing import List, Dict, Any
 from datetime import datetime as dt
 
 from auth.database import get_session
@@ -445,15 +444,15 @@ def _render_submission_card(submission, user_id: int, submission_repo: Submissio
     col_actions = st.columns([1, 1, 1])
     
     with col_actions[0]:
-        if st.button(f"📂 Carregar Resultados", key=f"load_{sub_id}", use_container_width=True):
+        if st.button("📂 Carregar Resultados", key=f"load_{sub_id}", use_container_width=True):
             _load_submission_results(submission)
     
     with col_actions[1]:
-        if st.button(f"📊 Ver Detalhes", key=f"details_{sub_id}", use_container_width=True):
+        if st.button("📊 Ver Detalhes", key=f"details_{sub_id}", use_container_width=True):
             _show_submission_details(submission)
     
     with col_actions[2]:
-        if st.button(f"🗑️ Excluir", key=f"delete_{sub_id}", use_container_width=True, type="secondary"):
+        if st.button("🗑️ Excluir", key=f"delete_{sub_id}", use_container_width=True, type="secondary"):
             st.session_state[f'show_delete_confirm_{sub_id}'] = True
     
     # Delete confirmation

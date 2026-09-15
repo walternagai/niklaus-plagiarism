@@ -6,7 +6,7 @@ Calculate various code complexity and quality metrics.
 
 import re
 import math
-from typing import Dict, List, Tuple
+from typing import Dict, List
 import ast
 
 

@@ -5,9 +5,9 @@ Detect clusters of similar files using hierarchical and graph-based methods.
 """
 
 import numpy as np
-from typing import Dict, List, Tuple, Optional
-from scipy.cluster.hierarchy import dendrogram, linkage, fcluster
-from scipy.spatial.distance import pdist, squareform
+from typing import Dict, List, Tuple
+from scipy.cluster.hierarchy import linkage, fcluster
+from scipy.spatial.distance import squareform
 import networkx as nx
 
 

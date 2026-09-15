@@ -5,13 +5,12 @@ This provides a smooth transition path while maintaining backward compatibility.
 
 from typing import List, Dict, Any, Callable, Optional, Tuple
 import time
-import numpy as np
 
 from utils.lazy_loader import LazyModule
-from utils.performance import track_performance, PerformanceContext, get_performance_metrics
+from utils.performance import track_performance
 from utils.config import config
 from utils.logger import get_logger
-from utils.exceptions import NiklausError, FileValidationError, AnalysisCancelledError, raise_if_cancelled
+from utils.exceptions import NiklausError, AnalysisCancelledError, raise_if_cancelled
 
 logger = get_logger(__name__)
 

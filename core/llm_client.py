@@ -3,7 +3,6 @@ Maritaca API client wrapper with rate limiting and retry logic.
 """
 
 import time
-from typing import Dict, Optional
 import openai
 
 from utils.config import config

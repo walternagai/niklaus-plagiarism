@@ -3,8 +3,6 @@ Upload tab for Niklaus UI.
 """
 
 import streamlit as st
-import tempfile
-import shutil
 from typing import Dict, Any, Tuple, List
 from core.file_handler import FileHandler
 from utils.config import config

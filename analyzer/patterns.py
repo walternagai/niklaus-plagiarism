@@ -6,7 +6,7 @@ Detect specific plagiarism patterns and classify types of plagiarism.
 
 import re
 import hashlib
-from typing import Dict, List, Tuple, Set
+from typing import Dict, Set
 import ast
 
 
@@ -362,26 +362,26 @@ class PlagiarismPatternDetector:
                           f'e estrutural ({ast_sim:.1%}), indicando cópia direta sem modificações.',
             
             'RENOMEACAO_VARIAVEIS': f'O código estrutural é muito similar ({ast_sim:.1%}), ' +
-                                   f'mas com nomes de variáveis diferentes. ' +
+                                   'mas com nomes de variáveis diferentes. ' +
                                    f'Detectadas {len(pattern_analysis["variable_renaming"]["variables_renamed"])} renomeações.',
             
             'REORDENACAO_CODIGO': f'O código mantém estrutura similar ({ast_sim:.1%}) ' +
                                  f'mas com blocos reorganizados. Similaridade textual: {textual_sim:.1%}.',
             
-            'INSERCAO_CODIGO_MORTO': f'Inserção de código morto ou comentários excessivos detectada. ' +
+            'INSERCAO_CODIGO_MORTO': 'Inserção de código morto ou comentários excessivos detectada. ' +
                                     f'Aproximadamente {pattern_analysis["dead_code_insertion"]["inserted_lines"]} ' +
-                                    f'linhas inseridas.',
+                                    'linhas inseridas.',
             
-            'REFATORACAO_PESADA': f'Código com refatoração significativa. Similaridade estrutural alta ' +
+            'REFATORACAO_PESADA': 'Código com refatoração significativa. Similaridade estrutural alta ' +
                                  f'({ast_sim:.1%}) mas textual baixa ({textual_sim:.1%}). ' +
-                                 f'Possível plágio com reescrita.',
+                                 'Possível plágio com reescrita.',
             
-            'REFATORACAO_LEVE': f'Código com refatoração leve. Similaridade textual e estrutural moderadas ' +
+            'REFATORACAO_LEVE': 'Código com refatoração leve. Similaridade textual e estrutural moderadas ' +
                               f'({textual_sim:.1%} e {ast_sim:.1%} respectivamente).',
             
-            'SIMILARIDADE_BAIXA': f'Não foram detectadas similaridades significativas ' +
+            'SIMILARIDADE_BAIXA': 'Não foram detectadas similaridades significativas ' +
                                  f'({textual_sim:.1%} textual, {ast_sim:.1%} estrutural). ' +
-                                 f'Provavelmente código original.',
+                                 'Provavelmente código original.',
             
             'REUSO_LEGITIMO': 'Código pode ser reutilização legítima de bibliotecas ou código comum.'
         }

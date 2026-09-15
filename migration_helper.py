@@ -6,7 +6,6 @@ This script provides utilities for testing and comparing both versions.
 import sys
 import time
 import argparse
-from typing import List, Dict, Any
 
 # Import both versions
 sys.path.insert(0, '.')
@@ -20,7 +19,7 @@ def compare_performance(file_count: int = 20):
         file_count: Number of files to test
     """
     print(f"\n{'='*80}")
-    print(f"Performance Comparison: Legacy vs New (Legacy vs Modular)")
+    print("Performance Comparison: Legacy vs New (Legacy vs Modular)")
     print(f"Testing with {file_count} files")
     print(f"{'='*80}\n")
     
@@ -71,7 +70,7 @@ def test_backward_compatibility():
     sim1 = LegacyAdapter.comparate_files(code1, code2, 'python')
     sim2 = compare_files(code1, code2, 'python')
     
-    print(f"Test 1: compare_files")
+    print("Test 1: compare_files")
     print(f"  Legacy: {sim1:.4f}")
     print(f"  New:    {sim2:.4f}")
     print(f"  Match:  {'✓' if abs(sim1 - sim2) < 0.01 else '✗'}")
@@ -82,7 +81,7 @@ def test_backward_compatibility():
     
     matrix = LegacyAdapter.create_similarity_matrix(files, sims)
     
-    print(f"\nTest 2: create_similarity_matrix")
+    print("\nTest 2: create_similarity_matrix")
     print(f"  Shape: {len(matrix)}x{len(matrix[0])}")
     print(f"  Diagonal: {matrix[0][0]}, {matrix[1][1]}, {matrix[2][2]}")
     print(f"  Match: {'✓' if matrix[0][0] == 1.0 else '✗'}")

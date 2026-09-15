@@ -3,7 +3,6 @@ Performance alerts and monitoring system.
 Automatically detects performance issues and triggers alerts.
 """
 
-import time
 from typing import Dict, List, Any, Optional, Callable
 from datetime import datetime, timedelta
 from collections import defaultdict

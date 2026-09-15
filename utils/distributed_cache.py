@@ -8,7 +8,6 @@ import json
 import zlib
 from typing import Any, Optional, Dict
 from datetime import datetime, timedelta
-import hashlib
 
 try:
     import redis

@@ -201,7 +201,7 @@ class TestPlagiarismPatternDetector:
         
         result = detector.detect_variable_renaming(code1, code2, 'python')
         
-        assert result['detected'] == True
+        assert result['detected'] is True
         assert result['confidence'] > 0.6
     
     def test_detect_code_reordering(self, detector):

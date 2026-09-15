@@ -6,7 +6,7 @@ Multi-language AST (Abstract Syntax Tree) parsing and comparison for plagiarism 
 
 import re
 import ast
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Optional
 import hashlib
 
 

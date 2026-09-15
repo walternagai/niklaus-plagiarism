@@ -7,10 +7,8 @@ from utils.config import Config, config
 from utils.exceptions import (
     NiklausError,
     FileValidationError,
-    ZipExtractionError,
     MaritacaAPIError,
-    AnalysisError,
-    CacheError
+    AnalysisError
 )
 from utils.logger import get_logger
 
@@ -185,7 +183,6 @@ class TestFileHandler:
     def test_validate_zip_size(self, tmp_path):
         """Test ZIP file size validation."""
         from core.file_handler import FileHandler
-        from utils.exceptions import FileValidationError
         
         handler = FileHandler(max_size_mb=1)  # 1MB limit
         

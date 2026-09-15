@@ -10,8 +10,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from auth.oauth import OAuthHandler
-from auth.database import get_session, init_db
-from auth.repository import UserRepository
+from auth.database import init_db
 from auth.config import OAuthConfig
 
 def run_callback_test(code: str, state: str):
@@ -32,23 +31,23 @@ def run_callback_test(code: str, state: str):
     handler = OAuthHandler(provider)
     
     try:
-        print(f"🔄 Exchanging authorization code for access token...")
+        print("🔄 Exchanging authorization code for access token...")
         token_data = handler._exchange_code_for_token(code)
         
         if 'access_token' in token_data:
             print(f"✅ Access token received: {token_data['access_token'][:20]}...")
             print()
             
-            print(f"🔄 Fetching user profile from Google...")
+            print("🔄 Fetching user profile from Google...")
             profile = handler._get_user_profile(token_data['access_token'])
             
-            print(f"✅ User profile received:")
+            print("✅ User profile received:")
             print(f"  Email: {profile.get('email')}")
             print(f"  Name: {profile.get('name')}")
             print(f"  ID: {profile.get('id')}")
             print()
             
-            print(f"🔄 Creating/updating user in database...")
+            print("🔄 Creating/updating user in database...")
             user = handler.create_user_from_oauth(
                 email=profile.get('email'),
                 name=profile.get('name', profile.get('email', '').split('@')[0]),
@@ -80,7 +79,7 @@ def run_callback_test(code: str, state: str):
             print(f"❌ No access token in response: {token_data}")
             
     except Exception as e:
-        print(f"❌ Error during callback processing:")
+        print("❌ Error during callback processing:")
         print(f"   {type(e).__name__}: {str(e)}")
         import traceback
         traceback.print_exc()

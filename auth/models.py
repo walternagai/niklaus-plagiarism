@@ -5,7 +5,7 @@ SQLAlchemy Models for Niklaus Authentication System.
 from sqlalchemy import Column, Integer, String, Float, Boolean, JSON, DateTime, ForeignKey, Text
 from sqlalchemy.orm import relationship, declarative_base
 from datetime import datetime, UTC
-from typing import Optional, Dict, Any
+from typing import Dict, Any
 
 Base = declarative_base()
 

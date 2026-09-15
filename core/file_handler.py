@@ -4,12 +4,10 @@ File handling utilities for Niklaus plagiarism detector.
 
 import os
 import io
-import re
 import zipfile
 import tempfile
 import shutil
-from pathlib import Path
-from typing import List, Tuple, Optional
+from typing import List, Tuple
 import chardet
 
 from utils.config import config

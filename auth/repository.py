@@ -4,7 +4,7 @@ Repository pattern for database operations.
 
 from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
-from sqlalchemy import desc, and_, func, case
+from sqlalchemy import desc, func, case
 from datetime import datetime, timedelta, UTC
 import json
 

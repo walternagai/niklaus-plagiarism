@@ -3,9 +3,9 @@ Results tab for Niklaus UI.
 """
 
 import streamlit as st
-from typing import Dict, Any, List
+from typing import Dict, Any
 from ui.components.tables import display_similarity_table
-from ui.components.exporter import export_results, generate_summary_report
+from ui.components.exporter import export_results
 from ui.tooltips import get_help_message
 
 

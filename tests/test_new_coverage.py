@@ -59,7 +59,6 @@ class TestSessionManager:
     @pytest.fixture(autouse=True)
     def mock_st(self):
         """Provide a clean fake session_state for each test."""
-        state = {}
 
         class FakeState(dict):
             def clear(self):
@@ -192,7 +191,6 @@ class TestSubmissionRepository:
 
     def test_user_counters_incremented_on_create(self, db_session, user):
         from auth.repository import SubmissionRepository
-        from auth.models import User
         repo = SubmissionRepository(db_session)
         repo.create(
             user_id=user.id,

@@ -4,7 +4,7 @@ Guides users through application features step by step.
 """
 
 import streamlit as st
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Optional
 
 
 class TutorialStep:

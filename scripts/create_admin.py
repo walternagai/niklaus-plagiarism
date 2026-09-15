@@ -45,7 +45,7 @@ def main():
             is_active=True,
             is_verified=True
         )
-        print(f"\n✅ Admin user created successfully")
+        print("\n✅ Admin user created successfully")
         print(f"   ID: {user.id}")
         print(f"   Email: {user.email}")
         print(f"   Name: {user.name}")

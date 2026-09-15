@@ -4,7 +4,6 @@ Admin panel for Niklaus.
 
 import streamlit as st
 import pandas as pd
-from datetime import datetime
 from auth.decorators import require_admin
 from auth.database import get_session
 from auth.repository import UserRepository, SubmissionRepository

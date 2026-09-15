@@ -10,7 +10,7 @@ from datetime import datetime, UTC
 
 from auth.models import User
 from auth.database import get_session
-from auth.config import OAuthConfig, encrypt_token, decrypt_token
+from auth.config import OAuthConfig, encrypt_token
 from auth.repository import UserRepository
 from utils.logger import get_logger
 
