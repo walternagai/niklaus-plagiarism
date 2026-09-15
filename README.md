@@ -226,14 +226,14 @@ pytest tests/ -k "not slow"
 # Incluindo o teste de rate limiter (~1s extra)
 pytest tests/
 
-# Com cobertura (gate: >= 70% sobre core/auth/analyzer/export/utils — .coveragerc)
+# Com cobertura (gate: >= 90% sobre core/auth/analyzer/export/utils — .coveragerc)
 pytest tests/ --cov --cov-report=term
 
 # Lint (baseline: ruff.toml)
 ruff check .
 ```
 
-A suite conta com **290 testes** cobrindo: análise de AST, métricas, padrões, pipeline, comparação, cache, OAuth, repositório, exportação, compressão, performance, alertas e normalização de histórico. Coverage atual: **~73%** dos módulos de lógica (UI e `app.py` fora do gate — cobertos por smoke test manual).
+A suite conta com **465 testes** cobrindo: análise de AST, métricas, padrões, pipeline, comparação, cache (disco e distribuído), OAuth, repositório, exportação, compressão, performance, alertas, IA e normalização de histórico. Coverage atual: **~91%** dos módulos de lógica (UI e `app.py` fora do gate — cobertos por smoke test manual).
 
 ---
 
