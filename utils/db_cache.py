@@ -100,7 +100,7 @@ class QueryCache:
         self.delete(lru_key)
     
     def delete(self, key: str):
-        """Delete specific cached query."""
+        """Delete specific cached query (already-hashed key)."""
         self._cache.pop(key, None)
         self._access_times.pop(key, None)
     
@@ -230,7 +230,7 @@ class SubmissionCache:
     
     def invalidate_submission(self, submission_id: int):
         """Invalidate specific submission."""
-        self._cache.delete(f"submission_{submission_id}")
+        self._cache.invalidate(f"submission_{submission_id}")
 
 
 def cached_query(ttl: float = 60, key_prefix: str = ''):

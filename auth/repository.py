@@ -208,6 +208,9 @@ class SubmissionRepository:
         if submission:
             self.db.delete(submission)
             self.db.commit()
+            # Invalidate the by-ID cache entry so find_by_id does not
+            # resurrect the deleted submission from the query cache.
+            self._cache.invalidate_submission(submission_id)
             return True
         return False
     
