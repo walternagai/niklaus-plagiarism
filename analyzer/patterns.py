@@ -363,7 +363,8 @@ class PlagiarismPatternDetector:
             
             'RENOMEACAO_VARIAVEIS': f'O código estrutural é muito similar ({ast_sim:.1%}), ' +
                                    'mas com nomes de variáveis diferentes. ' +
-                                   f'Detectadas {len(pattern_analysis["variable_renaming"]["variables_renamed"])} renomeações.',
+                                   f'Detectadas {len(pattern_analysis["variable_renaming"]["variables_renamed"])} '
+                                   'renomeações.',
             
             'REORDENACAO_CODIGO': f'O código mantém estrutura similar ({ast_sim:.1%}) ' +
                                  f'mas com blocos reorganizados. Similaridade textual: {textual_sim:.1%}.',

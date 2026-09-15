@@ -112,8 +112,11 @@ class OAuthConfig:
             self.microsoft_tenant_id = microsoft.get('tenant_id', 'common')
         else:
             self.microsoft_client_id = secrets.get('MICROSOFT_CLIENT_ID', os.getenv('MICROSOFT_CLIENT_ID', ''))
-            self.microsoft_client_secret = secrets.get('MICROSOFT_CLIENT_SECRET', os.getenv('MICROSOFT_CLIENT_SECRET', ''))
-            self.microsoft_redirect_uri = secrets.get('MICROSOFT_REDIRECT_URI', os.getenv('MICROSOFT_REDIRECT_URI', 'http://localhost:8501/oauth/callback/microsoft'))
+            self.microsoft_client_secret = secrets.get(
+                'MICROSOFT_CLIENT_SECRET', os.getenv('MICROSOFT_CLIENT_SECRET', ''))
+            self.microsoft_redirect_uri = secrets.get(
+                'MICROSOFT_REDIRECT_URI',
+                os.getenv('MICROSOFT_REDIRECT_URI', 'http://localhost:8501/oauth/callback/microsoft'))
             self.microsoft_tenant_id = secrets.get('MICROSOFT_TENANT_ID', os.getenv('MICROSOFT_TENANT_ID', 'common'))
         
         # Application secret key (used for HMAC signing of OAuth state)

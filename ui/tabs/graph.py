@@ -24,7 +24,10 @@ def render_graph_tab(results: Dict[str, Any]) -> None:
     )
     
     if not results.get('similarity_matrix') or not results.get('files'):
-        st.info("Execute uma análise ou carregue uma submissão com dados suficientes para visualizar o grafo de similaridade.")
+        st.info(
+            "Execute uma análise ou carregue uma submissão com dados suficientes "
+            "para visualizar o grafo de similaridade."
+        )
         return
     
     # Threshold slider for graph

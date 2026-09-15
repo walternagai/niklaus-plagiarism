@@ -40,7 +40,10 @@ def render_profile_page():
             st.write(f"**Email:** {user_obj.email}")
             st.write(f"**Papel:** {'👑 Administrador' if user_obj.role == 'admin' else '👤 Usuário'}")
             st.write(f"**Cadastro:** {user_obj.created_at.strftime('%d/%m/%Y') if user_obj.created_at else 'N/A'}")
-            st.write(f"**Último login:** {user_obj.last_login_at.strftime('%d/%m/%Y %H:%M') if user_obj.last_login_at else 'N/A'}")
+            st.write(
+                f"**Último login:** "
+                f"{user_obj.last_login_at.strftime('%d/%m/%Y %H:%M') if user_obj.last_login_at else 'N/A'}"
+            )
         
         with col2:
             st.markdown("### Estatísticas")

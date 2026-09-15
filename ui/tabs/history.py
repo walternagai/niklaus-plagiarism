@@ -27,7 +27,10 @@ def render_history_tab(user_id: int):
     
     # Show loaded submission status
     if st.session_state.get('loaded_submission_id') and st.session_state.get('last_analysis'):
-        st.success(f"📂 Submissão #{st.session_state['loaded_submission_id']} carregada - Veja as abas Resultados, Estatísticas, Análise Avançada e Grafo")
+        st.success(
+            f"📂 Submissão #{st.session_state['loaded_submission_id']} carregada - "
+            "Veja as abas Resultados, Estatísticas, Análise Avançada e Grafo"
+        )
     
     db = get_session()
     submission_repo = SubmissionRepository(db)
@@ -360,7 +363,11 @@ def _render_submissions_list(user_id: int, submission_repo: SubmissionRepository
                     st.rerun()
             
             with col2:
-                st.markdown(f"<div style='text-align: center; padding-top: 8px;'>Página {current_page} de {total_pages}</div>", unsafe_allow_html=True)
+                st.markdown(
+                    f"<div style='text-align: center; padding-top: 8px;'>"
+                    f"Página {current_page} de {total_pages}</div>",
+                    unsafe_allow_html=True
+                )
             
             with col3:
                 if st.button("Próxima ➡️", disabled=(current_page == total_pages), use_container_width=True):

@@ -264,7 +264,10 @@ def _handle_oauth_callback(session_manager: SessionManager):
                 st.markdown("[Voltar para login](/)")
         else:
             st.error("❌ Parâmetros de autenticação inválidos")
-            st.error(f"Provider: {provider or 'não encontrado'}, Code: {'✓' if code else '✗'}, State: {'✓' if state else '✗'}")
+            st.error(
+                f"Provider: {provider or 'não encontrado'}, "
+                f"Code: {'✓' if code else '✗'}, State: {'✓' if state else '✗'}"
+            )
             if code and state and not provider:
                 st.warning("💡 Tente iniciar o login novamente para renovar a sessão OAuth.")
             st.markdown("[Voltar para login](/)")
@@ -431,7 +434,12 @@ def _init_session_state():
             st.session_state[key] = value
 
 
-def _run_analysis(files: List[str], contents: List[str], settings: Dict[str, Any], user_id: int) -> Dict[str, Any] | None:
+def _run_analysis(
+    files: List[str],
+    contents: List[str],
+    settings: Dict[str, Any],
+    user_id: int
+) -> Dict[str, Any] | None:
     """
     Run analysis using AnalysisPipeline and save to database.
     

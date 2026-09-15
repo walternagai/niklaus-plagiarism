@@ -28,7 +28,10 @@ def render_advanced_tab(results: Dict[str, Any]) -> None:
     
     # AST Similarities
     st.markdown("#### Similaridade Estrutural (AST)")
-    st.info("A similaridade estrutural compara a árvore sintática do código, identificando similaridades mesmo com variáveis renomeadas ou código reorganizado.")
+    st.info(
+        "A similaridade estrutural compara a árvore sintática do código, "
+        "identificando similaridades mesmo com variáveis renomeadas ou código reorganizado."
+    )
     
     if results.get('ast_similarities'):
         display_ast_table(results['ast_similarities'])

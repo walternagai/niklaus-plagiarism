@@ -13,19 +13,26 @@ METRICS_TOOLTIPS = {
     "analysis_time": "Tempo total de análise em segundos",
     
     # Threshold
-    "threshold": "Valor mínimo de similaridade para considerar um par como suspeito. Valores mais altos = detecção mais rigorosa",
+    "threshold": "Valor mínimo de similaridade para considerar um par como suspeito. "
+                 "Valores mais altos = detecção mais rigorosa",
     
     # Advanced metrics
     "loc": "Linhas de Código (LOC) - Total de linhas não vazias no arquivo",
-    "cyclomatic_complexity": "Complexidade Ciclomática - Mede o número de caminhos independentes no código. Valores altos (>15) indicam código difícil de testar",
-    "nesting_depth": "Profundidade de Aninhamento - Níveis máximos de indentação. Valores altos (>4) dificultam leitura",
-    "maintainability_index": "Índice de Manutenibilidade - 0-100, onde valores mais altos indicam código mais fácil de manter",
+    "cyclomatic_complexity": "Complexidade Ciclomática - Mede o número de caminhos "
+                             "independentes no código. Valores altos (>15) indicam código difícil de testar",
+    "nesting_depth": "Profundidade de Aninhamento - Níveis máximos de indentação. "
+                     "Valores altos (>4) dificultam leitura",
+    "maintainability_index": "Índice de Manutenibilidade - 0-100, onde valores mais altos "
+                             "indicam código mais fácil de manter",
     "functions_count": "Número de funções/métodos definidos no arquivo",
     
     # Code metrics explanation
-    "halstead_volume": "Volume de Halstead - Mede a quantidade de informação no código baseado em operadores e operandos",
-    "halstead_difficulty": "Dificuldade de Halstead - Estimativa de quão difícil é escrever/entender o código",
-    "cognitive_complexity": "Complexidade Cognitiva - Mede o quão difícil é entender o código ao ler (quebras de fluxo)",
+    "halstead_volume": "Volume de Halstead - Mede a quantidade de informação no código "
+                       "baseado em operadores e operandos",
+    "halstead_difficulty": "Dificuldade de Halstead - Estimativa de quão difícil é "
+                           "escrever/entender o código",
+    "cognitive_complexity": "Complexidade Cognitiva - Mede o quão difícil é entender o "
+                            "código ao ler (quebras de fluxo)",
     
     # AST metrics
     "ast_similarity": "Similaridade Estrutural (AST) - Compara a estrutura do código (loops, condicionais, funções)",

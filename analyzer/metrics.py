@@ -252,7 +252,8 @@ class CodeMetrics:
             })
         
         # Very different LOC but high complexity similarity
-        if metrics_comparison.get('loc_similarity', 0) < 0.5 and metrics_comparison.get('cyclomatic_similarity', 0) > 0.8:
+        if (metrics_comparison.get('loc_similarity', 0) < 0.5
+                and metrics_comparison.get('cyclomatic_similarity', 0) > 0.8):
             anomalies.append({
                 'type': 'CODE_EXPANSION',
                 'description': 'Code expanded but complexity similar - possible obfuscation',

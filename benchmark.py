@@ -26,9 +26,19 @@ def generate_sample_code(num_files: int, similarity_factor: float = 0.3) -> Tupl
     base_functions = [
         "def add(a, b):\n    return a + b",
         "def multiply(x, y):\n    return x * y",
-        "def divide(numerator, denominator):\n    if denominator == 0:\n        return None\n    return numerator / denominator",
-        "def calculate_average(numbers):\n    if not numbers:\n        return 0\n    return sum(numbers) / len(numbers)",
-        "def find_maximum(values):\n    if not values:\n        return None\n    max_val = values[0]\n    for val in values:\n        if val > max_val:\n            max_val = val\n    return max_val",
+        "def divide(numerator, denominator):\n"
+        "    if denominator == 0:\n        return None\n"
+        "    return numerator / denominator",
+        "def calculate_average(numbers):\n"
+        "    if not numbers:\n        return 0\n"
+        "    return sum(numbers) / len(numbers)",
+        "def find_maximum(values):\n"
+        "    if not values:\n        return None\n"
+        "    max_val = values[0]\n"
+        "    for val in values:\n"
+        "        if val > max_val:\n"
+        "            max_val = val\n"
+        "    return max_val",
     ]
     
     names = ["Alice", "Bob", "Charlie", "David", "Eve", "Frank", "Grace", "Henry"]
@@ -299,7 +309,8 @@ def demo_performance_estimates():
     
     for count in file_counts:
         stats = pipeline.get_performance_stats(count)
-        print(f"  {count:5d} | {stats['comparisons']:11d} | {stats['estimated_total_time']:8.1f}s | {stats['speedup_factor']}x")
+        print(f"  {count:5d} | {stats['comparisons']:11d} | "
+              f"{stats['estimated_total_time']:8.1f}s | {stats['speedup_factor']}x")
 
 
 if __name__ == "__main__":

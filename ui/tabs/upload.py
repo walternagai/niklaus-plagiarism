@@ -146,7 +146,10 @@ def _display_performance_estimate(settings: Dict[str, Any]) -> None:
         
         for files in [10, 20, 50]:
             stats = pipeline.get_performance_stats(files)
-            st.markdown(f"**{files} arquivos:** ~{stats['estimated_total_time']:.1f}s com {settings['max_workers']} workers")
+            st.markdown(
+                f"**{files} arquivos:** ~{stats['estimated_total_time']:.1f}s "
+                f"com {settings['max_workers']} workers"
+            )
         
         st.info("Estimativas reais serão mostradas após extração dos arquivos.")
 
@@ -162,7 +165,10 @@ def _display_last_analysis_summary() -> None:
     with col1:
         st.metric("Arquivos", last_analysis.get('files_count', len(last_analysis.get('files', []))))
     with col2:
-        st.metric("Pares Suspeitos", last_analysis.get('similarities_count', len(last_analysis.get('suspicious_pairs', []))))
+        st.metric(
+            "Pares Suspeitos",
+            last_analysis.get('similarities_count', len(last_analysis.get('suspicious_pairs', [])))
+        )
     
     if st.button("Ver Resultados", key="view_last_analysis"):
         st.session_state['show_last_analysis'] = True

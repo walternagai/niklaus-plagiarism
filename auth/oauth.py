@@ -69,11 +69,22 @@ class OAuthHandler:
             redirect_uri = redirect_uri.split('/oauth/callback/')[0]
         
         if self.provider == 'google':
-            return f"https://accounts.google.com/o/oauth2/v2/auth?client_id={client_id}&redirect_uri={redirect_uri}&response_type=code&scope=openid email profile&state={state}"
+            return (
+                f"https://accounts.google.com/o/oauth2/v2/auth?client_id={client_id}"
+                f"&redirect_uri={redirect_uri}&response_type=code"
+                f"&scope=openid email profile&state={state}"
+            )
         elif self.provider == 'github':
-            return f"https://github.com/login/oauth/authorize?client_id={client_id}&redirect_uri={redirect_uri}&scope=user:email&state={state}"
+            return (
+                f"https://github.com/login/oauth/authorize?client_id={client_id}"
+                f"&redirect_uri={redirect_uri}&scope=user:email&state={state}"
+            )
         elif self.provider == 'microsoft':
-            return f"https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id={client_id}&redirect_uri={redirect_uri}&response_type=code&scope=openid email profile&state={state}"
+            return (
+                f"https://login.microsoftonline.com/common/oauth2/v2.0/authorize"
+                f"?client_id={client_id}&redirect_uri={redirect_uri}"
+                f"&response_type=code&scope=openid email profile&state={state}"
+            )
         
         return ""
     
@@ -115,7 +126,7 @@ class OAuthHandler:
         
         headers = {'Accept': 'application/json'}
         
-        response = requests.post(token_url, data=data, headers=headers)
+        response = requests.post(token_url, data=data, headers=headers, timeout=30)
         
         if response.status_code != 200:
             logger.error(f"Token exchange failed: {response.status_code} - {response.text}")
@@ -130,15 +141,15 @@ class OAuthHandler:
         if self.provider == 'google':
             userinfo_url = "https://www.googleapis.com/oauth2/v2/userinfo"
             headers = {'Authorization': f'Bearer {access_token}'}
-            response = requests.get(userinfo_url, headers=headers)
+            response = requests.get(userinfo_url, headers=headers, timeout=15)
         elif self.provider == 'github':
             userinfo_url = "https://api.github.com/user"
             headers = {'Authorization': f'token {access_token}'}
-            response = requests.get(userinfo_url, headers=headers)
+            response = requests.get(userinfo_url, headers=headers, timeout=15)
         elif self.provider == 'microsoft':
             userinfo_url = "https://graph.microsoft.com/v1.0/me"
             headers = {'Authorization': f'Bearer {access_token}'}
-            response = requests.get(userinfo_url, headers=headers)
+            response = requests.get(userinfo_url, headers=headers, timeout=15)
         else:
             raise ValueError(f"Unsupported provider: {self.provider}")
         
@@ -150,7 +161,7 @@ class OAuthHandler:
         
         if self.provider == 'github':
             if not profile.get('email'):
-                email_response = requests.get('https://api.github.com/user/emails', headers=headers)
+                email_response = requests.get('https://api.github.com/user/emails', headers=headers, timeout=15)
                 if email_response.status_code == 200:
                     emails = email_response.json()
                     primary_email = next((e for e in emails if e.get('primary')), None)

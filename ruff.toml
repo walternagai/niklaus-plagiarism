@@ -1,0 +1,37 @@
+# Ruff baseline — Niklaus
+# Regras de DEFEITO em vigilância contínua.
+# Regras de modernização/estilo (UP, I001, EXE002, RUF013, RUF010) ficam
+# fora do gate e são endereçadas em tasks próprias — ver .kata/t4, t5.
+target-version = "py39"
+line-length = 120
+exclude = [
+    ".venv",
+    "__pycache__",
+    ".pytest_cache",
+    ".niklaus_cache",
+    "docs",
+]
+
+[lint]
+select = [
+    "F",    # pyflakes: imports/variáveis mortas, comparações
+    "E501", # linha longa (com line-length 110)
+    "DTZ",  # datetime naive (timezone-aware) — exceto DTZ005 corrigido em t2
+    "S",    # bandit-light: riscos de segurança
+]
+ignore = [
+    "DTZ005", # tratado na task t2; após t2, mover para select explicito
+    "S101",   # assert é idioma de teste/contrato interno, não risco
+    "S324",   # md5 para fingerprint de cache/dedupe (não-cryptográfico) — documentado
+    "S105",   # false positive: URLs de token OAuth não são senhas
+    "S110",   # except-pass em fallbacks defensivos — revisados em t3
+]
+
+[lint.per-file-ignores]
+"tests/*" = ["S"]           # testes podem usar subprocess/mock livremente
+"scripts/*" = ["S", "DTZ"]  # scripts de setup, contexto confiável
+"migration_helper.py" = ["S", "DTZ"]
+"benchmark.py" = ["S"]
+"analyzer/patterns.py" = ["S324"]  # md5 = fingerprint de linha, não crypto
+"utils/db_cache.py" = ["S324"]     # md5 = chave de cache, não crypto
+"core/llm_client.py" = ["E501"]    # prompts de LLM: quebrar linha altera o texto enviado
