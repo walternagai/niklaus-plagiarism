@@ -366,6 +366,7 @@ def _render_authenticated_app(session_manager: SessionManager, current_user):
                 st.session_state['last_analysis'] = results
                 st.session_state['settings'] = settings
                 st.session_state['analysis_just_completed'] = True
+                st.session_state['show_last_analysis'] = True
             
             if extract_path:
                 shutil.rmtree(extract_path, ignore_errors=True)
