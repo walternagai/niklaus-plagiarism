@@ -359,14 +359,40 @@ class AnalyticsEngine:
             half_point = len(recent_analyses) // 2
             recent_half = recent_analyses[-half_point:]
             older_half = recent_analyses[:half_point]
-            
+
             recent_count = len(recent_half)
             older_count = len(older_half)
-            
+
             if older_count == 0:
                 trend = 'increasing'
             else:
-                rate_change = (recent_count - older_count) / older_count
+                # Compare activity density (analyses per hour) between the
+                # two halves instead of raw counts: both halves have the
+                # same length by construction, so comparing counts directly
+                # always yields rate_change == 0.
+                try:
+                    older_span = (
+                        recent_analyses[half_point - 1].timestamp
+                        - recent_analyses[0].timestamp
+                    ).total_seconds()
+                    recent_span = (
+                        recent_analyses[-1].timestamp
+                        - recent_analyses[-half_point].timestamp
+                    ).total_seconds()
+                except (KeyError, TypeError, ValueError):
+                    return {
+                        'analyses_count': analyses_count,
+                        'avg_processing_time': avg_processing_time,
+                        'avg_similarity': avg_similarity,
+                        'files_per_analysis': files_per_analysis,
+                        'trend': 'stable'
+                    }
+
+                older_rate = older_count / older_span if older_span > 0 else 0
+                recent_rate = recent_count / recent_span if recent_span > 0 else 0
+                rate_change = (
+                    (recent_rate - older_rate) / older_rate if older_rate > 0 else 0
+                )
                 
                 if rate_change > 0.2:
                     trend = 'increasing'
