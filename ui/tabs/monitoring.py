@@ -4,7 +4,7 @@ Consolidates all monitoring, alerts, and business metrics.
 """
 
 import streamlit as st
-from datetime import datetime
+from datetime import datetime, UTC
 
 from utils.analytics import get_analytics
 from utils.alerts import get_alert_manager, display_alerts_ui
@@ -138,7 +138,7 @@ def _render_analytics_tab():
             st.download_button(
                 label="Baixar JSON",
                 data=data,
-                file_name=f"analytics_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                file_name=f"analytics_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}.json",
                 mime="application/json"
             )
     
@@ -148,7 +148,7 @@ def _render_analytics_tab():
             st.download_button(
                 label="Baixar CSV",
                 data=data,
-                file_name=f"analytics_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                file_name=f"analytics_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}.csv",
                 mime="text/csv"
             )
 

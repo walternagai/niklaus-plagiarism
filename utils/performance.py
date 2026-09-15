@@ -6,7 +6,7 @@ Tracks execution times, memory usage, and performance bottlenecks.
 import time
 import functools
 from typing import Callable, Dict, Any, Optional, List
-from datetime import datetime
+from datetime import datetime, UTC
 from collections import defaultdict
 import statistics
 
@@ -39,7 +39,7 @@ class PerformanceMetrics:
             **metadata: Additional metadata
         """
         metric = {
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': datetime.now(UTC).isoformat(),
             'execution_time': execution_time,
             'success': success,
             **metadata
@@ -352,7 +352,7 @@ def get_metrics_for_export() -> Dict[str, Any]:
     metrics = get_performance_metrics()
     
     export_data = {
-        'timestamp': datetime.now().isoformat(),
+        'timestamp': datetime.now(UTC).isoformat(),
         'metrics': {}
     }
     

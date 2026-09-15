@@ -18,7 +18,7 @@ import hashlib
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 
 import numpy as np
 
@@ -197,7 +197,7 @@ class AnalysisCache:
             cache_file = self.cache_dir / filename
 
             cache_data = {
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "expire_ts": expire_ts,
                 "files": files,
                 "threshold": threshold,
@@ -248,7 +248,7 @@ class AnalysisCache:
 
             # Secondary age check using timestamp string (belt + suspenders)
             timestamp = datetime.fromisoformat(cache_data["timestamp"])
-            age = datetime.now() - timestamp
+            age = datetime.now(UTC) - timestamp
             if age > timedelta(hours=max_age_hours):
                 logger.info(f"Cache expired by age check (age: {age})")
                 try:

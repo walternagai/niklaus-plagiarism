@@ -3,7 +3,7 @@ Export components for Niklaus UI.
 """
 
 import json
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import Dict, List, Any
 import streamlit as st
 import pandas as pd
@@ -56,7 +56,7 @@ def _export_csv(suspicious_pairs: List[tuple]) -> None:
     st.download_button(
         "📥 Baixar CSV",
         data=csv,
-        file_name=f"similaridade_plagio_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+        file_name=f"similaridade_plagio_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}.csv",
         mime="text/csv",
         use_container_width=True
     )
@@ -65,7 +65,7 @@ def _export_csv(suspicious_pairs: List[tuple]) -> None:
 def _export_json(results: Dict[str, Any], suspicious_pairs: List[tuple], settings: Dict[str, Any]) -> None:
     """Export results to JSON."""
     report = {
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "language": results['language'],
         "threshold": results['threshold'],
         "files": results['files'],
@@ -84,7 +84,7 @@ def _export_json(results: Dict[str, Any], suspicious_pairs: List[tuple], setting
     st.download_button(
         "📥 Baixar JSON",
         data=json.dumps(report, indent=2, ensure_ascii=False),
-        file_name=f"relatorio_plagio_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+        file_name=f"relatorio_plagio_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}.json",
         mime="application/json",
         use_container_width=True
     )
@@ -115,7 +115,7 @@ def generate_summary_report(results: Dict[str, Any], settings: Dict[str, Any]) -
 RELATÓRIO DE ANÁLISE DE PLÁGIO - NIKLAUS
 {'=' * 50}
 
-Data: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}
+Data: {datetime.now(UTC).strftime('%d/%m/%Y %H:%M:%S')}
 
 CONFIGURAÇÕES
 --------------

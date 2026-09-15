@@ -4,7 +4,7 @@ Automatically detects performance issues and triggers alerts.
 """
 
 from typing import Dict, List, Any, Optional, Callable
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from collections import defaultdict
 from dataclasses import dataclass
 import json
@@ -141,14 +141,14 @@ class AlertManager:
                 return None
         
         alert = Alert(
-            id=f"{metric_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+            id=f"{metric_name}_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}",
             severity=severity,
             category=self._get_category(metric_name),
             message=self._generate_message(metric_name, value, threshold, severity),
             metric_name=metric_name,
             threshold=threshold,
             current_value=value,
-            timestamp=datetime.now(),
+            timestamp=datetime.now(UTC),
             details=details or {},
             acknowledged=False
         )
@@ -234,7 +234,7 @@ class AlertManager:
         """Mark alert as resolved."""
         for alert in self._alerts:
             if alert.id == alert_id:
-                alert.resolved_at = datetime.now()
+                alert.resolved_at = datetime.now(UTC)
                 return True
         return False
     
@@ -260,7 +260,7 @@ class AlertManager:
     
     def clear_old_alerts(self, hours: int = 24):
         """Remove alerts older than specified hours."""
-        cutoff = datetime.now() - timedelta(hours=hours)
+        cutoff = datetime.now(UTC) - timedelta(hours=hours)
         self._alerts = [a for a in self._alerts if a.timestamp > cutoff]
     
     def export_alerts(self) -> str:
@@ -298,7 +298,7 @@ class PerformanceMonitor:
         """Record a metric value and check for alerts."""
         metric_data = {
             'value': value,
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': datetime.now(UTC).isoformat(),
             'details': details or {}
         }
         
@@ -314,7 +314,7 @@ class PerformanceMonitor:
         if metric_name not in self._metrics_history:
             return {'values': [], 'avg': 0, 'min': 0, 'max': 0, 'trend': 'stable'}
         
-        cutoff = (datetime.now() - timedelta(hours=hours)).isoformat()
+        cutoff = (datetime.now(UTC) - timedelta(hours=hours)).isoformat()
         recent_values = [
             m['value'] for m in self._metrics_history[metric_name]
             if m['timestamp'] > cutoff

@@ -4,7 +4,7 @@ Submission history page for Niklaus.
 
 import streamlit as st
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, UTC
 from auth.decorators import require_auth
 from auth.database import get_session
 from auth.repository import SubmissionRepository
@@ -123,7 +123,7 @@ def render_history_page():
             st.download_button(
                 "Baixar CSV",
                 data=csv,
-                file_name=f"historico_submissoes_{datetime.now().strftime('%Y%m%d')}.csv",
+                file_name=f"historico_submissoes_{datetime.now(UTC).strftime('%Y%m%d')}.csv",
                 mime="text/csv",
                 use_container_width=True
             )

@@ -7,7 +7,7 @@ Can fallback to in-memory cache if Redis is not available.
 import json
 import zlib
 from typing import Any, Optional, Dict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 
 try:
     import redis
@@ -52,7 +52,7 @@ class InMemoryCache(CacheBackend):
         
         cached = self._cache[key]
         
-        if datetime.now() > cached['expires_at']:
+        if datetime.now(UTC) > cached['expires_at']:
             del self._cache[key]
             return None
         
@@ -64,8 +64,8 @@ class InMemoryCache(CacheBackend):
         
         self._cache[key] = {
             'value': value,
-            'expires_at': datetime.now() + timedelta(seconds=ttl),
-            'created_at': datetime.now()
+            'expires_at': datetime.now(UTC) + timedelta(seconds=ttl),
+            'created_at': datetime.now(UTC)
         }
         return True
     

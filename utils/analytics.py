@@ -4,7 +4,7 @@ Tracks user behavior, usage patterns, and business metrics.
 """
 
 from typing import Dict, List, Any, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from collections import defaultdict
 from dataclasses import dataclass
 import json
@@ -67,14 +67,14 @@ class AnalyticsEngine:
             metric_type='action',
             metric_name=action,
             value=1,
-            timestamp=datetime.now(),
+            timestamp=datetime.now(UTC),
             metadata=metadata or {}
         )
         
         self._user_metrics.append(metric)
         self._trim_metrics('user')
         
-        date_key = datetime.now().strftime('%Y-%m-%d')
+        date_key = datetime.now(UTC).strftime('%Y-%m-%d')
         self._daily_stats[date_key][f'action_{action}'] += 1
     
     def track_analysis(self, submission_id: int, user_id: int, files_count: int,
@@ -105,13 +105,13 @@ class AnalyticsEngine:
             processing_time=processing_time,
             language=language,
             threshold=threshold,
-            timestamp=datetime.now()
+            timestamp=datetime.now(UTC)
         )
         
         self._analysis_metrics.append(metric)
         self._trim_metrics('analysis')
         
-        date_key = datetime.now().strftime('%Y-%m-%d')
+        date_key = datetime.now(UTC).strftime('%Y-%m-%d')
         self._daily_stats[date_key]['analyses'] += 1
         self._daily_stats[date_key]['total_files'] += files_count
         self._daily_stats[date_key]['total_pairs'] += suspicious_pairs_count
@@ -131,14 +131,14 @@ class AnalyticsEngine:
             metric_type='feature',
             metric_name=feature,
             value=1,
-            timestamp=datetime.now(),
+            timestamp=datetime.now(UTC),
             metadata=details or {}
         )
         
         self._user_metrics.append(metric)
         self._trim_metrics('user')
         
-        date_key = datetime.now().strftime('%Y-%m-%d')
+        date_key = datetime.now(UTC).strftime('%Y-%m-%d')
         self._daily_stats[date_key][f'feature_{feature}'] += 1
     
     def track_performance(self, operation: str, duration: float, success: bool, metadata: Dict[str, Any] = None):
@@ -151,7 +151,7 @@ class AnalyticsEngine:
             success: Whether operation succeeded
             metadata: Additional metadata
         """
-        date_key = datetime.now().strftime('%Y-%m-%d')
+        date_key = datetime.now(UTC).strftime('%Y-%m-%d')
         self._daily_stats[date_key][f'perf_{operation}_count'] += 1
         self._daily_stats[date_key][f'perf_{operation}_time'] += duration
         
@@ -178,7 +178,7 @@ class AnalyticsEngine:
         Returns:
             User statistics
         """
-        cutoff = datetime.now() - timedelta(days=days)
+        cutoff = datetime.now(UTC) - timedelta(days=days)
         
         user_actions = [
             m for m in self._user_metrics
@@ -224,10 +224,10 @@ class AnalyticsEngine:
         Returns:
             Global statistics
         """
-        cutoff = datetime.now() - timedelta(days=days)
+        cutoff = datetime.now(UTC) - timedelta(days=days)
         
         date_keys = [
-            (datetime.now() - timedelta(days=i)).strftime('%Y-%m-%d')
+            (datetime.now(UTC) - timedelta(days=i)).strftime('%Y-%m-%d')
             for i in range(days)
         ]
         
@@ -290,7 +290,7 @@ class AnalyticsEngine:
         Returns:
             Usage patterns
         """
-        cutoff = datetime.now() - timedelta(days=days)
+        cutoff = datetime.now(UTC) - timedelta(days=days)
         
         hourly_usage = defaultdict(int)
         daily_usage = defaultdict(int)
@@ -331,7 +331,7 @@ class AnalyticsEngine:
         Returns:
             Trending metrics
         """
-        cutoff = datetime.now() - timedelta(hours=hours)
+        cutoff = datetime.now(UTC) - timedelta(hours=hours)
         
         recent_analyses = [
             m for m in self._analysis_metrics

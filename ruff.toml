@@ -20,7 +20,6 @@ select = [
     "S",    # bandit-light: riscos de segurança
 ]
 ignore = [
-    "DTZ005", # tratado na task t2; após t2, mover para select explicito
     "S101",   # assert é idioma de teste/contrato interno, não risco
     "S324",   # md5 para fingerprint de cache/dedupe (não-cryptográfico) — documentado
     "S105",   # false positive: URLs de token OAuth não são senhas
