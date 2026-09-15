@@ -1,0 +1,21 @@
+# Coverage config — Niklaus
+# Gate: 40% global sobre módulos de lógica (core, auth, analyzer, export, utils).
+# Baseline medido: 45% (set 2026). UI (ui/, app.py) e benchmark.py ficam
+# fora do gate: Streamlit não é testável unitariamente e é coberto por
+# smoke tests manuais.
+[run]
+source =
+    core
+    auth
+    analyzer
+    export
+    utils
+omit =
+    ui/*
+    app.py
+    benchmark.py
+    migration_helper.py
+    scripts/*
+
+[report]
+fail_under = 40
