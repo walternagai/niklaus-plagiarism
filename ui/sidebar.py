@@ -111,7 +111,7 @@ def _render_api_config() -> tuple:
         except KeyError:
             st.error("❌ API não configurada")
             
-            with st.expander("⚙️ Como configurar", expanded=True):
+            with st.expander("⚙️ Como configurar", expanded=False):
                 st.markdown("""
                 **1. Crie o arquivo `.streamlit/secrets.toml`:**
                 """)

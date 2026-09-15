@@ -401,7 +401,7 @@ def _render_authenticated_app(session_manager: SessionManager, current_user):
             st.info("📊 Nenhum resultado disponível. Execute uma análise ou carregue uma do histórico.")
         
         with tab_map['stats']:
-            st.info("📈 Nenhum estatística disponível. Execute uma análise ou carregue uma do histórico.")
+            st.info("📈 Nenhuma estatística disponível. Execute uma análise ou carregue uma do histórico.")
         
         with tab_map['advanced']:
             st.info("🔬 Nenhuma análise avançada disponível. Execute uma análise ou carregue uma do histórico.")
