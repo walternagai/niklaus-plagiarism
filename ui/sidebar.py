@@ -34,9 +34,6 @@ def render_sidebar() -> Dict[str, Any]:
         with st.expander("⚡ Performance (avançado)", expanded=False):
             max_workers, use_cache, enable_ai = _render_performance_config()
         
-        # Instructions
-        _render_instructions()
-        
         # Footer
         _render_footer()
     
@@ -155,39 +152,15 @@ def _render_analysis_config() -> float:
     """Render analysis configuration section."""
     st.markdown("### 📊 Análise")
 
-    default_threshold = st.session_state.get('threshold', config.DEFAULT_THRESHOLD)
-
-    # Threshold preset shortcut buttons
-    st.caption("Atalhos de sensibilidade:")
-    col_a, col_b, col_c = st.columns(3)
-    with col_a:
-        if st.button("🔴 50%", use_container_width=True, help="Agressivo — detecta mais"):
-            st.session_state['threshold'] = 0.5
-    with col_b:
-        if st.button("🟡 70%", use_container_width=True, help="Moderado — equilibrado"):
-            st.session_state['threshold'] = 0.7
-    with col_c:
-        if st.button("🟢 80%", use_container_width=True, help="Conservador — alta confiança"):
-            st.session_state['threshold'] = 0.8
-
     threshold = st.slider(
         "Similaridade mínima",
         min_value=0.0,
         max_value=1.0,
-        value=default_threshold,
+        value=st.session_state.get('threshold', config.DEFAULT_THRESHOLD),
         step=0.01,
         key='threshold',
-        help="Pares com similaridade ≥ este valor serão marcados",
+        help="Pares com similaridade ≥ este valor serão marcados. Valores altos reduzem falsos positivos.",
     )
-
-    if threshold < 0.4:
-        st.warning("⚠️ Muito sensível - pode gerar muitos falsos positivos")
-    elif threshold < 0.6:
-        st.info("ℹ️ Alta sensibilidade - resultados detalhados")
-    elif threshold < 0.8:
-        st.success("✅ Sensibilidade moderada - equilibrado")
-    else:
-        st.success("✅ Conservador - alta confiança")
 
     return threshold
 
@@ -258,22 +231,6 @@ def _render_cache_stats():
                 
     except Exception:
         pass
-
-
-def _render_instructions():
-    """Render instructions section."""
-    st.markdown("---")
-    st.markdown("### 📖 Como usar")
-    
-    st.markdown("""
-**Passos para usar:**
-
-1️⃣ Configure a API
-2️⃣ Selecione a linguagem  
-3️⃣ Ajuste o threshold
-4️⃣ Faça upload do ZIP
-5️⃣ Clique em analisar
-""")
 
 
 def _render_footer():
