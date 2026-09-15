@@ -70,6 +70,9 @@ def render_upload_tab(settings: Dict[str, Any]) -> Tuple[List[str], List[str], s
     # Analyze button
     analyze_button = st.button(":mag: Analisar Arquivos", type="primary", use_container_width=True)
     
+    if analyze_button and not zip_file:
+        st.warning("📎 Carregue um arquivo ZIP antes de analisar.")
+    
     # Last analysis info
     if st.session_state.get('last_analysis'):
         _display_last_analysis_summary()
