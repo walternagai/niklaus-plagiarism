@@ -122,8 +122,8 @@ def _clear_all_submissions(user_id: int, submission_repo: SubmissionRepository):
         for k in keys_to_clear:
             try:
                 del st.session_state[k]
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Could not clear session key {k}: {e}")
         
         logger.info(f"User {user_id} cleared {count} submissions")
         st.rerun()

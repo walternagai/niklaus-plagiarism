@@ -210,27 +210,30 @@ def _render_performance_config() -> tuple:
 def _render_cache_stats():
     """Render cache statistics."""
     from core.persistence import AnalysisCache
-    
+    from utils.logger import get_logger
+
+    logger = get_logger(__name__)
+
     try:
         cache = AnalysisCache()
         stats = cache.get_cache_stats()
-        
+
         with st.expander("📈 Estatísticas do Cache", expanded=False):
             col1, col2 = st.columns(2)
-            
+
             with col1:
                 st.metric("Arquivos", stats['file_count'])
-            
+
             with col2:
                 st.metric("Tamanho", f"{stats['total_size_mb']:.2f} MB")
-            
+
             if st.button("🗑️ Limpar Cache", use_container_width=True, type="secondary"):
                 removed = cache.clear_all_cache()
                 st.success(f"✓ {removed} arquivos removidos")
                 st.rerun()
-                
-    except Exception:
-        pass
+
+    except Exception as e:
+        logger.debug(f"Cache stats unavailable: {e}")
 
 
 def _render_footer():

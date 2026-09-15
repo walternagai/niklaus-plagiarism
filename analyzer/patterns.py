@@ -83,7 +83,8 @@ class PlagiarismPatternDetector:
                 if arg_counts1 != arg_counts2:
                     # Different function signatures — unlikely to be simple renaming
                     return {'detected': False, 'variables_renamed': [], 'confidence': 0.0}
-            except Exception:
+            except SyntaxError:
+                # AST parse failure is expected for non-Python or malformed code
                 pass
 
             # Build variable rename mapping (by sorted order as best-effort)

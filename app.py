@@ -45,8 +45,8 @@ def _to_json_safe(value: Any) -> Any:
             return [_to_json_safe(v) for v in value.tolist()]
         if isinstance(value, np.generic):
             return _to_json_safe(value.item())
-    except Exception:
-        pass
+    except ImportError:
+        pass  # numpy não instalado — valor cai no fallback genérico abaixo
 
     if isinstance(value, float):
         if math.isnan(value) or math.isinf(value):

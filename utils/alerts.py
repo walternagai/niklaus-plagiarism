@@ -9,6 +9,10 @@ from collections import defaultdict
 from dataclasses import dataclass
 import json
 
+from utils.logger import get_logger
+
+logger = get_logger(__name__)
+
 try:
     import streamlit as st
 except ImportError:
@@ -205,8 +209,8 @@ class AlertManager:
         for callback in self._callbacks:
             try:
                 callback(alert)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Alert callback failed for {alert.id}: {e}")
     
     def get_active_alerts(self, severity: Optional[str] = None, 
                           category: Optional[str] = None,
