@@ -61,7 +61,7 @@ def _render_quick_presets():
             st.session_state['max_workers'] = 2
             st.session_state['enable_ai'] = False
             st.session_state['use_cache'] = True
-            st.toast("✅ Preset Rápido aplicado!")
+            st.toast("✅ Rápido: threshold 0.8 · 2 workers · IA desligada")
             st.rerun()
     
     with col2:
@@ -71,7 +71,7 @@ def _render_quick_presets():
             st.session_state['max_workers'] = 4
             st.session_state['enable_ai'] = True
             st.session_state['use_cache'] = True
-            st.toast("✅ Preset Completo aplicado!")
+            st.toast("✅ Completo: threshold 0.7 · 4 workers · IA ligada")
             st.rerun()
     
     with col3:
