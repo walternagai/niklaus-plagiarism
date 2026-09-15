@@ -55,9 +55,10 @@ def display_error(error: Exception, context: Optional[str] = None):
         error: Exception that occurred
         context: Additional context about where the error occurred
     """
-    if isinstance(error, NiklausError):
-        _display_custom_error(error)
-    elif isinstance(error, FileValidationError):
+    # Specific subclasses FIRST — NiklausError is the base class of the
+    # local hierarchy, so a generic isinstance check against it would
+    # swallow every subclass and route them all to _display_custom_error.
+    if isinstance(error, FileValidationError):
         _display_file_error(error)
     elif isinstance(error, APIError):
         _display_api_error(error)
@@ -65,6 +66,8 @@ def display_error(error: Exception, context: Optional[str] = None):
         _display_auth_error(error)
     elif isinstance(error, AnalysisError):
         _display_analysis_error(error)
+    elif isinstance(error, NiklausError):
+        _display_custom_error(error)
     else:
         _display_generic_error(error, context)
 
